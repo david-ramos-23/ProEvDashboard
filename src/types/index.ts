@@ -149,7 +149,6 @@ export interface Historial extends BaseRecord {
   clasificacionImportancia?: 'Alta' | 'Media' | 'Baja';
 }
 
-/** Edición (cohorte del curso) */
 export interface Edicion extends BaseRecord {
   nombre: string;
   estado: EstadoEdicion;
@@ -159,16 +158,12 @@ export interface Edicion extends BaseRecord {
   fechaInicioCurso?: string;
   fechaFinCurso?: string;
   modulosDisponibles?: string[];
-  notas?: string;
-  esPrelanzamiento?: boolean;
-  fechaAperturaPublica?: string;
 }
 
 /** Módulo */
 export interface Modulo extends BaseRecord {
   moduloId: string; // mod1, mod2, mod3, pack1y2, etc.
   nombre: string;
-  capacidad: number;
   precioOnline?: number;
   activo: boolean;
   reservaPrelanzamiento?: number;

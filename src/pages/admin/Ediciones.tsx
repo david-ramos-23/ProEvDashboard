@@ -61,10 +61,6 @@ export default function EdicionesPage() {
       render: (e) => <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>{formatDate(e.fechaInicioInscripcion)} → {formatDate(e.fechaFinInscripcion)}</span>,
     },
     {
-      key: 'esPrelanzamiento', header: 'Prelanzamiento', width: '120px',
-      render: (e) => e.esPrelanzamiento ? <span style={{ color: 'var(--color-accent-warning)' }}>🚀 Sí</span> : <span style={{ color: 'var(--color-text-muted)' }}>No</span>,
-    },
-    {
       key: 'actions', header: '', width: '100px',
       render: (e) => (
         <button
@@ -87,7 +83,6 @@ export default function EdicionesPage() {
               <h3 style={{ fontSize: 'var(--font-size-lg)' }}>📅 Edición Activa: {activa.nombre}</h3>
               <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', marginTop: '4px' }}>
                 Inscripciones: {formatDate(activa.fechaInicioInscripcion)} → {formatDate(activa.fechaFinInscripcion)}
-                {activa.esPrelanzamiento && ' (🚀 Prelanzamiento)'}
               </p>
             </div>
             <StatusBadge status={activa.estado} />
@@ -105,18 +100,7 @@ export default function EdicionesPage() {
                 <span style={{ fontWeight: 600 }}>{mod.nombre}</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{mod.moduloId}</span>
               </div>
-              {/* Barra de capacidad */}
-              <div style={{ height: 8, background: 'var(--color-bg-input)', borderRadius: 9999, overflow: 'hidden', marginBottom: '6px' }}>
-                <div style={{
-                  height: '100%',
-                  width: '0%', // Se actualizará con datos reales de inscritos
-                  background: 'linear-gradient(90deg, var(--color-accent-primary), var(--color-accent-info))',
-                  borderRadius: 9999,
-                  transition: 'width 0.5s ease',
-                }} />
-              </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                <span>Capacidad: {mod.capacidad}</span>
                 {mod.precioOnline && <span>€{mod.precioOnline}</span>}
               </div>
               {mod.reservaPrelanzamiento != null && mod.reservaPrelanzamiento > 0 && (

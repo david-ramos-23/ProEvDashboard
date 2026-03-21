@@ -14,13 +14,13 @@ interface AirtablePagoFields {
   'Moneda'?: string;
   'Estado de Pago'?: EstadoPago;
   'Fecha de Pago'?: string;
-  'ID Sesion Stripe'?: string;
+  'ID Sesión Stripe'?: string;
   'Link Recibo'?: string;
   'Notas Internas'?: string;
-  'Dias desde Pago'?: number;
+  'Días desde Pago'?: number;
   'Mes de Pago'?: string;
-  'Resumen Inteligente del Pago'?: string;
-  'Analisis de Riesgo de Pago'?: string;
+  'Resumen Inteligente del Pago'?: any;
+  'Análisis de Riesgo de Pago'?: any;
 }
 
 function mapToPago(record: AirtableRecord<AirtablePagoFields>): Pago {
@@ -35,13 +35,13 @@ function mapToPago(record: AirtableRecord<AirtablePagoFields>): Pago {
     moneda: (f['Moneda'] as Pago['moneda']) || 'EUR',
     estadoPago: f['Estado de Pago'] || 'Pendiente',
     fechaPago: f['Fecha de Pago'],
-    idSesionStripe: f['ID Sesion Stripe'],
+    idSesionStripe: f['ID Sesión Stripe'],
     linkRecibo: f['Link Recibo'],
     notasInternas: f['Notas Internas'],
-    diasDesdePago: f['Dias desde Pago'],
+    diasDesdePago: f['Días desde Pago'],
     mesPago: f['Mes de Pago'],
-    resumenInteligente: f['Resumen Inteligente del Pago'],
-    analisisRiesgo: f['Analisis de Riesgo de Pago'],
+    resumenInteligente: typeof f['Resumen Inteligente del Pago'] === 'string' ? f['Resumen Inteligente del Pago'] : undefined,
+    analisisRiesgo: typeof f['Análisis de Riesgo de Pago'] === 'string' ? f['Análisis de Riesgo de Pago'] : undefined,
   };
 }
 

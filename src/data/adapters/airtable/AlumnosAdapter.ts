@@ -16,8 +16,7 @@ interface AirtableAlumnoFields {
   'Phone Number'?: string;
   'Estado General'?: EstadoGeneral;
   'Idioma'?: string;
-  'Modulo Solicitado'?: string;
-  'Modulos Completados'?: string;
+  'Modules'?: string[];
   'Edicion'?: string[];
   'Foto de Perfil'?: Array<{ url: string }>;
   'Plazo Revision'?: string;
@@ -33,11 +32,14 @@ interface AirtableAlumnoFields {
   'Fecha Ultimo Pago'?: string;
   'Puntuacion Video'?: number;
   'Engagement Score'?: number;
-  'Resumen Feedback Video (AI)'?: string;
-  'Siguiente Accion Recomendada (AI)'?: string;
+  'Resumen Feedback Video (AI)'?: any;
+  'Siguiente Accion Recomendada (AI)'?: any;
   'Notas Internas'?: string;
   'Admin Responsable'?: string;
   'Ultima Modificacion'?: string;
+  'Total Pagos Fallidos'?: number;
+  'Dias en Estado Actual'?: number;
+  'Dias desde Ultimo Evento'?: number;
 }
 
 /** Convierte un registro Airtable → tipo Alumno */
@@ -51,14 +53,7 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
     telefono: f['Phone Number'],
     estadoGeneral: f['Estado General'] || 'Privado',
     idioma: (f['Idioma'] === 'Ingles' ? 'Ingles' : 'Espanol'),
-    moduloSolicitado: f['Modulo Solicitado'],
-    modulosCompletados: (() => {
-      const mc = f['Modulos Completados'];
-      if (!mc) return undefined;
-      if (Array.isArray(mc)) return mc;
-      if (typeof mc === 'string') return mc.split(',').map(s => s.trim());
-      return undefined;
-    })(),
+    modulosCompletados: f['Modules'],
     edicionId: f['Edicion']?.[0],
     fotoPerfil: f['Foto de Perfil']?.[0]?.url,
     plazoRevision: f['Plazo Revision'],
@@ -74,8 +69,8 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
     fechaUltimoPago: f['Fecha Ultimo Pago'],
     puntuacionVideo: f['Puntuacion Video'],
     engagementScore: f['Engagement Score'],
-    resumenFeedbackIA: f['Resumen Feedback Video (AI)'],
-    siguienteAccionIA: f['Siguiente Accion Recomendada (AI)'],
+    resumenFeedbackIA: typeof f['Resumen Feedback Video (AI)'] === 'string' ? f['Resumen Feedback Video (AI)'] : undefined,
+    siguienteAccionIA: typeof f['Siguiente Accion Recomendada (AI)'] === 'string' ? f['Siguiente Accion Recomendada (AI)'] : undefined,
     notasInternas: f['Notas Internas'],
     adminResponsable: f['Admin Responsable'],
     ultimaModificacion: f['Ultima Modificacion'],

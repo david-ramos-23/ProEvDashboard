@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { login, logout, getSession, AuthUser } from '@/auth/AuthService';
 import Layout from '@/components/Layout/Layout';
+import { Analytics } from '@vercel/analytics/react';
 import LoginPage from '@/pages/Login';
 import '@/styles/global.css';
 
@@ -37,6 +38,7 @@ export default function App() {
     return (
       <BrowserRouter>
         <LoginPage onLogin={handleLogin} />
+        <Analytics />
       </BrowserRouter>
     );
   }
@@ -85,6 +87,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to={defaultPath} replace />} />
       </Routes>
+      <Analytics />
     </BrowserRouter>
   );
 }

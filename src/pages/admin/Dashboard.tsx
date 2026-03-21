@@ -153,7 +153,7 @@ export default function DashboardPage() {
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
                 <Tooltip
                   contentStyle={{ background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
-                  formatter={(value: number) => [formatCurrency(value), 'Total']}
+                  formatter={(value: any) => [formatCurrency(Number(value)), 'Total']}
                 />
                 <Bar dataKey="total" fill="#06b6d4" radius={[4, 4, 0, 0]} />
               </BarChart>

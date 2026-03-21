@@ -1,0 +1,249 @@
+{
+  "Alumnos": {
+    "fields": [
+      "ID",
+      "Estado General",
+      "Revisiones de Video",
+      "Historial",
+      "Total Revisiones de Video",
+      "Última Fecha de Revisión de Video",
+      "Estado de Revisión Más Reciente",
+      "Total Pagos Completados",
+      "Importe Total Pagado",
+      "Resumen Feedback Video (AI)",
+      "Siguiente Acción Recomendada (AI)",
+      "Ultima Modificacion",
+      "Fecha Preinscripcion",
+      "Inscripcion (form)",
+      "Modules",
+      "Nombre",
+      "Idioma",
+      "Email",
+      "Edicion",
+      "Last Modified By",
+      "Cola de Emails",
+      "Display Name",
+      "Total Emails Enviados",
+      "Total Emails Abiertos",
+      "Ultimo Evento",
+      "Dias en Estado Actual",
+      "Dias desde Ultimo Evento",
+      "Total Pagos Fallidos",
+      "Engagement Score",
+      "Inbox",
+      "Estado Modificado"
+    ],
+    "sample": {
+      "ID": 35,
+      "Estado General": "Rechazado",
+      "Revisiones de Video": [
+        "recUuixqm6PP7gCAo"
+      ],
+      "Historial": [
+        "rec27xGDhDMAHOUyB",
+        "recuvYD9tMlElcnCo",
+        "recRxIdAuHMBQ3Nuw",
+        "rece03Esp0JFELA8Y",
+        "rec0JujSuXJ0AlBl2",
+        "recbaWJxHgksMVBQ4",
+        "recEVlQFCg9iMqkS8",
+        "recJ3yuJdEIwqET6f",
+        "recB2dmqcKyTe85hw"
+      ],
+      "Total Revisiones de Video": 1,
+      "Última Fecha de Revisión de Video": "2025-04-06",
+      "Estado de Revisión Más Reciente": "Aprobado",
+      "Total Pagos Completados": 0,
+      "Importe Total Pagado": 0,
+      "Resumen Feedback Video (AI)": {
+        "state": "error",
+        "errorType": "emptyDependency",
+        "value": null,
+        "isStale": false
+      },
+      "Siguiente Acción Recomendada (AI)": {
+        "state": "error",
+        "errorType": "emptyDependency",
+        "value": null,
+        "isStale": false
+      },
+      "Ultima Modificacion": "2026-03-05T12:04:01.000Z",
+      "Fecha Preinscripcion": "2025-12-10T22:39:10.000Z",
+      "Inscripcion (form)": [
+        "recebgTDbIe7nieAo"
+      ],
+      "Modules": [
+        "Module 1",
+        "Modules 1 and 2"
+      ],
+      "Nombre": [
+        "Gabijs Cernova"
+      ],
+      "Idioma": "Ingles",
+      "Email": [
+        "gg.cernova@gmail.com"
+      ],
+      "Edicion": [
+        "recsddYASOtdX0qZP"
+      ],
+      "Last Modified By": {
+        "id": "usrVSI2iCD8Qtv8Tk",
+        "email": "proevolutioncourse@gmail.com",
+        "name": "Pro Evolution Course"
+      },
+      "Cola de Emails": [
+        "recL7FOSAdyVGOHtL",
+        "recpTz6rKYxjx2jaB"
+      ],
+      "Display Name": "Gabijs Cernova",
+      "Total Emails Enviados": 2,
+      "Total Emails Abiertos": 7,
+      "Ultimo Evento": "2026-03-05T12:04:01.000Z",
+      "Dias en Estado Actual": 15,
+      "Dias desde Ultimo Evento": 15,
+      "Total Pagos Fallidos": 0,
+      "Engagement Score": 70,
+      "Inbox": [
+        "recVtfju1RLW9rTST",
+        "recyKZguOJYn7b15F",
+        "recPjOk2pawKj9Sao"
+      ],
+      "Estado Modificado": "2026-03-03T19:16:53.000Z"
+    }
+  },
+  "Revisiones": {
+    "error": {
+      "type": "INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND",
+      "message": "Invalid permissions, or the requested model was not found. Check that both your user and your token have the required permissions, and that the model names and/or ids are correct."
+    }
+  },
+  "Pagos": {
+    "fields": [
+      "Link Pago Stripe",
+      "Importe",
+      "Moneda",
+      "Estado de Pago",
+      "Fecha de Pago",
+      "Alumno",
+      "ID Sesión Stripe",
+      "Última Acción",
+      "Días desde Pago",
+      "Mes de Pago",
+      "Estado de Pago (Texto)",
+      "Resumen Inteligente del Pago",
+      "Análisis de Riesgo de Pago",
+      "Fecha Creacion",
+      "Last Modified By"
+    ],
+    "sample": {
+      "Link Pago Stripe": "https://dashboard.stripe.com/payments/pi_3T7H2MJbKb9yzDyv0cScRnL0",
+      "Importe": 200,
+      "Moneda": "EUR",
+      "Estado de Pago": "Completado",
+      "Fecha de Pago": "2026-03-04",
+      "Alumno": [
+        "recJuhY4g0yXcDbzb"
+      ],
+      "ID Sesión Stripe": "cs_live_a1nZgR3lhEIj01Bh7kliWerFn68CDLqIW2B9poz6dC9iyXSTt3qmiPJHrQ",
+      "Última Acción": "2026-03-04T15:55:17.000Z",
+      "Días desde Pago": 17,
+      "Mes de Pago": "March 2026",
+      "Estado de Pago (Texto)": "Completado",
+      "Resumen Inteligente del Pago": {
+        "state": "error",
+        "errorType": "emptyDependency",
+        "value": null,
+        "isStale": false
+      },
+      "Análisis de Riesgo de Pago": {
+        "state": "error",
+        "errorType": "emptyDependency",
+        "value": null,
+        "isStale": false
+      },
+      "Fecha Creacion": "2026-03-04T15:08:38.000Z",
+      "Last Modified By": {
+        "id": "usrVSI2iCD8Qtv8Tk",
+        "email": "proevolutioncourse@gmail.com",
+        "name": "Pro Evolution Course"
+      }
+    }
+  },
+  "Ediciones": {
+    "fields": [
+      "Nombre",
+      "Estado",
+      "Modulos Disponibles",
+      "Alumnos",
+      "Last Modified By",
+      "Fecha Inicio Inscripcion",
+      "Fecha Fin Inscripcion",
+      "Fecha Inicio Curso",
+      "Fecha Fin Curso",
+      "Es Edicion Activa",
+      "Plazos Revision"
+    ],
+    "sample": {
+      "Nombre": "Vol II",
+      "Estado": "Abierta",
+      "Modulos Disponibles": [
+        "1",
+        "2",
+        "3"
+      ],
+      "Alumnos": [
+        "recJuhY4g0yXcDbzb",
+        "recMuuXnQ3YVebx1E",
+        "recIYJ6C5fshS0sYU",
+        "recfjUofXC9ITdc3S",
+        "recWBBPALaf6WqgSN",
+        "recoWPwkKSppF3LgV",
+        "rectoPAFV2ZY52Yx3",
+        "recEBFqta88TQDHyL",
+        "rec8wxUp6wNDvuOmZ",
+        "rec6DZEKP00lFc7kQ",
+        "rec9f0I8ndmP4fKxc",
+        "recmjbsOAr4KAZsDT",
+        "recdK8KBBBgUT0Xv7",
+        "rechXlqYER2Hj6Ksg",
+        "recBmyc71nju7UOT6",
+        "recdo4MelmY6OjrC6",
+        "recJ1YMQvJD8SzYNp",
+        "rec4oIK7g8U4gJfoH",
+        "rec9JdeCuxewrbuYN",
+        "recZUQe5fe1HTOVFM",
+        "recSjnpaKGLAOu4Fs",
+        "reclAMCkxBNQnt1r5"
+      ],
+      "Last Modified By": {
+        "id": "usrVSI2iCD8Qtv8Tk",
+        "email": "proevolutioncourse@gmail.com",
+        "name": "Pro Evolution Course"
+      },
+      "Fecha Inicio Inscripcion": "2026-03-01",
+      "Fecha Fin Inscripcion": "2026-10-31",
+      "Fecha Inicio Curso": "2026-11-06",
+      "Fecha Fin Curso": "2026-11-08",
+      "Es Edicion Activa": true,
+      "Plazos Revision": "[{\"fecha\":\"2026-02-28\",\"label\":\"Rechazados año anterior (28 Feb)\"},{\"fecha\":\"2026-04-30\",\"label\":\"1ª Revisión (30 Abr)\"},{\"fecha\":\"2026-06-30\",\"label\":\"2ª Revisión (30 Jun)\"},{\"fecha\":\"2026-08-31\",\"label\":\"3ª Revisión (31 Ago)\"},{\"fecha\":\"2026-10-31\",\"label\":\"4ª Revisión - Cierre (31 Oct)\"}]\n"
+    }
+  },
+  "Modulos": {
+    "fields": [
+      "ID",
+      "Nombre",
+      "Precio Online",
+      "Precio Efectivo",
+      "Activo",
+      "Reserva Prelanzamiento"
+    ],
+    "sample": {
+      "ID": "pack2y3",
+      "Nombre": "Pack Módulos 2 + 3",
+      "Precio Online": 200,
+      "Precio Efectivo": 370,
+      "Activo": true,
+      "Reserva Prelanzamiento": 6
+    }
+  }
+}

@@ -68,9 +68,6 @@ interface AirtableEdicionFields {
   'Fecha Inicio Curso'?: string;
   'Fecha Fin Curso'?: string;
   'Modulos Disponibles'?: string[];
-  'Notas'?: string;
-  'Es Prelanzamiento'?: boolean;
-  'Fecha Apertura Publica'?: string;
 }
 
 function mapToEdicion(record: AirtableRecord<AirtableEdicionFields>): Edicion {
@@ -86,9 +83,6 @@ function mapToEdicion(record: AirtableRecord<AirtableEdicionFields>): Edicion {
     fechaInicioCurso: f['Fecha Inicio Curso'],
     fechaFinCurso: f['Fecha Fin Curso'],
     modulosDisponibles: f['Modulos Disponibles'],
-    notas: f['Notas'],
-    esPrelanzamiento: f['Es Prelanzamiento'],
-    fechaAperturaPublica: f['Fecha Apertura Publica'],
   };
 }
 
@@ -101,12 +95,11 @@ export async function fetchEdiciones(): Promise<Edicion[]> {
 
 export async function updateEdicion(
   id: string,
-  updates: Partial<{ esEdicionActiva: boolean; estado: string; notas: string }>
+  updates: Partial<{ esEdicionActiva: boolean; estado: string }>
 ): Promise<Edicion> {
   const fields: Partial<AirtableEdicionFields> = {};
   if (updates.esEdicionActiva !== undefined) fields['Es Edicion Activa'] = updates.esEdicionActiva;
   if (updates.estado) fields['Estado'] = updates.estado;
-  if (updates.notas !== undefined) fields['Notas'] = updates.notas;
 
   const record = await updateRecord<AirtableEdicionFields>(AIRTABLE_TABLES.EDICIONES, id, fields);
   return mapToEdicion(record);
@@ -119,7 +112,6 @@ export async function updateEdicion(
 interface AirtableModuloFields {
   'ID'?: string;
   'Nombre'?: string;
-  'Capacidad'?: number;
   'Precio Online'?: number;
   'Activo'?: boolean;
   'Reserva Prelanzamiento'?: number;
@@ -132,7 +124,6 @@ function mapToModulo(record: AirtableRecord<AirtableModuloFields>): Modulo {
     createdTime: record.createdTime,
     moduloId: f['ID'] || '',
     nombre: f['Nombre'] || '',
-    capacidad: f['Capacidad'] || 20,
     precioOnline: f['Precio Online'],
     activo: f['Activo'] || false,
     reservaPrelanzamiento: f['Reserva Prelanzamiento'],
