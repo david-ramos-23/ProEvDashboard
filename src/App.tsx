@@ -7,7 +7,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { login, logout, getSession, checkIPWhitelist, AuthUser } from '@/auth/AuthService';
+import { login, logout, getSession, checkDeviceWhitelist, getDeviceId, AuthUser } from '@/auth/AuthService';
 import Layout from '@/components/Layout/Layout';
 import LoginPage from '@/pages/Login';
 import '@/styles/global.css';
@@ -24,15 +24,16 @@ import EmailApprovalPage from '@/pages/revisor/EmailApproval';
 
 export default function App() {
   const [session, setSession] = useState<AuthUser | null>(getSession);
-  const [ipWarning, setIpWarning] = useState(false);
+  const [deviceWarning, setDeviceWarning] = useState(false);
+  const deviceId = getDeviceId();
 
-  // Verificar IP whitelist al cargar si es admin
+  // Verificar Device whitelist al cargar si es admin
   useEffect(() => {
     if (session?.role === 'admin') {
-      checkIPWhitelist().then(allowed => {
+      checkDeviceWhitelist().then(allowed => {
         if (allowed === false) {
-          setIpWarning(true);
-          console.warn('⚠️ IP no está en la whitelist de admin');
+          setDeviceWarning(true);
+          console.warn('⚠️ Dispositivo no está en la whitelist de admin');
         }
       });
     }
@@ -42,7 +43,7 @@ export default function App() {
     const result = await login(email);
     if (result.success && result.user) {
       setSession(result.user);
-      return null; // Sin error
+      return null;
     }
     return result.error || 'Error desconocido';
   }, []);
@@ -50,7 +51,7 @@ export default function App() {
   const handleLogout = useCallback(() => {
     logout();
     setSession(null);
-    setIpWarning(false);
+    setDeviceWarning(false);
   }, []);
 
   // Sin sesión → Login
@@ -67,8 +68,8 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {/* Banner de advertencia IP */}
-      {ipWarning && (
+      {/* Banner de advertencia DeviceID */}
+      {deviceWarning && (
         <div style={{
           background: 'rgba(239, 68, 68, 0.1)',
           border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -80,9 +81,9 @@ export default function App() {
           top: 0,
           zIndex: 1000,
         }}>
-          ⚠️ Tu IP no está en la whitelist de administrador. Algunas funciones pueden estar restringidas.
+          ⚠️ Equipo no reconocido. Tu ID para añadir al panel es: <strong style={{ userSelect: 'all', background: 'rgba(0,0,0,0.2)', padding: '2px 4px', borderRadius: '4px' }}>{deviceId}</strong>
           <button
-            onClick={() => setIpWarning(false)}
+            onClick={() => setDeviceWarning(false)}
             style={{ marginLeft: 16, background: 'transparent', border: 'none', color: '#f87171', cursor: 'pointer', fontFamily: 'var(--font-family)' }}
           >
             ✕

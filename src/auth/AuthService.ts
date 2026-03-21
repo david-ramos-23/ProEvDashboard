@@ -37,11 +37,11 @@ export interface AuthResult {
 const SESSION_KEY = 'proev_session';
 const SESSION_DURATION_HOURS = 24;
 
-/** IPs autorizadas para acceso admin (configurable vía .env) */
-const ADMIN_IP_WHITELIST: string[] = (() => {
-  const envIPs = import.meta.env.VITE_ADMIN_IP_WHITELIST;
-  if (!envIPs) return [];
-  return envIPs.split(',').map((ip: string) => ip.trim()).filter(Boolean);
+/** IDs de dispositivo autorizados para acceso admin (configurable vía .env) */
+const ADMIN_DEVICE_IDS: string[] = (() => {
+  const envIds = import.meta.env.VITE_ADMIN_DEVICE_IDS;
+  if (!envIds) return [];
+  return envIds.split(',').map((id: string) => id.trim()).filter(Boolean);
 })();
 
 /**
@@ -141,24 +141,27 @@ export function getSession(): AuthUser | null {
 }
 
 /**
- * Verifica si la IP actual está en la whitelist de admin.
- * Usa un servicio externo para obtener la IP del cliente.
- * 
- * @returns true si la IP está en whitelist, false si no, null si no se pudo verificar
+ * Obtiene o genera un Device ID único para este navegador.
  */
-export async function checkIPWhitelist(): Promise<boolean | null> {
-  if (ADMIN_IP_WHITELIST.length === 0) return true; // Sin whitelist = permitir todo
-
-  try {
-    const response = await fetch('https://api.ipify.org?format=json');
-    const data = await response.json();
-    const clientIP = data.ip;
-
-    return ADMIN_IP_WHITELIST.includes(clientIP);
-  } catch {
-    console.warn('No se pudo verificar la IP del cliente');
-    return null; // No bloquear si el servicio falla
+export function getDeviceId(): string {
+  const DEVICE_KEY = 'proev_device_id';
+  let deviceId = localStorage.getItem(DEVICE_KEY);
+  if (!deviceId) {
+    deviceId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15);
+    localStorage.setItem(DEVICE_KEY, deviceId);
   }
+  return deviceId;
+}
+
+/**
+ * Verifica si el Device ID actual está en la whitelist de admin.
+ * 
+ * @returns true si el dispositivo está en whitelist, false si no
+ */
+export async function checkDeviceWhitelist(): Promise<boolean> {
+  if (ADMIN_DEVICE_IDS.length === 0) return true; // Sin whitelist = permitir todo
+  const currentId = getDeviceId();
+  return ADMIN_DEVICE_IDS.includes(currentId);
 }
 
 // ============================================================
