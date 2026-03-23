@@ -1,11 +1,15 @@
 /**
  * Cliente base para la API REST de Airtable.
- * 
- * Maneja autenticación, paginación automática y rate limiting.
+ *
+ * In production, calls go through /api/airtable/ serverless proxy (PAT stays server-side).
+ * In development, calls go directly to Airtable API using VITE_ env vars.
+ *
  * Rate limit del plan free: 5 requests/segundo.
  */
 
-const BASE_URL = 'https://api.airtable.com/v0';
+const USE_PROXY = !import.meta.env.VITE_AIRTABLE_PAT;
+const DIRECT_BASE_URL = 'https://api.airtable.com/v0';
+const PROXY_BASE_URL = '/api/airtable';
 const PAT = import.meta.env.VITE_AIRTABLE_PAT;
 const BASE_ID = import.meta.env.VITE_AIRTABLE_BASE_ID;
 
@@ -54,14 +58,24 @@ async function airtableFetch<T>(
 ): Promise<T> {
   await throttle();
 
-  const url = endpoint.startsWith('http') ? endpoint : `${BASE_URL}/${BASE_ID}/${endpoint}`;
-  
+  const url = endpoint.startsWith('http')
+    ? endpoint
+    : USE_PROXY
+      ? `${PROXY_BASE_URL}/${endpoint}`
+      : `${DIRECT_BASE_URL}/${BASE_ID}/${endpoint}`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (!USE_PROXY && PAT) {
+    headers['Authorization'] = `Bearer ${PAT}`;
+  }
+
   const response = await fetch(url, {
     ...options,
     headers: {
-      'Authorization': `Bearer ${PAT}`,
-      'Content-Type': 'application/json',
-      ...options.headers,
+      ...headers,
+      ...options.headers as Record<string, string>,
     },
   });
 
