@@ -12,9 +12,11 @@ import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adap
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { formatDate, renderStars, timeAgo } from '@/utils/formatters';
 import styles from './VideoReview.module.css';
+import { useTranslation } from '@/i18n';
 
 export default function VideoReviewPage() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<RevisionVideo | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -72,15 +74,15 @@ export default function VideoReviewPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner text="Cargando revisiones..." />;
+  if (isLoading) return <LoadingSpinner text={t('common.loading')} />;
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
       {/* KPIs */}
       <KPIGrid columns={3}>
-        <KPICard label="Pendientes" value={stats.pendientes} icon="⏳" color="var(--color-accent-warning)" />
-        <KPICard label="Revisados Hoy" value={stats.revisadasHoy} icon="✅" color="var(--color-accent-success)" />
-        <KPICard label="Total Revisiones" value={stats.total} icon="🎬" color="var(--color-accent-primary)" />
+        <KPICard label={t('videoReview.pendientes')} value={stats.pendientes} icon="⏳" color="var(--color-accent-warning)" />
+        <KPICard label={t('videoReview.revisadosHoy')} value={stats.revisadasHoy} icon="✅" color="var(--color-accent-success)" />
+        <KPICard label={t('videoReview.totalRevisiones')} value={stats.total} icon="🎬" color="var(--color-accent-primary)" />
       </KPIGrid>
 
       {/* Split view */}
@@ -88,14 +90,14 @@ export default function VideoReviewPage() {
         {/* Lista de pendientes */}
         <div className={styles.list}>
           <div className={styles.listHeader}>
-            <h3>Cola de Revisión</h3>
+            <h3>{t('videoReview.colaRevision')}</h3>
             <span className={styles.count}>{revisiones.length}</span>
           </div>
 
           {revisiones.length === 0 ? (
             <div className={styles.emptyList}>
               <span style={{ fontSize: '2.5rem' }}>🎉</span>
-              <p>¡Sin videos pendientes!</p>
+              <p>{t('videoReview.sinPendientes')}</p>
             </div>
           ) : (
             <div className={styles.listItems}>
@@ -138,16 +140,16 @@ export default function VideoReviewPage() {
                     <span>🎥</span> Ver Video
                   </a>
                 ) : (
-                  <p style={{ color: 'var(--color-text-muted)' }}>Sin enlace de video</p>
+                  <p style={{ color: 'var(--color-text-muted)' }}>{t('videoReview.sinVideo')}</p>
                 )}
               </div>
 
               {/* IA Insights */}
               {(selected.clasificacionAutomatica || selected.resumenInteligente) && (
                 <div className={styles.aiSection}>
-                  <h4>🤖 Análisis IA</h4>
+                  <h4>🤖 {t('videoReview.analisisIA')}</h4>
                   {selected.clasificacionAutomatica && (
-                    <p><strong>Clasificación:</strong> {selected.clasificacionAutomatica}</p>
+                    <p><strong>{t('videoReview.clasificacion')}:</strong> {selected.clasificacionAutomatica}</p>
                   )}
                   {selected.resumenInteligente && (
                     <p>{selected.resumenInteligente}</p>
@@ -157,7 +159,7 @@ export default function VideoReviewPage() {
 
               {/* Puntuación */}
               <div className={styles.field}>
-                <label>Puntuación</label>
+                <label>{t('videoReview.puntuacion')}</label>
                 <div className={styles.stars}>
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
@@ -173,24 +175,24 @@ export default function VideoReviewPage() {
 
               {/* Feedback */}
               <div className={styles.field}>
-                <label>Feedback</label>
+                <label>{t('videoReview.feedback')}</label>
                 <textarea
                   className={styles.textarea}
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
-                  placeholder="Escribe tu evaluación del video..."
+                  placeholder={t('videoReview.feedbackPlaceholder')}
                   rows={4}
                 />
               </div>
 
               {/* Notas internas */}
               <div className={styles.field}>
-                <label>Notas Internas</label>
+                <label>{t('alumnos.notasInternas')}</label>
                 <textarea
                   className={styles.textarea}
                   value={notas}
                   onChange={(e) => setNotas(e.target.value)}
-                  placeholder="Notas privadas..."
+                  placeholder={t('videoReview.notasPlaceholder')}
                   rows={2}
                 />
               </div>
@@ -202,28 +204,28 @@ export default function VideoReviewPage() {
                   onClick={() => handleSave('Aprobado')}
                   disabled={isSaving}
                 >
-                  {isSaving ? 'Guardando...' : '✅ Aprobar'}
+                  {isSaving ? t('common.saving') : `✅ ${t('videoReview.aprobar')}`}
                 </button>
                 <button
                   className="btn-danger btn-lg"
                   onClick={() => handleSave('Rechazado')}
                   disabled={isSaving}
                 >
-                  {isSaving ? 'Guardando...' : '❌ Rechazar'}
+                  {isSaving ? t('common.saving') : `❌ ${t('videoReview.rechazar')}`}
                 </button>
                 <button
                   className="btn-ghost"
                   onClick={() => handleSave('Revision Necesaria')}
                   disabled={isSaving}
                 >
-                  🔄 Revisión Necesaria
+                  🔄 {t('videoReview.revisionNecesaria')}
                 </button>
               </div>
             </>
           ) : (
             <div className={styles.noSelection}>
               <span style={{ fontSize: '3rem' }}>👈</span>
-              <p>Selecciona un video de la cola para revisar</p>
+              <p>{t('videoReview.seleccionaVideo')}</p>
             </div>
           )}
         </div>

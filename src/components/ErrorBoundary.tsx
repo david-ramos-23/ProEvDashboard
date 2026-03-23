@@ -2,6 +2,9 @@ import { Component, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
+  errorTitle?: string;
+  errorMessage?: string;
+  reloadLabel?: string;
 }
 
 interface State {
@@ -33,9 +36,9 @@ export class ErrorBoundary extends Component<Props, State> {
           color: 'var(--color-text-primary, #f1f5f9)',
         }}>
           <div style={{ fontSize: '3rem' }}>&#x26A0;</div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Algo ha fallado</h2>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{this.props.errorTitle ?? 'Algo ha fallado'}</h2>
           <p style={{ color: 'var(--color-text-muted, #64748b)', maxWidth: 400, textAlign: 'center' }}>
-            {this.state.error?.message || 'Error inesperado en la aplicacion.'}
+            {this.state.error?.message || (this.props.errorMessage ?? 'Error inesperado en la aplicacion.')}
           </p>
           <button
             onClick={() => {
@@ -53,7 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
               fontWeight: 500,
             }}
           >
-            Recargar
+            {this.props.reloadLabel ?? 'Recargar'}
           </button>
         </div>
       );

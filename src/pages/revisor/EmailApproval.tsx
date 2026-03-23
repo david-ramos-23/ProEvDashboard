@@ -8,9 +8,11 @@ import { KPICard, KPIGrid, LoadingSpinner, StatusBadge } from '@/components/shar
 import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/ColaEmailsAdapter';
 import { ColaEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
+import { useTranslation } from '@/i18n';
 
 export default function EmailApprovalPage() {
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const [selected, setSelected] = useState<ColaEmail | null>(null);
   const [isApproving, setIsApproving] = useState(false);
 
@@ -40,27 +42,27 @@ export default function EmailApprovalPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner text="Cargando emails..." />;
+  if (isLoading) return <LoadingSpinner text={t('common.loading')} />;
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
       <KPIGrid columns={2}>
-        <KPICard label="Pendientes de Aprobación" value={emails.length} icon="⏳" color="var(--color-accent-warning)" />
-        <KPICard label="Estado" value={emails.length === 0 ? 'Al día ✅' : 'Requiere atención'} icon="📧" color={emails.length === 0 ? 'var(--color-accent-success)' : 'var(--color-accent-warning)'} />
+        <KPICard label={t('emailApproval.pendientesAprobacion')} value={emails.length} icon="⏳" color="var(--color-accent-warning)" />
+        <KPICard label={t('emailApproval.estado')} value={emails.length === 0 ? `${t('emailApproval.alDia')} ✅` : t('emailApproval.requiereAtencion')} icon="📧" color={emails.length === 0 ? 'var(--color-accent-success)' : 'var(--color-accent-warning)'} />
       </KPIGrid>
 
       {emails.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 'var(--space-3xl)' }}>
           <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }}>🎉</div>
-          <h3>¡Sin emails pendientes de aprobación!</h3>
-          <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>Todos los emails han sido revisados.</p>
+          <h3>{t('emailApproval.sinPendientes')}</h3>
+          <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>{t('emailApproval.todosRevisados')}</p>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 'var(--space-lg)' }}>
           {/* Lista */}
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <div style={{ padding: 'var(--space-md) var(--space-lg)', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
-              Emails Pendientes ({emails.length})
+              {t('emailApproval.emailsPendientes')} ({emails.length})
             </div>
             <div style={{ maxHeight: 500, overflowY: 'auto' }}>
               {emails.map(e => (
@@ -105,13 +107,13 @@ export default function EmailApprovalPage() {
 
               {selected.asunto && (
                 <div>
-                  <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Asunto</label>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{t('comunicaciones.asunto')}</label>
                   <p style={{ fontSize: '0.875rem', marginTop: '2px' }}>{selected.asunto}</p>
                 </div>
               )}
 
               <div>
-                <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Mensaje</label>
+                <label style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>{t('emailApproval.mensaje')}</label>
                 <div style={{
                   marginTop: '4px',
                   padding: 'var(--space-md)',
@@ -129,10 +131,10 @@ export default function EmailApprovalPage() {
 
               <div style={{ display: 'flex', gap: 'var(--space-md)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-md)' }}>
                 <button className="btn-success btn-lg" onClick={handleAprobar} disabled={isApproving}>
-                  {isApproving ? 'Aprobando...' : '✅ Aprobar y Enviar'}
+                  {isApproving ? t('emailApproval.aprobando') : `✅ ${t('emailApproval.aprobarEnviar')}`}
                 </button>
                 <button className="btn-danger" disabled={isApproving}>
-                  ❌ Rechazar
+                  ❌ {t('common.reject')}
                 </button>
               </div>
             </div>

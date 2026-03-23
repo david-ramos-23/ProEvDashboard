@@ -11,6 +11,7 @@ import { fetchPagosPorMes } from '@/data/adapters/airtable/PagosAdapter';
 import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
 import { Historial } from '@/types';
 import { formatCurrency, formatNumber, timeAgo } from '@/utils/formatters';
+import { useTranslation } from '@/i18n';
 
 /** Colores hex reales para los gráficos (Recharts no soporta CSS vars) */
 const CHART_COLORS: Record<string, string> = {
@@ -28,6 +29,7 @@ const CHART_COLORS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: fetchDashboardStats,
@@ -41,7 +43,7 @@ export default function DashboardPage() {
     queryFn: () => fetchHistorial({ maxRecords: 15 }),
   });
 
-  if (statsLoading || !stats) return <LoadingSpinner text="Cargando dashboard..." />;
+  if (statsLoading || !stats) return <LoadingSpinner text={t('common.loading')} />;
 
   // Datos para el gráfico de barras
   const estadosChartData = Object.entries(stats.alumnosPorEstado)
@@ -71,32 +73,32 @@ export default function DashboardPage() {
       {/* KPIs */}
       <KPIGrid columns={5}>
         <KPICard
-          label="Total Alumnos"
+          label={t('dashboard.totalAlumnos')}
           value={formatNumber(stats.totalAlumnos)}
           icon="👥"
           color="var(--color-accent-primary)"
         />
         <KPICard
-          label="Pagados"
+          label={t('dashboard.pagados')}
           value={formatNumber(stats.totalPagados)}
           icon="🎉"
           color="var(--color-accent-success)"
-          subtext={`${stats.totalAlumnos > 0 ? Math.round((stats.totalPagados / stats.totalAlumnos) * 100) : 0}% conversión`}
+          subtext={`${stats.totalAlumnos > 0 ? Math.round((stats.totalPagados / stats.totalAlumnos) * 100) : 0}% ${t('dashboard.conversion')}`}
         />
         <KPICard
-          label="Pendientes Revisión"
+          label={t('dashboard.pendientesRevision')}
           value={formatNumber(stats.pendientesRevision)}
           icon="🎥"
           color="var(--color-accent-warning)"
         />
         <KPICard
-          label="Ingresos Totales"
+          label={t('dashboard.ingresosTotales')}
           value={formatCurrency(stats.ingresosTotales)}
           icon="💰"
           color="var(--color-accent-info)"
         />
         <KPICard
-          label="Engagement"
+          label={t('dashboard.engagement')}
           value={`${stats.engagementPromedio}%`}
           icon="📈"
           color="#a78bfa"
@@ -108,7 +110,7 @@ export default function DashboardPage() {
         {/* Alumnos por Estado */}
         <div className="card">
           <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, marginBottom: 'var(--space-md)' }}>
-            Alumnos por Estado
+            {t('dashboard.alumnosPorEstado')}
           </h3>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart data={estadosChartData} layout="vertical" margin={{ left: 20 }}>
@@ -131,7 +133,7 @@ export default function DashboardPage() {
         {/* Pagos por Mes */}
         <div className="card">
           <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, marginBottom: 'var(--space-md)' }}>
-            Ingresos por Mes
+            {t('dashboard.ingresosPorMes')}
           </h3>
           {pagosMes.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
@@ -148,7 +150,7 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           ) : (
             <div style={{ height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
-              Sin datos de pagos
+              {t('dashboard.sinDatosPagos')}
             </div>
           )}
         </div>
@@ -156,10 +158,10 @@ export default function DashboardPage() {
 
       {/* Actividad Reciente */}
       <DataTable
-        title="Actividad Reciente"
+        title={t('dashboard.actividadReciente')}
         columns={historialColumns}
         data={historial}
-        emptyMessage="Sin actividad reciente"
+        emptyMessage={t('dashboard.sinActividad')}
         emptyIcon="📋"
       />
     </div>

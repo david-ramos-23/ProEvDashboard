@@ -8,10 +8,12 @@ import { KPICard, KPIGrid, DataTable, StatusBadge, LoadingSpinner, Column } from
 import { fetchPagos, fetchPagoStats } from '@/data/adapters/airtable/PagosAdapter';
 import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
+import { useTranslation } from '@/i18n';
 
 const ESTADOS_PAGO: EstadoPago[] = ['Pendiente', 'Pagado', 'Fallido', 'Reembolsado'];
 
 export default function PagosPage() {
+  const { t } = useTranslation();
   const [filtroEstado, setFiltroEstado] = useState<EstadoPago | ''>('');
 
   const { data: pagos = [], isLoading } = useQuery({
@@ -25,19 +27,19 @@ export default function PagosPage() {
 
   const columns = useMemo<Column<Pago>[]>(() => [
     {
-      key: 'alumnoNombre', header: 'Alumno', width: '180px',
+      key: 'alumnoNombre', header: t('alumnos.alumno'), width: '180px',
       render: (p) => <span style={{ fontWeight: 500 }}>{p.alumnoNombre || '—'}</span>,
     },
     {
-      key: 'importe', header: 'Importe', width: '120px',
+      key: 'importe', header: t('pagos.importe'), width: '120px',
       render: (p) => <span style={{ fontWeight: 600 }}>{formatCurrency(p.importe, p.moneda)}</span>,
     },
     {
-      key: 'estadoPago', header: 'Estado', width: '130px',
+      key: 'estadoPago', header: t('alumnos.estado'), width: '130px',
       render: (p) => <StatusBadge status={p.estadoPago} type="pago" />,
     },
     {
-      key: 'fechaPago', header: 'Fecha', width: '120px',
+      key: 'fechaPago', header: t('pagos.fecha'), width: '120px',
       render: (p) => <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{formatDate(p.fechaPago)}</span>,
     },
     {
@@ -48,17 +50,17 @@ export default function PagosPage() {
     },
   ], []);
 
-  if (isLoading && !stats) return <LoadingSpinner text="Cargando pagos..." />;
+  if (isLoading && !stats) return <LoadingSpinner text={t('common.loading')} />;
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
       {/* KPIs */}
       {stats && (
         <KPIGrid columns={4}>
-          <KPICard label="Total Recaudado" value={formatCurrency(stats.totalRecaudado)} icon="💰" color="var(--color-accent-success)" />
-          <KPICard label="Pagos Completados" value={formatNumber(stats.pagosCompletados)} icon="✅" color="var(--color-accent-info)" />
-          <KPICard label="Pagos Fallidos" value={formatNumber(stats.pagosFallidos)} icon="⚠️" color="var(--color-accent-danger)" />
-          <KPICard label="Reembolsados" value={formatNumber(stats.pagosReembolsados)} icon="↩️" color="var(--color-accent-warning)" />
+          <KPICard label={t('pagos.totalRecaudado')} value={formatCurrency(stats.totalRecaudado)} icon="💰" color="var(--color-accent-success)" />
+          <KPICard label={t('pagos.pagosCompletados')} value={formatNumber(stats.pagosCompletados)} icon="✅" color="var(--color-accent-info)" />
+          <KPICard label={t('pagos.pagosFallidos')} value={formatNumber(stats.pagosFallidos)} icon="⚠️" color="var(--color-accent-danger)" />
+          <KPICard label={t('pagos.reembolsados')} value={formatNumber(stats.pagosReembolsados)} icon="↩️" color="var(--color-accent-warning)" />
         </KPIGrid>
       )}
 
@@ -73,7 +75,7 @@ export default function PagosPage() {
       </div>
 
       {/* Tabla */}
-      <DataTable title="Pagos" columns={columns} data={pagos} isLoading={isLoading} emptyMessage="Sin pagos registrados" emptyIcon="💳" />
+      <DataTable title={t('nav.pagos')} columns={columns} data={pagos} isLoading={isLoading} emptyMessage={t('pagos.sinPagos')} emptyIcon="💳" />
     </div>
   );
 }

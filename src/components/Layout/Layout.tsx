@@ -8,6 +8,7 @@
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ADMIN_NAV, REVISOR_NAV, NavItem } from '@/utils/constants';
 import { getInitials } from '@/utils/formatters';
+import { useTranslation, Locale } from '@/i18n';
 import styles from './Layout.module.css';
 
 interface LayoutProps {
@@ -24,25 +25,22 @@ interface LayoutProps {
 /**
  * Obtiene los títulos de las páginas basándose en la ruta actual.
  */
-function getPageTitle(pathname: string): string {
-  const titles: Record<string, string> = {
-    '/admin/dashboard': 'Dashboard',
-    '/admin/alumnos': 'Gestión de Alumnos',
-    '/admin/pagos': 'Portal de Pagos',
-    '/admin/comunicaciones': 'Comunicaciones',
-    '/admin/ediciones': 'Gestión de Ediciones',
-    '/revisor/videos': 'Revisión de Videos',
-    '/revisor/emails': 'Aprobación de Emails',
-  };
-  // Manejar rutas con parámetros (e.g., /admin/alumnos/recXXX)
-  const basePath = '/' + pathname.split('/').slice(1, 3).join('/');
-  return titles[basePath] || 'ProEv Dashboard';
-}
+const PAGE_TITLE_KEYS: Record<string, string> = {
+  '/admin/dashboard': 'dashboard.title',
+  '/admin/alumnos': 'alumnos.title',
+  '/admin/pagos': 'pagos.title',
+  '/admin/comunicaciones': 'comunicaciones.title',
+  '/admin/ediciones': 'ediciones.title',
+  '/revisor/videos': 'videoReview.title',
+  '/revisor/emails': 'emailApproval.title',
+};
 
 export default function Layout({ role, userName, userEmail, onLogout }: LayoutProps) {
   const location = useLocation();
+  const { t, locale, setLocale } = useTranslation();
   const navItems: NavItem[] = role === 'admin' ? ADMIN_NAV : REVISOR_NAV;
-  const pageTitle = getPageTitle(location.pathname);
+  const basePath = '/' + location.pathname.split('/').slice(1, 3).join('/');
+  const pageTitle = t(PAGE_TITLE_KEYS[basePath] || 'common.noData');
 
   return (
     <div className={styles.layout}>
@@ -91,6 +89,27 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
       <main className={styles.main}>
         <header className={styles.header}>
           <h1 className={styles.pageTitle}>{pageTitle}</h1>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {(['es', 'en'] as Locale[]).map(l => (
+              <button
+                key={l}
+                onClick={() => setLocale(l)}
+                style={{
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  fontWeight: locale === l ? 600 : 400,
+                  background: locale === l ? 'var(--color-accent-primary-glow)' : 'transparent',
+                  border: locale === l ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: locale === l ? 'var(--color-accent-primary-hover)' : 'var(--color-text-muted)',
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-family)',
+                }}
+              >
+                {l === 'es' ? 'ES' : 'EN'}
+              </button>
+            ))}
+          </div>
         </header>
         <div className={styles.content}>
           <Outlet />

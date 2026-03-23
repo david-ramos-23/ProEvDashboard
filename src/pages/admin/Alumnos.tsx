@@ -10,6 +10,7 @@ import { fetchAlumnos } from '@/data/adapters/airtable/AlumnosAdapter';
 import { Alumno, EstadoGeneral } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { ESTADO_ICONS } from '@/utils/constants';
+import { useTranslation } from '@/i18n';
 
 const ESTADOS: EstadoGeneral[] = [
   'Preinscrito', 'En revision de video', 'Aprobado', 'Rechazado',
@@ -18,6 +19,7 @@ const ESTADOS: EstadoGeneral[] = [
 
 export default function AlumnosPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<EstadoGeneral | ''>('');
 
@@ -36,7 +38,7 @@ export default function AlumnosPage() {
 
   const columns = useMemo<Column<Alumno>[]>(() => [
     {
-      key: 'nombre', header: 'Alumno', width: '200px',
+      key: 'nombre', header: t('alumnos.alumno'), width: '200px',
       render: (a) => (
         <div>
           <div style={{ fontWeight: 500 }}>{a.nombre || '—'}</div>
@@ -45,19 +47,19 @@ export default function AlumnosPage() {
       ),
     },
     {
-      key: 'estadoGeneral', header: 'Estado', width: '170px',
+      key: 'estadoGeneral', header: t('alumnos.estado'), width: '170px',
       render: (a) => <StatusBadge status={a.estadoGeneral} type="estado" showIcon />,
     },
     {
-      key: 'moduloSolicitado', header: 'Módulo', width: '120px',
+      key: 'moduloSolicitado', header: t('alumnos.modulo'), width: '120px',
       render: (a) => <span style={{ color: 'var(--color-text-secondary)' }}>{a.moduloSolicitado || '—'}</span>,
     },
     {
-      key: 'idioma', header: 'Idioma', width: '80px',
+      key: 'idioma', header: t('alumnos.idioma'), width: '80px',
       render: (a) => <span>{a.idioma === 'Ingles' ? '🇬🇧' : '🇪🇸'}</span>,
     },
     {
-      key: 'engagementScore', header: 'Engagement', width: '100px',
+      key: 'engagementScore', header: t('alumnos.engagementCol'), width: '100px',
       render: (a) => a.engagementScore != null ? (
         <span style={{ color: a.engagementScore > 70 ? 'var(--color-accent-success)' : a.engagementScore > 40 ? 'var(--color-accent-warning)' : 'var(--color-accent-danger)' }}>
           {a.engagementScore}%
@@ -65,7 +67,7 @@ export default function AlumnosPage() {
       ) : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
     },
     {
-      key: 'ultimaModificacion', header: 'Última actividad', width: '120px',
+      key: 'ultimaModificacion', header: t('alumnos.lastActivity'), width: '120px',
       render: (a) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(a.ultimaModificacion)}</span>,
     },
   ], []);
@@ -93,15 +95,15 @@ export default function AlumnosPage() {
 
       {/* Tabla */}
       <DataTable
-        title={`Alumnos ${filtroEstado ? `— ${filtroEstado}` : ''}`}
+        title={`${t('nav.alumnos')}${filtroEstado ? ` — ${filtroEstado}` : ''}`}
         columns={columns}
         data={filtered}
         isLoading={isLoading}
         searchValue={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Buscar por nombre o email..."
+        searchPlaceholder={t('alumnos.searchPlaceholder')}
         onRowClick={(a) => navigate(`/admin/alumnos/${a.id}`)}
-        emptyMessage="No se encontraron alumnos"
+        emptyMessage={t('alumnos.noResults')}
         emptyIcon="👥"
       />
     </div>
