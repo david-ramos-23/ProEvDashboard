@@ -12,7 +12,7 @@ import { StatusBadge, LoadingSpinner } from '@/components/shared';
 import { fetchAlumnoById, updateAlumno } from '@/data/adapters/airtable/AlumnosAdapter';
 import { fetchRevisiones } from '@/data/adapters/airtable/RevisionesAdapter';
 import { fetchPagos } from '@/data/adapters/airtable/PagosAdapter';
-import { fetchHistorial } from '@/data/adapters/airtable/OtherAdapters';
+import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
 import { EstadoGeneral } from '@/types';
 import { formatDate, formatCurrency, timeAgo, renderStars } from '@/utils/formatters';
 import { ESTADO_ICONS } from '@/utils/constants';

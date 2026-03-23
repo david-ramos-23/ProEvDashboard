@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { login, logout, getSession, AuthUser } from '@/auth/AuthService';
 import Layout from '@/components/Layout/Layout';
 import { LoadingSpinner } from '@/components/shared';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Analytics } from '@vercel/analytics/react';
 import LoginPage from '@/pages/Login';
 import '@/styles/global.css';
@@ -49,6 +50,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ErrorBoundary>
       <Suspense fallback={<LoadingSpinner text="Cargando..." />}>
       <Routes>
         <Route path="/" element={<Navigate to={defaultPath} replace />} />
@@ -90,6 +92,7 @@ export default function App() {
         <Route path="*" element={<Navigate to={defaultPath} replace />} />
       </Routes>
       </Suspense>
+      </ErrorBoundary>
       <Analytics />
     </BrowserRouter>
   );

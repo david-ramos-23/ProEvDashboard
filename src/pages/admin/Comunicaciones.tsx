@@ -5,7 +5,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DataTable, StatusBadge, Column } from '@/components/shared';
-import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/OtherAdapters';
+import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/ColaEmailsAdapter';
 import { ColaEmail, EstadoEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 

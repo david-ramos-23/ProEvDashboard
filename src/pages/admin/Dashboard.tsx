@@ -8,7 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { KPICard, KPIGrid, DataTable, LoadingSpinner, Column } from '@/components/shared';
 import { fetchDashboardStats } from '@/data/adapters/airtable/AlumnosAdapter';
 import { fetchPagosPorMes } from '@/data/adapters/airtable/PagosAdapter';
-import { fetchHistorial } from '@/data/adapters/airtable/OtherAdapters';
+import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
 import { Historial } from '@/types';
 import { formatCurrency, formatNumber, timeAgo } from '@/utils/formatters';
 

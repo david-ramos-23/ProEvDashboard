@@ -4,7 +4,8 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICard, KPIGrid, DataTable, StatusBadge, LoadingSpinner, Column } from '@/components/shared';
-import { fetchEdiciones, fetchModulos, updateEdicion } from '@/data/adapters/airtable/OtherAdapters';
+import { fetchEdiciones, updateEdicion } from '@/data/adapters/airtable/EdicionesAdapter';
+import { fetchModulos } from '@/data/adapters/airtable/ModulosAdapter';
 import { Edicion, Modulo } from '@/types';
 import { formatDate } from '@/utils/formatters';
 
