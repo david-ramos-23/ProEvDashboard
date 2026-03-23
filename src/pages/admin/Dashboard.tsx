@@ -2,13 +2,14 @@
  * Dashboard Admin — Vista principal con KPIs, gráficos y actividad reciente.
  */
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { KPICard, KPIGrid, DataTable, LoadingSpinner, Column } from '@/components/shared';
 import { fetchDashboardStats } from '@/data/adapters/airtable/AlumnosAdapter';
 import { fetchPagosPorMes } from '@/data/adapters/airtable/PagosAdapter';
 import { fetchHistorial } from '@/data/adapters/airtable/OtherAdapters';
-import { DashboardStats, Historial } from '@/types';
+import { Historial } from '@/types';
 import { formatCurrency, formatNumber, timeAgo } from '@/utils/formatters';
 
 /** Colores hex reales para los gráficos (Recharts no soporta CSS vars) */
@@ -27,32 +28,20 @@ const CHART_COLORS: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [pagosMes, setPagosMes] = useState<{ mes: string; total: number }[]>([]);
-  const [historial, setHistorial] = useState<Historial[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: fetchDashboardStats,
+  });
+  const { data: pagosMes = [] } = useQuery({
+    queryKey: ['pagos-por-mes'],
+    queryFn: fetchPagosPorMes,
+  });
+  const { data: historial = [] } = useQuery({
+    queryKey: ['historial', { maxRecords: 15 }],
+    queryFn: () => fetchHistorial({ maxRecords: 15 }),
+  });
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [s, p, h] = await Promise.all([
-          fetchDashboardStats(),
-          fetchPagosPorMes(),
-          fetchHistorial({ maxRecords: 15 }),
-        ]);
-        setStats(s);
-        setPagosMes(p);
-        setHistorial(h);
-      } catch (err) {
-        console.error('Error cargando dashboard:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadData();
-  }, []);
-
-  if (isLoading || !stats) return <LoadingSpinner text="Cargando dashboard..." />;
+  if (statsLoading || !stats) return <LoadingSpinner text="Cargando dashboard..." />;
 
   // Datos para el gráfico de barras
   const estadosChartData = Object.entries(stats.alumnosPorEstado)
@@ -64,8 +53,7 @@ export default function DashboardPage() {
     }))
     .sort((a, b) => b.value - a.value);
 
-  // Columnas del historial
-  const historialColumns: Column<Historial>[] = [
+  const historialColumns = useMemo<Column<Historial>[]>(() => [
     { key: 'tipoAccion', header: 'Tipo', width: '140px',
       render: (h) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{h.tipoAccion}</span>
     },
@@ -76,7 +64,7 @@ export default function DashboardPage() {
     { key: 'createdTime', header: 'Hace', width: '100px',
       render: (h) => <span style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>{timeAgo(h.createdTime)}</span>
     },
-  ];
+  ], []);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>

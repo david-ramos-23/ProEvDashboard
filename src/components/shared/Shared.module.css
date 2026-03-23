@@ -38,6 +38,7 @@
   right: 0;
   height: 3px;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--kpi-accent, var(--color-accent-primary));
 }
 
 .kpiCard:hover {

@@ -2,7 +2,8 @@
  * Comunicaciones — Gestión de emails con tabs para cola, aprobación, inbox.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DataTable, StatusBadge, Column } from '@/components/shared';
 import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/OtherAdapters';
 import { ColaEmail, EstadoEmail } from '@/types';
@@ -11,14 +12,9 @@ import { timeAgo } from '@/utils/formatters';
 type TabType = 'pendientes' | 'cola' | 'enviados' | 'errores';
 
 export default function ComunicacionesPage() {
-  const [emails, setEmails] = useState<ColaEmail[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('pendientes');
   const [approving, setApproving] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadEmails();
-  }, [activeTab]);
 
   const tabFilter: Record<TabType, EstadoEmail | undefined> = {
     pendientes: 'Pendiente Aprobacion',
@@ -27,23 +23,16 @@ export default function ComunicacionesPage() {
     errores: 'Error',
   };
 
-  async function loadEmails() {
-    setIsLoading(true);
-    try {
-      const data = await fetchColaEmails({ estado: tabFilter[activeTab] });
-      setEmails(data);
-    } catch (err) {
-      console.error('Error cargando emails:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const { data: emails = [], isLoading } = useQuery({
+    queryKey: ['cola-emails', { estado: tabFilter[activeTab] }],
+    queryFn: () => fetchColaEmails({ estado: tabFilter[activeTab] }),
+  });
 
   async function handleAprobar(id: string) {
     setApproving(id);
     try {
       await aprobarEmail(id);
-      await loadEmails();
+      await queryClient.invalidateQueries({ queryKey: ['cola-emails'] });
     } catch (err) {
       console.error('Error aprobando email:', err);
     } finally {
@@ -58,44 +47,45 @@ export default function ComunicacionesPage() {
     { key: 'errores', label: 'Errores', icon: '❌' },
   ];
 
-  const columns: Column<ColaEmail>[] = [
-    {
-      key: 'alumnoNombre', header: 'Alumno', width: '160px',
-      render: (e) => <span style={{ fontWeight: 500 }}>{e.alumnoNombre || '—'}</span>,
-    },
-    {
-      key: 'tipo', header: 'Tipo', width: '120px',
-      render: (e) => <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--color-accent-info)' }}>{e.tipo}</span>,
-    },
-    {
-      key: 'asunto', header: 'Asunto',
-      render: (e) => <span style={{ fontSize: '0.8125rem' }}>{e.asunto || e.descripcion || e.mensaje?.slice(0, 60) || '—'}</span>,
-    },
-    {
-      key: 'estado', header: 'Estado', width: '140px',
-      render: (e) => <StatusBadge status={e.estado} type="email" />,
-    },
-    {
-      key: 'createdTime', header: 'Fecha', width: '100px',
-      render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
-    },
-  ];
-
-  // Añadir columna de acción solo en Pendientes
-  if (activeTab === 'pendientes') {
-    columns.push({
-      key: 'actions', header: '', width: '100px',
-      render: (e) => (
-        <button
-          className="btn-success btn-sm"
-          onClick={(ev) => { ev.stopPropagation(); handleAprobar(e.id); }}
-          disabled={approving === e.id}
-        >
-          {approving === e.id ? '...' : '✅ Aprobar'}
-        </button>
-      ),
-    });
-  }
+  const columns = useMemo<Column<ColaEmail>[]>(() => {
+    const cols: Column<ColaEmail>[] = [
+      {
+        key: 'alumnoNombre', header: 'Alumno', width: '160px',
+        render: (e) => <span style={{ fontWeight: 500 }}>{e.alumnoNombre || '—'}</span>,
+      },
+      {
+        key: 'tipo', header: 'Tipo', width: '120px',
+        render: (e) => <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--color-accent-info)' }}>{e.tipo}</span>,
+      },
+      {
+        key: 'asunto', header: 'Asunto',
+        render: (e) => <span style={{ fontSize: '0.8125rem' }}>{e.asunto || e.descripcion || e.mensaje?.slice(0, 60) || '—'}</span>,
+      },
+      {
+        key: 'estado', header: 'Estado', width: '140px',
+        render: (e) => <StatusBadge status={e.estado} type="email" />,
+      },
+      {
+        key: 'createdTime', header: 'Fecha', width: '100px',
+        render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
+      },
+    ];
+    if (activeTab === 'pendientes') {
+      cols.push({
+        key: 'actions', header: '', width: '100px',
+        render: (e) => (
+          <button
+            className="btn-success btn-sm"
+            onClick={(ev) => { ev.stopPropagation(); handleAprobar(e.id); }}
+            disabled={approving === e.id}
+          >
+            {approving === e.id ? '...' : 'Aprobar'}
+          </button>
+        ),
+      });
+    }
+    return cols;
+  }, [activeTab, approving]);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>

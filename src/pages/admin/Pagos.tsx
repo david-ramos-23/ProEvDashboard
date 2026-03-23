@@ -2,41 +2,28 @@
  * Portal de Pagos — KPIs financieros + tabla de pagos filtrable.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { KPICard, KPIGrid, DataTable, StatusBadge, LoadingSpinner, Column } from '@/components/shared';
 import { fetchPagos, fetchPagoStats } from '@/data/adapters/airtable/PagosAdapter';
-import { Pago, PagoStats, EstadoPago } from '@/types';
+import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
 
 const ESTADOS_PAGO: EstadoPago[] = ['Pendiente', 'Pagado', 'Fallido', 'Reembolsado'];
 
 export default function PagosPage() {
-  const [pagos, setPagos] = useState<Pago[]>([]);
-  const [stats, setStats] = useState<PagoStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState<EstadoPago | ''>('');
 
-  useEffect(() => {
-    loadData();
-  }, [filtroEstado]);
+  const { data: pagos = [], isLoading } = useQuery({
+    queryKey: ['pagos', { estado: filtroEstado || undefined }],
+    queryFn: () => fetchPagos({ estado: filtroEstado || undefined }),
+  });
+  const { data: stats } = useQuery({
+    queryKey: ['pago-stats'],
+    queryFn: fetchPagoStats,
+  });
 
-  async function loadData() {
-    setIsLoading(true);
-    try {
-      const [p, s] = await Promise.all([
-        fetchPagos({ estado: filtroEstado || undefined }),
-        fetchPagoStats(),
-      ]);
-      setPagos(p);
-      setStats(s);
-    } catch (err) {
-      console.error('Error cargando pagos:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  const columns: Column<Pago>[] = [
+  const columns = useMemo<Column<Pago>[]>(() => [
     {
       key: 'alumnoNombre', header: 'Alumno', width: '180px',
       render: (p) => <span style={{ fontWeight: 500 }}>{p.alumnoNombre || '—'}</span>,
@@ -59,7 +46,7 @@ export default function PagosPage() {
         <a href={p.linkRecibo} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem' }}>Ver →</a>
       ) : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
     },
-  ];
+  ], []);
 
   if (isLoading && !stats) return <LoadingSpinner text="Cargando pagos..." />;
 

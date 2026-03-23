@@ -2,43 +2,34 @@
  * Gestión de Ediciones — CRUD con capacidad de módulos y toggle activa.
  */
 
-import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICard, KPIGrid, DataTable, StatusBadge, LoadingSpinner, Column } from '@/components/shared';
 import { fetchEdiciones, fetchModulos, updateEdicion } from '@/data/adapters/airtable/OtherAdapters';
 import { Edicion, Modulo } from '@/types';
 import { formatDate } from '@/utils/formatters';
 
 export default function EdicionesPage() {
-  const [ediciones, setEdiciones] = useState<Edicion[]>([]);
-  const [modulos, setModulos] = useState<Modulo[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
-    try {
-      const [e, m] = await Promise.all([fetchEdiciones(), fetchModulos()]);
-      setEdiciones(e);
-      setModulos(m);
-    } catch (err) {
-      console.error('Error cargando ediciones:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const { data: ediciones = [], isLoading: edicionesLoading } = useQuery({
+    queryKey: ['ediciones'],
+    queryFn: fetchEdiciones,
+  });
+  const { data: modulos = [] } = useQuery({
+    queryKey: ['modulos'],
+    queryFn: fetchModulos,
+  });
 
   async function toggleActiva(edicion: Edicion) {
     try {
       await updateEdicion(edicion.id, { esEdicionActiva: !edicion.esEdicionActiva });
-      await loadData();
+      await queryClient.invalidateQueries({ queryKey: ['ediciones'] });
     } catch (err) {
-      console.error('Error actualizando edición:', err);
+      console.error('Error actualizando edicion:', err);
     }
   }
 
-  if (isLoading) return <LoadingSpinner text="Cargando ediciones..." />;
+  if (edicionesLoading) return <LoadingSpinner text="Cargando ediciones..." />;
 
   const activa = ediciones.find(e => e.esEdicionActiva);
 

@@ -5,7 +5,8 @@
  * Permite aprobar/rechazar videos con puntuación y feedback.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICard, KPIGrid, StatusBadge, LoadingSpinner } from '@/components/shared';
 import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adapters/airtable/RevisionesAdapter';
 import { RevisionVideo, EstadoRevision } from '@/types';
@@ -13,10 +14,8 @@ import { formatDate, renderStars, timeAgo } from '@/utils/formatters';
 import styles from './VideoReview.module.css';
 
 export default function VideoReviewPage() {
-  const [revisiones, setRevisiones] = useState<RevisionVideo[]>([]);
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<RevisionVideo | null>(null);
-  const [stats, setStats] = useState({ pendientes: 0, revisadasHoy: 0, total: 0 });
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   // Campos editables del detalle
@@ -24,26 +23,18 @@ export default function VideoReviewPage() {
   const [puntuacion, setPuntuacion] = useState(0);
   const [notas, setNotas] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const { data: revisiones = [], isLoading } = useQuery({
+    queryKey: ['revisiones', { estado: 'Pendiente' }],
+    queryFn: () => fetchRevisiones({ estado: 'Pendiente' }),
+  });
+  const { data: stats = { pendientes: 0, revisadasHoy: 0, total: 0 } } = useQuery({
+    queryKey: ['revision-stats'],
+    queryFn: fetchRevisionStats,
+  });
 
-  async function loadData() {
-    try {
-      const [revs, st] = await Promise.all([
-        fetchRevisiones({ estado: 'Pendiente' }),
-        fetchRevisionStats(),
-      ]);
-      setRevisiones(revs);
-      setStats(st);
-      if (revs.length > 0 && !selected) {
-        selectRevision(revs[0]);
-      }
-    } catch (err) {
-      console.error('Error cargando revisiones:', err);
-    } finally {
-      setIsLoading(false);
-    }
+  // Auto-select first revision when data loads and nothing is selected
+  if (revisiones.length > 0 && !selected) {
+    selectRevision(revisiones[0]);
   }
 
   function selectRevision(rev: RevisionVideo) {
@@ -64,18 +55,18 @@ export default function VideoReviewPage() {
         notasInternas: notas || undefined,
       });
 
-      // Recargar datos
-      await loadData();
-
-      // Seleccionar siguiente pendiente
+      // Select next before invalidating so we don't lose context
       const remaining = revisiones.filter(r => r.id !== selected.id);
       if (remaining.length > 0) {
         selectRevision(remaining[0]);
       } else {
         setSelected(null);
       }
+
+      await queryClient.invalidateQueries({ queryKey: ['revisiones'] });
+      await queryClient.invalidateQueries({ queryKey: ['revision-stats'] });
     } catch (err) {
-      console.error('Error guardando revisión:', err);
+      console.error('Error guardando revision:', err);
     } finally {
       setIsSaving(false);
     }

@@ -2,32 +2,26 @@
  * Aprobación de Emails — Vista Revisor para aprobar/rechazar emails pendientes.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICard, KPIGrid, LoadingSpinner, StatusBadge } from '@/components/shared';
 import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/OtherAdapters';
 import { ColaEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 
 export default function EmailApprovalPage() {
-  const [emails, setEmails] = useState<ColaEmail[]>([]);
+  const queryClient = useQueryClient();
   const [selected, setSelected] = useState<ColaEmail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isApproving, setIsApproving] = useState(false);
 
-  useEffect(() => {
-    loadEmails();
-  }, []);
+  const { data: emails = [], isLoading } = useQuery({
+    queryKey: ['email-approval'],
+    queryFn: () => fetchColaEmails({ estado: 'Pendiente Aprobacion' }),
+  });
 
-  async function loadEmails() {
-    try {
-      const data = await fetchColaEmails({ estado: 'Pendiente Aprobacion' });
-      setEmails(data);
-      if (data.length > 0 && !selected) setSelected(data[0]);
-    } catch (err) {
-      console.error('Error:', err);
-    } finally {
-      setIsLoading(false);
-    }
+  // Auto-select first email when data loads and nothing is selected
+  if (emails.length > 0 && !selected) {
+    setSelected(emails[0]);
   }
 
   async function handleAprobar() {
@@ -35,9 +29,10 @@ export default function EmailApprovalPage() {
     setIsApproving(true);
     try {
       await aprobarEmail(selected.id);
-      await loadEmails();
       const remaining = emails.filter(e => e.id !== selected.id);
       setSelected(remaining.length > 0 ? remaining[0] : null);
+      await queryClient.invalidateQueries({ queryKey: ['email-approval'] });
+      await queryClient.invalidateQueries({ queryKey: ['cola-emails'] });
     } catch (err) {
       console.error('Error aprobando:', err);
     } finally {

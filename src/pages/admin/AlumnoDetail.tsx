@@ -7,12 +7,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StatusBadge, LoadingSpinner } from '@/components/shared';
 import { fetchAlumnoById, updateAlumno } from '@/data/adapters/airtable/AlumnosAdapter';
 import { fetchRevisiones } from '@/data/adapters/airtable/RevisionesAdapter';
 import { fetchPagos } from '@/data/adapters/airtable/PagosAdapter';
 import { fetchHistorial } from '@/data/adapters/airtable/OtherAdapters';
-import { Alumno, RevisionVideo, Pago, Historial, EstadoGeneral } from '@/types';
+import { EstadoGeneral } from '@/types';
 import { formatDate, formatCurrency, timeAgo, renderStars } from '@/utils/formatters';
 import { ESTADO_ICONS } from '@/utils/constants';
 import styles from './AlumnoDetail.module.css';
@@ -27,12 +28,8 @@ const ESTADOS: EstadoGeneral[] = [
 export default function AlumnoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [alumno, setAlumno] = useState<Alumno | null>(null);
-  const [revisiones, setRevisiones] = useState<RevisionVideo[]>([]);
-  const [pagos, setPagos] = useState<Pago[]>([]);
-  const [historial, setHistorial] = useState<Historial[]>([]);
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabType>('info');
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   // Campos editables
@@ -40,35 +37,35 @@ export default function AlumnoDetailPage() {
   const [editNotas, setEditNotas] = useState('');
   const [editPlazo, setEditPlazo] = useState('');
 
+  const { data: alumno, isLoading } = useQuery({
+    queryKey: ['alumno', id],
+    queryFn: () => fetchAlumnoById(id!),
+    enabled: !!id,
+  });
+  const { data: revisiones = [] } = useQuery({
+    queryKey: ['revisiones', { alumnoId: id }],
+    queryFn: () => fetchRevisiones({ alumnoId: id }),
+    enabled: !!id,
+  });
+  const { data: pagos = [] } = useQuery({
+    queryKey: ['pagos', { alumnoId: id }],
+    queryFn: () => fetchPagos({ alumnoId: id }),
+    enabled: !!id,
+  });
+  const { data: historial = [] } = useQuery({
+    queryKey: ['historial', { alumnoId: id, maxRecords: 20 }],
+    queryFn: () => fetchHistorial({ alumnoId: id, maxRecords: 20 }),
+    enabled: !!id,
+  });
+
+  // Sync edit fields when alumno data loads
   useEffect(() => {
-    if (!id) return;
-    loadData(id);
-  }, [id]);
-
-  async function loadData(alumnoId: string) {
-    setIsLoading(true);
-    try {
-      const a = await fetchAlumnoById(alumnoId);
-      setAlumno(a);
-      setEditEstado(a.estadoGeneral);
-      setEditNotas(a.notasInternas || '');
-      setEditPlazo(a.fechaPlazo || '');
-
-      // Cargar datos relacionados en paralelo
-      const [revs, pgs, hist] = await Promise.all([
-        fetchRevisiones({ alumnoId }).catch(() => []),
-        fetchPagos({ alumnoId }).catch(() => []),
-        fetchHistorial({ alumnoId, maxRecords: 20 }).catch(() => []),
-      ]);
-      setRevisiones(revs);
-      setPagos(pgs);
-      setHistorial(hist);
-    } catch (err) {
-      console.error('Error cargando alumno:', err);
-    } finally {
-      setIsLoading(false);
+    if (alumno) {
+      setEditEstado(alumno.estadoGeneral);
+      setEditNotas(alumno.notasInternas || '');
+      setEditPlazo(alumno.fechaPlazo || '');
     }
-  }
+  }, [alumno]);
 
   async function handleSave() {
     if (!alumno || !id) return;
@@ -86,8 +83,9 @@ export default function AlumnoDetailPage() {
       }
 
       if (Object.keys(updates).length > 0) {
-        const updated = await updateAlumno(id, updates);
-        setAlumno(updated);
+        await updateAlumno(id, updates);
+        await queryClient.invalidateQueries({ queryKey: ['alumno', id] });
+        await queryClient.invalidateQueries({ queryKey: ['alumnos'] });
       }
     } catch (err) {
       console.error('Error guardando cambios:', err);

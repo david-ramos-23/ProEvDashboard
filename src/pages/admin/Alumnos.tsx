@@ -2,8 +2,9 @@
  * Gestión de Alumnos — CRUD con tabla filtrable y detalle expandible.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { DataTable, StatusBadge, Column } from '@/components/shared';
 import { fetchAlumnos } from '@/data/adapters/airtable/AlumnosAdapter';
 import { Alumno, EstadoGeneral } from '@/types';
@@ -17,28 +18,13 @@ const ESTADOS: EstadoGeneral[] = [
 
 export default function AlumnosPage() {
   const navigate = useNavigate();
-  const [alumnos, setAlumnos] = useState<Alumno[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<EstadoGeneral | ''>('');
 
-  useEffect(() => {
-    loadAlumnos();
-  }, [filtroEstado]);
-
-  async function loadAlumnos() {
-    setIsLoading(true);
-    try {
-      const data = await fetchAlumnos({
-        estado: filtroEstado || undefined,
-      });
-      setAlumnos(data);
-    } catch (err) {
-      console.error('Error cargando alumnos:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const { data: alumnos = [], isLoading } = useQuery({
+    queryKey: ['alumnos', { estado: filtroEstado || undefined }],
+    queryFn: () => fetchAlumnos({ estado: filtroEstado || undefined }),
+  });
 
   // Filtro de búsqueda local (para respuesta instantánea)
   const filtered = search
@@ -48,7 +34,7 @@ export default function AlumnosPage() {
       )
     : alumnos;
 
-  const columns: Column<Alumno>[] = [
+  const columns = useMemo<Column<Alumno>[]>(() => [
     {
       key: 'nombre', header: 'Alumno', width: '200px',
       render: (a) => (
@@ -82,7 +68,7 @@ export default function AlumnosPage() {
       key: 'ultimaModificacion', header: 'Última actividad', width: '120px',
       render: (a) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(a.ultimaModificacion)}</span>,
     },
-  ];
+  ], []);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>

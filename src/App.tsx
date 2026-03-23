@@ -1,20 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { login, logout, getSession, AuthUser } from '@/auth/AuthService';
 import Layout from '@/components/Layout/Layout';
+import { LoadingSpinner } from '@/components/shared';
 import { Analytics } from '@vercel/analytics/react';
 import LoginPage from '@/pages/Login';
 import '@/styles/global.css';
 
-// Páginas
-import DashboardPage from '@/pages/admin/Dashboard';
-import AlumnosPage from '@/pages/admin/Alumnos';
-import AlumnoDetailPage from '@/pages/admin/AlumnoDetail';
-import PagosPage from '@/pages/admin/Pagos';
-import ComunicacionesPage from '@/pages/admin/Comunicaciones';
-import EdicionesPage from '@/pages/admin/Ediciones';
-import VideoReviewPage from '@/pages/revisor/VideoReview';
-import EmailApprovalPage from '@/pages/revisor/EmailApproval';
+// Lazy-loaded pages
+const DashboardPage = lazy(() => import('@/pages/admin/Dashboard'));
+const AlumnosPage = lazy(() => import('@/pages/admin/Alumnos'));
+const AlumnoDetailPage = lazy(() => import('@/pages/admin/AlumnoDetail'));
+const PagosPage = lazy(() => import('@/pages/admin/Pagos'));
+const ComunicacionesPage = lazy(() => import('@/pages/admin/Comunicaciones'));
+const EdicionesPage = lazy(() => import('@/pages/admin/Ediciones'));
+const VideoReviewPage = lazy(() => import('@/pages/revisor/VideoReview'));
+const EmailApprovalPage = lazy(() => import('@/pages/revisor/EmailApproval'));
 
 export default function App() {
   const [session, setSession] = useState<AuthUser | null>(getSession);
@@ -48,6 +49,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <Suspense fallback={<LoadingSpinner text="Cargando..." />}>
       <Routes>
         <Route path="/" element={<Navigate to={defaultPath} replace />} />
 
@@ -87,6 +89,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to={defaultPath} replace />} />
       </Routes>
+      </Suspense>
       <Analytics />
     </BrowserRouter>
   );

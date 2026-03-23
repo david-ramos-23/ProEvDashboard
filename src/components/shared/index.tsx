@@ -23,10 +23,7 @@ interface KPICardProps {
 /** Tarjeta de métrica con glassmorphism y acento de color superior */
 export function KPICard({ label, value, icon, color = 'var(--color-accent-primary)', subtext }: KPICardProps) {
   return (
-    <div className={styles.kpiCard} style={{ '--accent': color } as React.CSSProperties}>
-      <style>{`
-        .${styles.kpiCard}::before { background: ${color}; }
-      `}</style>
+    <div className={styles.kpiCard} style={{ '--kpi-accent': color } as React.CSSProperties}>
       <div className={styles.kpiHeader}>
         <span className={styles.kpiLabel}>{label}</span>
         <span className={styles.kpiIcon}>{icon}</span>
@@ -125,6 +122,9 @@ interface DataTableProps<T> {
   actions?: ReactNode;
 }
 
+// Precomputed skeleton widths to avoid Math.random() in render
+const SKELETON_WIDTHS = Array.from({ length: 30 }, () => `${60 + Math.random() * 40}%`);
+
 /** Tabla de datos con búsqueda, loading skeleton, y filas clickeables */
 export function DataTable<T extends { id: string }>({
   title,
@@ -174,9 +174,9 @@ export function DataTable<T extends { id: string }>({
             // Skeleton loading
             Array.from({ length: 5 }).map((_, i) => (
               <tr key={`skeleton-${i}`}>
-                {columns.map((col) => (
+                {columns.map((col, j) => (
                   <td key={col.key}>
-                    <div className={styles.skeletonCell} style={{ width: `${60 + Math.random() * 40}%` }} />
+                    <div className={styles.skeletonCell} style={{ width: SKELETON_WIDTHS[(i * columns.length + j) % SKELETON_WIDTHS.length] }} />
                   </td>
                 ))}
               </tr>
