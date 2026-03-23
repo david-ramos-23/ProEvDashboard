@@ -11,6 +11,8 @@ interface AirtableModuloFields {
   'Nombre'?: string;
   'Precio Online'?: number;
   'Activo'?: boolean;
+  'Capacidad'?: number;
+  'Inscritos'?: number;
   'Reserva Prelanzamiento'?: number;
 }
 
@@ -23,6 +25,8 @@ function mapToModulo(record: AirtableRecord<AirtableModuloFields>): Modulo {
     nombre: f['Nombre'] || '',
     precioOnline: f['Precio Online'],
     activo: f['Activo'] || false,
+    capacidad: f['Capacidad'],
+    inscritos: f['Inscritos'],
     reservaPrelanzamiento: f['Reserva Prelanzamiento'],
   };
 }

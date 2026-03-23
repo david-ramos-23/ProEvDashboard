@@ -86,22 +86,39 @@ export default function EdicionesPage() {
       <div>
         <h3 style={{ marginBottom: 'var(--space-md)', fontSize: 'var(--font-size-md)' }}>Capacidad de Módulos</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 'var(--space-md)' }}>
-          {modulos.map(mod => (
-            <div key={mod.id} className="card" style={{ padding: 'var(--space-md)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-sm)' }}>
-                <span style={{ fontWeight: 600 }}>{mod.nombre}</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{mod.moduloId}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                {mod.precioOnline && <span>€{mod.precioOnline}</span>}
-              </div>
-              {mod.reservaPrelanzamiento != null && mod.reservaPrelanzamiento > 0 && (
-                <div style={{ fontSize: '0.7rem', color: 'var(--color-accent-warning)', marginTop: '4px' }}>
-                  🔒 {mod.reservaPrelanzamiento} plazas reservadas prelanzamiento
+          {modulos.map(mod => {
+            const capacidad = mod.capacidad || 20;
+            const inscritos = mod.inscritos || 0;
+            const restantes = capacidad - inscritos;
+            const porcentaje = Math.round((inscritos / capacidad) * 100);
+            const barColor = porcentaje >= 90 ? 'var(--color-accent-danger)' : porcentaje >= 70 ? 'var(--color-accent-warning)' : 'var(--color-accent-success)';
+
+            return (
+              <div key={mod.id} className="card" style={{ padding: 'var(--space-md)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 'var(--space-sm)' }}>
+                  <span style={{ fontWeight: 600 }}>{mod.nombre}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{mod.moduloId}</span>
                 </div>
-              )}
-            </div>
-          ))}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', marginBottom: '8px' }}>
+                  <span style={{ color: barColor, fontWeight: 600 }}>{inscritos}/{capacidad} inscritos</span>
+                  <span style={{ color: restantes <= 3 ? 'var(--color-accent-danger)' : 'var(--color-text-muted)' }}>
+                    {restantes} plazas libres
+                  </span>
+                </div>
+                <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.min(porcentaje, 100)}%`, background: barColor, borderRadius: 3, transition: 'width 300ms ease' }} />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '8px' }}>
+                  {mod.precioOnline != null && <span>{mod.precioOnline} EUR</span>}
+                  {mod.reservaPrelanzamiento != null && mod.reservaPrelanzamiento > 0 && (
+                    <span style={{ color: 'var(--color-accent-warning)' }}>
+                      {mod.reservaPrelanzamiento} reservas prelanzamiento
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

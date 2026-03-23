@@ -16,8 +16,10 @@ interface AirtableAlumnoFields {
   'Phone Number'?: string;
   'Estado General'?: EstadoGeneral;
   'Idioma'?: string;
+  'Modulo Solicitado'?: string;
   'Modules'?: string[];
   'Edicion'?: string[];
+  'Nombre Edicion'?: string[];
   'Foto de Perfil'?: Array<{ url: string }>;
   'Plazo Revision'?: string;
   'Fecha Plazo'?: string;
@@ -53,8 +55,10 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
     telefono: f['Phone Number'],
     estadoGeneral: f['Estado General'] || 'Privado',
     idioma: (f['Idioma'] === 'Ingles' ? 'Ingles' : 'Espanol'),
+    moduloSolicitado: f['Modulo Solicitado'],
     modulosCompletados: f['Modules'],
     edicionId: f['Edicion']?.[0],
+    edicion: f['Nombre Edicion']?.[0],
     fotoPerfil: f['Foto de Perfil']?.[0]?.url,
     plazoRevision: f['Plazo Revision'],
     fechaPlazo: f['Fecha Plazo'],

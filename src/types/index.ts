@@ -166,6 +166,8 @@ export interface Modulo extends BaseRecord {
   nombre: string;
   precioOnline?: number;
   activo: boolean;
+  capacidad?: number;
+  inscritos?: number;
   reservaPrelanzamiento?: number;
 }
 
