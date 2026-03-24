@@ -112,6 +112,16 @@ export default function LoginPage({
           text: 'continue_with',
           shape: 'pill',
         });
+
+        // GSI re-applies inline styles after render — observe and fix margins
+        const observer = new MutationObserver(() => {
+          googleBtnRef.current?.querySelectorAll<HTMLElement>('iframe, div').forEach(el => {
+            if (el.style.margin && el.style.margin !== '0px') {
+              el.style.margin = '0px';
+            }
+          });
+        });
+        observer.observe(googleBtnRef.current, { subtree: true, attributes: true, attributeFilter: ['style'] });
       }
     };
 
