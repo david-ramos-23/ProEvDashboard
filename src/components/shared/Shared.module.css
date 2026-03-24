@@ -47,6 +47,27 @@
   box-shadow: var(--shadow-md);
 }
 
+.kpiCardClickable {
+  cursor: pointer;
+}
+
+.kpiCardClickable:hover {
+  border-color: color-mix(in srgb, var(--kpi-accent) 40%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--kpi-accent) 20%, transparent), var(--shadow-md);
+}
+
+.kpiArrow {
+  font-size: var(--font-size-lg);
+  opacity: 0.25;
+  transition: opacity 150ms ease, transform 150ms ease;
+  display: inline-block;
+}
+
+.kpiCardClickable:hover .kpiArrow {
+  opacity: 1;
+  transform: translateX(3px);
+}
+
 .kpiHeader {
   display: flex;
   align-items: center;
@@ -205,6 +226,37 @@
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+/* Stat card (non-navigable) */
+.statCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  cursor: default;
+  flex: 1;
+}
+
+.statIcon {
+  font-size: 1.5rem;
+  opacity: 0.5;
+}
+
+.statValue {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-top: 3px;
 }
 
 /* Skeleton layout blocks */

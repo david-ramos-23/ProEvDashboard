@@ -5,47 +5,49 @@
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
 import { listRecords, getRecord, updateRecord, AirtableRecord } from './AirtableClient';
+import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
 
 interface AirtableRevisionFields {
   'Alumno'?: string[];
-  'Nombre del Alumno'?: string[];
   'Revisor Responsable'?: string;
-  'Fecha de Revision'?: string;
+  'Fecha de Revisión'?: string;
   'Video Enviado'?: string;
   'Redes Sociales'?: string;
   'Usuarios RRSS'?: string;
-  'Estado de Revision'?: EstadoRevision;
+  'Estado de Revisión'?: EstadoRevision;
   'Puntuacion'?: number;
   'Feedback'?: string;
   'Notas Internas'?: string;
-  'Ultima Actualizacion'?: string;
-  'Dias desde Envio hasta Revision'?: number;
+  'Última Actualización'?: string;
+  'Días desde Envío de Video hasta Revisión'?: number;
   'Estado General del Alumno'?: string[];
-  'Resumen Inteligente de Feedback'?: string;
-  'Clasificacion Automatica de Video'?: string;
+  'Resumen Inteligente de Feedback'?: string | object;
+  'Clasificación Automática de Video'?: string | object;
 }
 
 function mapToRevision(record: AirtableRecord<AirtableRevisionFields>): RevisionVideo {
   const f = record.fields;
+  const resumen = f['Resumen Inteligente de Feedback'];
+  const clasificacion = f['Clasificación Automática de Video'];
   return {
     id: record.id,
     createdTime: record.createdTime,
     alumnoId: f['Alumno']?.[0] || '',
-    alumnoNombre: f['Nombre del Alumno']?.[0],
+    alumnoNombre: undefined,
     revisorResponsable: f['Revisor Responsable'],
-    fechaRevision: f['Fecha de Revision'],
+    fechaRevision: f['Fecha de Revisión'],
     videoEnviado: f['Video Enviado'],
     redesSociales: f['Redes Sociales'],
     usuariosRRSS: f['Usuarios RRSS'],
-    estadoRevision: f['Estado de Revision'] || 'Pendiente',
+    estadoRevision: f['Estado de Revisión'] || 'Pendiente',
     puntuacion: f['Puntuacion'],
     feedback: f['Feedback'],
     notasInternas: f['Notas Internas'],
-    ultimaActualizacion: f['Ultima Actualizacion'],
-    diasDesdeEnvio: f['Dias desde Envio hasta Revision'],
+    ultimaActualizacion: f['Última Actualización'],
+    diasDesdeEnvio: f['Días desde Envío de Video hasta Revisión'],
     estadoGeneralAlumno: f['Estado General del Alumno']?.[0] as RevisionVideo['estadoGeneralAlumno'],
-    resumenInteligente: f['Resumen Inteligente de Feedback'],
-    clasificacionAutomatica: f['Clasificacion Automatica de Video'],
+    resumenInteligente: typeof resumen === 'string' ? resumen : undefined,
+    clasificacionAutomatica: typeof clasificacion === 'string' ? clasificacion : undefined,
   };
 }
 
@@ -57,7 +59,7 @@ export async function fetchRevisiones(filters?: {
   alumnoId?: string;
 }): Promise<RevisionVideo[]> {
   const formulas: string[] = [];
-  if (filters?.estado) formulas.push(`{Estado de Revision} = '${filters.estado}'`);
+  if (filters?.estado) formulas.push(`{Estado de Revisión} = '${filters.estado}'`);
   if (filters?.alumnoId) formulas.push(`FIND('${filters.alumnoId}', ARRAYJOIN({Alumno}))`);
 
   const filterByFormula = formulas.length > 0
@@ -66,10 +68,19 @@ export async function fetchRevisiones(filters?: {
 
   const records = await listRecords<AirtableRevisionFields>(TABLE, {
     filterByFormula,
-    sort: [{ field: 'Fecha de Revision', direction: 'asc' }],
+    sort: [{ field: 'Fecha de Revisión', direction: 'asc' }],
   });
 
-  return records.map(mapToRevision);
+  const revisiones = records.map(mapToRevision);
+
+  // Enrich alumno names from Alumnos table
+  const alumnoIds = [...new Set(revisiones.map(r => r.alumnoId).filter((id): id is string => !!id))];
+  if (alumnoIds.length > 0) {
+    const nombreMap = await fetchAlumnoNombresByIds(alumnoIds);
+    revisiones.forEach(r => { if (r.alumnoId) r.alumnoNombre = nombreMap.get(r.alumnoId); });
+  }
+
+  return revisiones;
 }
 
 /** Obtiene una revisión por ID */
@@ -89,7 +100,7 @@ export async function updateRevision(
   }>
 ): Promise<RevisionVideo> {
   const fields: Partial<AirtableRevisionFields> = {};
-  if (updates.estadoRevision) fields['Estado de Revision'] = updates.estadoRevision;
+  if (updates.estadoRevision) fields['Estado de Revisión'] = updates.estadoRevision;
   if (updates.puntuacion != null) fields['Puntuacion'] = updates.puntuacion;
   if (updates.feedback !== undefined) fields['Feedback'] = updates.feedback;
   if (updates.notasInternas !== undefined) fields['Notas Internas'] = updates.notasInternas;

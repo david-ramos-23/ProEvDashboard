@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, DataTable, Column } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatCard, DataTable, Column } from '@/components/shared';
 import { fetchDashboardStats } from '@/data/adapters/airtable/AlumnosAdapter';
 import { fetchPagosPorMes } from '@/data/adapters/airtable/PagosAdapter';
 import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
@@ -78,39 +78,37 @@ export default function DashboardPage() {
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
-      {/* KPIs principales */}
-      <KPIGrid columns={5}>
+      {/* KPIs navegables */}
+      <KPIGrid columns={3}>
         {statsLoading || !stats ? (
-          Array.from({ length: 5 }).map((_, i) => <KPICardSkeleton key={i} />)
+          Array.from({ length: 6 }).map((_, i) => <KPICardSkeleton key={i} />)
         ) : (
           <>
-            <KPICard label={t('dashboard.totalAlumnos')} value={formatNumber(stats.totalAlumnos)} icon="👥" color="var(--color-accent-primary)" />
-            <KPICard label={t('dashboard.pagados')} value={formatNumber(stats.totalPagados)} icon="🎉" color="var(--color-accent-success)" subtext={`${stats.totalAlumnos > 0 ? Math.round((stats.totalPagados / stats.totalAlumnos) * 100) : 0}% ${t('dashboard.conversion')}`} />
-            <KPICard label={t('dashboard.pendientesRevision')} value={formatNumber(stats.pendientesRevision)} icon="🎥" color="var(--color-accent-warning)" />
-            <KPICard label={t('dashboard.ingresosTotales')} value={formatCurrency(stats.ingresosTotales)} icon="💰" color="var(--color-accent-info)" />
-            <KPICard label={t('dashboard.engagement')} value={`${stats.engagementPromedio}%`} icon="📈" color="#a78bfa" />
+            <KPICard label={t('dashboard.totalAlumnos')} value={formatNumber(stats.totalAlumnos)} icon="👥" color="var(--color-accent-primary)" onClick={() => navigate('/admin/alumnos')} />
+            <KPICard label={t('dashboard.ingresosTotales')} value={formatCurrency(stats.ingresosTotales)} icon="💰" color="var(--color-accent-success)" onClick={() => navigate('/admin/pagos')} />
+            <KPICard label={t('dashboard.pendientesRevision')} value={formatNumber(stats.pendientesRevision)} icon="🎥" color="var(--color-accent-warning)" onClick={() => navigate('/revisor/videos')} />
+            <KPICard label={t('dashboard.emailsPendientes')} value={formatNumber(emailsPendientes.length)} icon="📧" color="var(--color-accent-warning)" onClick={() => navigate('/revisor/emails')} />
+            <KPICard label={t('dashboard.inboxAtencion')} value={formatNumber(inboxAlertas.length)} icon="📬" color="var(--color-accent-info)" onClick={() => navigate('/admin/inbox')} />
+            <KPICard label={t('dashboard.alertas')} value={formatNumber((stats.alumnosPorEstado['Plazo Vencido'] || 0) + (stats.alumnosPorEstado['Pago Fallido'] || 0))} icon="⚠️" color="var(--color-accent-danger)" subtext="Plazo vencido · Pago fallido" onClick={() => navigate('/admin/alumnos')} />
           </>
         )}
       </KPIGrid>
 
-      {/* KPIs de Alertas */}
-      <KPIGrid columns={3}>
-        {statsLoading || !stats ? (
-          Array.from({ length: 3 }).map((_, i) => <KPICardSkeleton key={i} />)
-        ) : (
-          <>
-            <div style={{ cursor: 'pointer' }} onClick={() => navigate('/admin/alumnos')}>
-              <KPICard label={t('dashboard.alertas')} value={formatNumber((stats.alumnosPorEstado['Plazo Vencido'] || 0) + (stats.alumnosPorEstado['Pago Fallido'] || 0))} icon="⚠️" color="var(--color-accent-danger)" subtext="Plazo vencido + Pago fallido" />
-            </div>
-            <div style={{ cursor: 'pointer' }} onClick={() => navigate('/revisor/emails')}>
-              <KPICard label={t('dashboard.emailsPendientes')} value={formatNumber(emailsPendientes.length)} icon="📧" color="var(--color-accent-warning)" subtext="Pendientes de aprobación" />
-            </div>
-            <div style={{ cursor: 'pointer' }} onClick={() => navigate('/admin/inbox')}>
-              <KPICard label={t('dashboard.inboxAtencion')} value={formatNumber(inboxAlertas.length)} icon="📬" color="var(--color-accent-info)" subtext="Requieren atención" />
-            </div>
-          </>
-        )}
-      </KPIGrid>
+      {/* Stats informativas (no navegables) */}
+      {stats && (
+        <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
+          <StatCard
+            label={t('dashboard.conversion')}
+            value={`${stats.totalAlumnos > 0 ? Math.round((stats.totalPagados / stats.totalAlumnos) * 100) : 0}% pagados`}
+            icon="🎉"
+          />
+          <StatCard
+            label={t('dashboard.engagement')}
+            value={`${stats.engagementPromedio}% promedio`}
+            icon="📈"
+          />
+        </div>
+      )}
 
       {/* Gráficos */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>

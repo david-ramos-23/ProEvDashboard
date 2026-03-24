@@ -18,18 +18,38 @@ interface KPICardProps {
   icon: string;
   color?: string;
   subtext?: string;
+  onClick?: () => void;
 }
 
 /** Tarjeta de métrica con glassmorphism y acento de color superior */
-export function KPICard({ label, value, icon, color = 'var(--color-accent-primary)', subtext }: KPICardProps) {
+export function KPICard({ label, value, icon, color = 'var(--color-accent-primary)', subtext, onClick }: KPICardProps) {
   return (
-    <div className={styles.kpiCard} style={{ '--kpi-accent': color } as React.CSSProperties}>
+    <div
+      className={`${styles.kpiCard} ${onClick ? styles.kpiCardClickable : ''}`}
+      style={{ '--kpi-accent': color } as React.CSSProperties}
+      onClick={onClick}
+    >
       <div className={styles.kpiHeader}>
         <span className={styles.kpiLabel}>{label}</span>
-        <span className={styles.kpiIcon}>{icon}</span>
+        <span className={styles.kpiIcon}>
+          {onClick ? <span className={styles.kpiArrow}>→</span> : icon}
+        </span>
       </div>
       <div className={styles.kpiValue} style={{ color }}>{value}</div>
       {subtext && <div className={styles.kpiSubtext}>{subtext}</div>}
+    </div>
+  );
+}
+
+/** Tarjeta de estadística no navegable — sin acento, sin hover */
+export function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
+  return (
+    <div className={styles.statCard}>
+      <span className={styles.statIcon}>{icon}</span>
+      <div>
+        <div className={styles.statValue}>{value}</div>
+        <div className={styles.statLabel}>{label}</div>
+      </div>
     </div>
   );
 }
