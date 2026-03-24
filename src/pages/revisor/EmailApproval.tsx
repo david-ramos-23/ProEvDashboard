@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KPICard, KPIGrid, KPICardSkeleton, StatusBadge } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge } from '@/components/shared';
 import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/ColaEmailsAdapter';
 import { ColaEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';

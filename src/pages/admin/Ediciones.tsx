@@ -31,12 +31,21 @@ export default function EdicionesPage() {
     return false;
   }
 
-  async function toggleActiva(edicion: Edicion) {
+  async function activarEdicion(edicion: Edicion) {
     try {
-      await updateEdicion(edicion.id, { esEdicionActiva: !edicion.esEdicionActiva });
+      await updateEdicion(edicion.id, { esEdicionActiva: true });
       await queryClient.invalidateQueries({ queryKey: ['ediciones'] });
     } catch (err) {
-      console.error('Error actualizando edicion:', err);
+      console.error('Error activando edicion:', err);
+    }
+  }
+
+  async function finalizarEdicion(edicion: Edicion) {
+    try {
+      await updateEdicion(edicion.id, { esEdicionActiva: false, estado: 'Finalizada' });
+      await queryClient.invalidateQueries({ queryKey: ['ediciones'] });
+    } catch (err) {
+      console.error('Error finalizando edicion:', err);
     }
   }
 
@@ -79,13 +88,13 @@ export default function EdicionesPage() {
         const canActivate = e.esEdicionActiva || !past;
         return (
           <button
-            className={`btn-sm ${e.esEdicionActiva ? 'btn-ghost' : canActivate ? 'btn-primary' : 'btn-ghost'}`}
+            className={`btn-sm ${e.esEdicionActiva ? 'btn-danger' : canActivate ? 'btn-primary' : 'btn-ghost'}`}
             disabled={!e.esEdicionActiva && past}
             title={!e.esEdicionActiva && past ? 'No se puede activar una edición pasada' : undefined}
-            onClick={(ev) => { ev.stopPropagation(); toggleActiva(e); }}
+            onClick={(ev) => { ev.stopPropagation(); e.esEdicionActiva ? finalizarEdicion(e) : activarEdicion(e); }}
             style={!e.esEdicionActiva && past ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
           >
-            {e.esEdicionActiva ? t('common.deactivate') : t('common.activate')}
+            {e.esEdicionActiva ? t('common.finalizar') : t('common.activate')}
           </button>
         );
       },

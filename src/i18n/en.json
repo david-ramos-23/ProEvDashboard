@@ -14,7 +14,8 @@
     "error": "Something went wrong",
     "errorGeneric": "An unexpected error occurred.",
     "deactivate": "Deactivate",
-    "activate": "Activate"
+    "activate": "Activate",
+    "finalizar": "Finalize"
   },
   "nav": {
     "dashboard": "Dashboard",

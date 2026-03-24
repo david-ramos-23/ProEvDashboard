@@ -112,7 +112,14 @@ function EmailCard({ email, isExpanded, onToggle, onUpdate, isPending }: EmailCa
               <span><strong>De:</strong> {email.de}</span>
               <span><strong>Para:</strong> {email.para}</span>
             </div>
-            <pre className={styles.emailBodyText}>{email.contenido || '(sin contenido)'}</pre>
+            {email.contenidoHtml ? (
+              <div
+                className={styles.emailBodyText}
+                dangerouslySetInnerHTML={{ __html: email.contenidoHtml }}
+              />
+            ) : (
+              <pre className={styles.emailBodyText}>{email.contenido || '(sin contenido)'}</pre>
+            )}
           </div>
 
           {/* AI summary */}

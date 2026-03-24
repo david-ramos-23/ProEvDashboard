@@ -14,7 +14,8 @@
     "error": "Algo ha fallado",
     "errorGeneric": "Error inesperado en la aplicacion.",
     "deactivate": "Desactivar",
-    "activate": "Activar"
+    "activate": "Activar",
+    "finalizar": "Finalizar"
   },
   "nav": {
     "dashboard": "Dashboard",

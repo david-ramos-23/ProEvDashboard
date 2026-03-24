@@ -15,8 +15,9 @@ import styles from './VideoReview.module.css';
 import { useTranslation } from '@/i18n';
 
 function VideoPlayer({ url }: { url: string }) {
-  const [errored, setErrored] = useState(false);
+  const [videoErrored, setVideoErrored] = useState(false);
 
+  // YouTube
   const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/);
   if (ytMatch) {
     return (
@@ -30,28 +31,33 @@ function VideoPlayer({ url }: { url: string }) {
     );
   }
 
-  if (!errored && /\.(mp4|webm|mov|avi)(\?|$)/i.test(url)) {
+  // Google Drive — convert share URL to embed URL
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (driveMatch) {
+    return (
+      <iframe
+        className={styles.videoEmbed}
+        src={`https://drive.google.com/file/d/${driveMatch[1]}/preview`}
+        allow="autoplay"
+        allowFullScreen
+        title="Video de admisión"
+      />
+    );
+  }
+
+  // Direct video file
+  if (!videoErrored && /\.(mp4|webm|mov|avi)(\?|$)/i.test(url)) {
     return (
       <video
         className={styles.videoEmbed}
         src={url}
         controls
-        onError={() => setErrored(true)}
+        onError={() => setVideoErrored(true)}
       />
     );
   }
 
-  if (!errored) {
-    return (
-      <iframe
-        className={styles.videoEmbed}
-        src={url}
-        title="Video de admisión"
-        onError={() => setErrored(true)}
-      />
-    );
-  }
-
+  // Unknown URL — show external link directly (iframes block for most services)
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" className={styles.videoFallback}>
       <span>🎥</span> Abrir video externamente →
