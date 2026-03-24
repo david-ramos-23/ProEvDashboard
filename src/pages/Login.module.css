@@ -267,8 +267,7 @@
 .googleBtn {
   margin-top: var(--space-lg);
   width: 100%;
-  border-radius: var(--radius-md);
-  overflow: hidden;
+  position: relative;
 }
 
 /* Force all GSI-rendered elements to stretch to full card width */
@@ -283,6 +282,33 @@
   width: 100% !important;
   max-width: 100% !important;
   margin: 0 !important;
+  display: block !important;
+}
+
+/* Corner covers — paint rounded corners over the cross-origin GSI iframe */
+.googleBtn::before,
+.googleBtn::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 100%;
+  top: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.googleBtn::before {
+  left: 0;
+  background:
+    radial-gradient(circle at 100% 0, transparent 8px, rgba(0,0,0,0.35) 8px) top left / 8px 8px no-repeat,
+    radial-gradient(circle at 100% 100%, transparent 8px, rgba(0,0,0,0.35) 8px) bottom left / 8px 8px no-repeat;
+}
+
+.googleBtn::after {
+  right: 0;
+  background:
+    radial-gradient(circle at 0 0, transparent 8px, rgba(0,0,0,0.35) 8px) top right / 8px 8px no-repeat,
+    radial-gradient(circle at 0 100%, transparent 8px, rgba(0,0,0,0.35) 8px) bottom right / 8px 8px no-repeat;
 }
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
