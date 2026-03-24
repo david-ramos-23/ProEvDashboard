@@ -3,7 +3,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DataTable, StatusBadge, Column } from '@/components/shared';
 import { fetchAlumnos } from '@/data/adapters/airtable/AlumnosAdapter';
@@ -21,9 +21,10 @@ const ESTADOS: EstadoGeneral[] = [
 export default function AlumnosPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<EstadoGeneral | ''>('');
-  const [filtroEdicion, setFiltroEdicion] = useState('');
+  const [filtroEdicion, setFiltroEdicion] = useState(searchParams.get('edicion') ?? '');
 
   const { data: ediciones = [] } = useQuery({
     queryKey: ['ediciones'],
@@ -88,8 +89,8 @@ export default function AlumnosPage() {
             value={filtroEdicion}
             onChange={e => setFiltroEdicion(e.target.value)}
             style={{
-              background: 'var(--color-glass-bg)',
-              border: '1px solid var(--color-glass-border)',
+              background: 'var(--color-bg-input)',
+              border: '1px solid var(--color-border)',
               borderRadius: '8px',
               color: 'var(--color-text-primary)',
               padding: '6px 12px',

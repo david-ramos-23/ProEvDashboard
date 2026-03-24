@@ -20,11 +20,11 @@
 
 /* KPI Card */
 .kpiCard {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
+  box-shadow: var(--shadow-card);
   transition: all var(--transition-base);
   position: relative;
   overflow: hidden;
@@ -52,7 +52,7 @@
 }
 
 .kpiCardClickable:hover {
-  border-color: color-mix(in srgb, var(--kpi-accent) 40%, transparent);
+  border-color: color-mix(in srgb, var(--kpi-accent) 50%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--kpi-accent) 20%, transparent), var(--shadow-md);
 }
 
@@ -61,6 +61,7 @@
   opacity: 0.25;
   transition: opacity 150ms ease, transform 150ms ease;
   display: inline-block;
+  color: var(--kpi-accent, var(--color-accent-primary));
 }
 
 .kpiCardClickable:hover .kpiArrow {
@@ -120,10 +121,10 @@
 
 /* Tabla de datos */
 .tableWrapper {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   overflow: hidden;
 }
 
@@ -169,13 +170,13 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--color-border);
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--color-bg-secondary);
 }
 
 .table td {
   padding: var(--space-sm) var(--space-lg);
   font-size: var(--font-size-sm);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
 }
 
@@ -212,7 +213,7 @@
   display: flex;
   gap: var(--space-lg);
   padding: var(--space-sm) var(--space-lg);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .skeletonCell {
@@ -220,9 +221,9 @@
   border-radius: var(--radius-sm);
   background: linear-gradient(
     90deg,
-    var(--color-bg-card) 25%,
-    var(--color-bg-card-hover) 50%,
-    var(--color-bg-card) 75%
+    #EFECE6 25%,
+    #E8E4DC 50%,
+    #EFECE6 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
@@ -234,16 +235,17 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md) var(--space-lg);
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   cursor: default;
   flex: 1;
 }
 
 .statIcon {
   font-size: 1.5rem;
-  opacity: 0.5;
+  opacity: 0.6;
 }
 
 .statValue {
@@ -265,9 +267,9 @@
   border-radius: var(--radius-md);
   background: linear-gradient(
     90deg,
-    var(--color-bg-card) 25%,
-    var(--color-bg-card-hover) 50%,
-    var(--color-bg-card) 75%
+    #EFECE6 25%,
+    #E8E4DC 50%,
+    #EFECE6 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
@@ -275,8 +277,37 @@
 
 .skeletonListItem {
   padding: var(--space-sm) var(--space-md);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* Scroll to top button */
+.scrollTop {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  color: var(--color-text-inverse);
+  border: none;
+  cursor: pointer;
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-bold);
+  box-shadow: var(--shadow-md);
+  z-index: var(--z-sticky);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.scrollTop:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  background: var(--color-accent-primary-hover);
 }

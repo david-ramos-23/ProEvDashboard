@@ -37,7 +37,7 @@
 
 .bellBtnActive {
   background: var(--color-accent-primary-glow);
-  border-color: rgba(99, 102, 241, 0.3);
+  border-color: rgba(12, 90, 69, 0.3);
   color: var(--color-accent-primary-hover);
 }
 
@@ -76,7 +76,6 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  backdrop-filter: var(--glass-blur);
   z-index: var(--z-dropdown);
   overflow: hidden;
   animation: dropdownIn var(--transition-base) cubic-bezier(0.16, 1, 0.3, 1);
@@ -187,7 +186,7 @@
 }
 
 .itemUnread {
-  background: rgba(99, 102, 241, 0.04);
+  background: rgba(12, 90, 69, 0.04);
 }
 
 .itemUnread:hover {

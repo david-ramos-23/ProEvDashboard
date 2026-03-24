@@ -72,6 +72,14 @@ export const PAGO_COLORS: Record<EstadoPago, string> = {
   'Enviado': 'var(--color-accent-primary)',
 };
 
+/** Colores de estado de edición */
+export const EDITION_ESTADO_COLORS: Record<string, string> = {
+  'Planificada': 'var(--color-text-muted)',
+  'En Inscripcion': 'var(--color-accent-info)',
+  'Activa': 'var(--color-accent-success)',
+  'Finalizada': 'var(--color-text-muted)',
+};
+
 /** Colores de estado de email */
 export const EMAIL_COLORS: Record<EstadoEmail, string> = {
   'Pendiente Aprobacion': 'var(--color-accent-warning)',

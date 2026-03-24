@@ -10,6 +10,7 @@ import { ADMIN_NAV, REVISOR_NAV, NavItem } from '@/utils/constants';
 import { getInitials } from '@/utils/formatters';
 import { useTranslation, Locale } from '@/i18n';
 import NotificationBell from '@/components/NotificationBell';
+import { ScrollToTop } from '@/components/shared';
 import styles from './Layout.module.css';
 
 interface LayoutProps {
@@ -102,9 +103,9 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
                   fontSize: '0.75rem',
                   fontWeight: locale === l ? 600 : 400,
                   background: locale === l ? 'var(--color-accent-primary-glow)' : 'transparent',
-                  border: locale === l ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid var(--color-border)',
+                  border: locale === l ? '1px solid rgba(12, 90, 69, 0.3)' : '1px solid var(--color-border)',
                   borderRadius: 'var(--radius-sm)',
-                  color: locale === l ? 'var(--color-accent-primary-hover)' : 'var(--color-text-muted)',
+                  color: locale === l ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
                   cursor: 'pointer',
                   fontFamily: 'var(--font-family)',
                 }}
@@ -119,6 +120,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
           <Outlet />
         </div>
       </main>
+      <ScrollToTop />
     </div>
   );
 }

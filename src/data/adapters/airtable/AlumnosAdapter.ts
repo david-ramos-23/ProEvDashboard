@@ -191,9 +191,13 @@ export async function fetchAlumnoNombresByIds(ids: string[]): Promise<Map<string
 }
 
 /** Calcula estadísticas del dashboard — solo descarga los campos necesarios */
-export async function fetchDashboardStats(): Promise<DashboardStats> {
+export async function fetchDashboardStats(options?: { edicionId?: string }): Promise<DashboardStats> {
+  const filterByFormula = options?.edicionId
+    ? `FIND('${options.edicionId}', ARRAYJOIN({Edicion}))`
+    : undefined;
   const records = await listRecords<Pick<AirtableAlumnoFields, 'Estado General' | 'Importe Total Pagado' | 'Engagement Score'>>(TABLE, {
     fields: ['Estado General', 'Importe Total Pagado', 'Engagement Score'],
+    filterByFormula,
   });
   const alumnos = records.map(r => r.fields);
 

@@ -14,6 +14,51 @@ import { formatDate, renderStars, timeAgo } from '@/utils/formatters';
 import styles from './VideoReview.module.css';
 import { useTranslation } from '@/i18n';
 
+function VideoPlayer({ url }: { url: string }) {
+  const [errored, setErrored] = useState(false);
+
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/);
+  if (ytMatch) {
+    return (
+      <iframe
+        className={styles.videoEmbed}
+        src={`https://www.youtube.com/embed/${ytMatch[1]}`}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+        title="Video de admisión"
+      />
+    );
+  }
+
+  if (!errored && /\.(mp4|webm|mov|avi)(\?|$)/i.test(url)) {
+    return (
+      <video
+        className={styles.videoEmbed}
+        src={url}
+        controls
+        onError={() => setErrored(true)}
+      />
+    );
+  }
+
+  if (!errored) {
+    return (
+      <iframe
+        className={styles.videoEmbed}
+        src={url}
+        title="Video de admisión"
+        onError={() => setErrored(true)}
+      />
+    );
+  }
+
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className={styles.videoFallback}>
+      <span>🎥</span> Abrir video externamente →
+    </a>
+  );
+}
+
 export default function VideoReviewPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -154,9 +199,12 @@ export default function VideoReviewPage() {
               {/* Video */}
               <div className={styles.videoSection}>
                 {selected.videoEnviado ? (
-                  <a href={selected.videoEnviado} target="_blank" rel="noopener noreferrer" className={styles.videoLink}>
-                    <span>🎥</span> Ver Video
-                  </a>
+                  <>
+                    <VideoPlayer url={selected.videoEnviado} />
+                    <a href={selected.videoEnviado} target="_blank" rel="noopener noreferrer" className={styles.videoExternalLink}>
+                      Abrir en nueva pestaña →
+                    </a>
+                  </>
                 ) : (
                   <p style={{ color: 'var(--color-text-muted)' }}>{t('videoReview.sinVideo')}</p>
                 )}

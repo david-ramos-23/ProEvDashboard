@@ -12,6 +12,7 @@ import { fetchPagosPorMes } from '@/data/adapters/airtable/PagosAdapter';
 import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
 import { fetchColaEmails } from '@/data/adapters/airtable/ColaEmailsAdapter';
 import { fetchInbox } from '@/data/adapters/airtable/InboxAdapter';
+import { fetchEdiciones } from '@/data/adapters/airtable/EdicionesAdapter';
 import { Historial } from '@/types';
 import { formatCurrency, formatNumber, timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
@@ -34,9 +35,18 @@ const CHART_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  const { data: ediciones = [] } = useQuery({
+    queryKey: ['ediciones'],
+    queryFn: fetchEdiciones,
+    staleTime: 5 * 60 * 1000,
+  });
+  const activeEdicion = ediciones.find(e => e.esEdicionActiva);
+
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['dashboard-stats'],
-    queryFn: fetchDashboardStats,
+    queryKey: ['dashboard-stats', { edicionId: activeEdicion?.id }],
+    queryFn: () => fetchDashboardStats({ edicionId: activeEdicion?.id }),
+    // Always enabled — shows all-time data if no active edition found yet
   });
   const { data: pagosMes = [] } = useQuery({
     queryKey: ['pagos-por-mes'],
@@ -78,18 +88,25 @@ export default function DashboardPage() {
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
+      {/* Edition scope indicator */}
+      {activeEdicion && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+          <span style={{ color: 'var(--color-accent-primary)', fontWeight: 600 }}>★ {activeEdicion.nombre}</span>
+          <span>— datos filtrados por edición activa</span>
+        </div>
+      )}
       {/* KPIs navegables */}
       <KPIGrid columns={3}>
         {statsLoading || !stats ? (
           Array.from({ length: 6 }).map((_, i) => <KPICardSkeleton key={i} />)
         ) : (
           <>
-            <KPICard label={t('dashboard.totalAlumnos')} value={formatNumber(stats.totalAlumnos)} icon="👥" color="var(--color-accent-primary)" onClick={() => navigate('/admin/alumnos')} />
+            <KPICard label={t('dashboard.totalAlumnos')} value={formatNumber(stats.totalAlumnos)} icon="👥" color="var(--color-accent-primary)" onClick={() => navigate(activeEdicion ? `/admin/alumnos?edicion=${activeEdicion.id}` : '/admin/alumnos')} />
             <KPICard label={t('dashboard.ingresosTotales')} value={formatCurrency(stats.ingresosTotales)} icon="💰" color="var(--color-accent-success)" onClick={() => navigate('/admin/pagos')} />
             <KPICard label={t('dashboard.pendientesRevision')} value={formatNumber(stats.pendientesRevision)} icon="🎥" color="var(--color-accent-warning)" onClick={() => navigate('/revisor/videos')} />
             <KPICard label={t('dashboard.emailsPendientes')} value={formatNumber(emailsPendientes.length)} icon="📧" color="var(--color-accent-warning)" onClick={() => navigate('/revisor/emails')} />
             <KPICard label={t('dashboard.inboxAtencion')} value={formatNumber(inboxAlertas.length)} icon="📬" color="var(--color-accent-info)" onClick={() => navigate('/admin/inbox')} />
-            <KPICard label={t('dashboard.alertas')} value={formatNumber((stats.alumnosPorEstado['Plazo Vencido'] || 0) + (stats.alumnosPorEstado['Pago Fallido'] || 0))} icon="⚠️" color="var(--color-accent-danger)" subtext="Plazo vencido · Pago fallido" onClick={() => navigate('/admin/alumnos')} />
+            <KPICard label={t('dashboard.alertas')} value={formatNumber((stats.alumnosPorEstado['Plazo Vencido'] || 0) + (stats.alumnosPorEstado['Pago Fallido'] || 0))} icon="⚠️" color="var(--color-accent-danger)" subtext="Plazo vencido · Pago fallido" onClick={() => navigate(activeEdicion ? `/admin/alumnos?edicion=${activeEdicion.id}` : '/admin/alumnos')} />
           </>
         )}
       </KPIGrid>
@@ -122,10 +139,10 @@ export default function DashboardPage() {
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={estadosChartData} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis dataKey="name" type="category" width={130} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} labelStyle={{ color: '#f1f5f9' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+                <XAxis type="number" tick={{ fill: '#4A4A4A', fontSize: 12 }} />
+                <YAxis dataKey="name" type="category" width={130} tick={{ fill: '#4A4A4A', fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid rgba(169,169,169,0.4)', borderRadius: 8 }} labelStyle={{ color: '#1A1A1A' }} />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                   {estadosChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -146,11 +163,11 @@ export default function DashboardPage() {
           ) : pagosMes.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={pagosMes}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <Tooltip contentStyle={{ background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={(value: number) => [formatCurrency(Number(value)), 'Total']} />
-                <Bar dataKey="total" fill="#06b6d4" radius={[4, 4, 0, 0]} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+                <XAxis dataKey="mes" tick={{ fill: '#4A4A4A', fontSize: 12 }} />
+                <YAxis tick={{ fill: '#4A4A4A', fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid rgba(169,169,169,0.4)', borderRadius: 8 }} formatter={(value: number) => [formatCurrency(Number(value)), 'Total']} />
+                <Bar dataKey="total" fill="#0C5A45" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (

@@ -23,10 +23,8 @@
 .logoText {
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
-  background: linear-gradient(135deg, var(--color-accent-primary), #a78bfa);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--color-accent-primary);
+  letter-spacing: 0.04em;
 }
 
 .logoSub {
@@ -65,8 +63,9 @@
 
 .navItemActive {
   background: var(--color-accent-primary-glow);
-  color: var(--color-accent-primary-hover);
-  border-color: rgba(99, 102, 241, 0.2);
+  color: var(--color-accent-primary);
+  border-color: rgba(12, 90, 69, 0.2);
+  font-weight: var(--font-weight-semibold);
 }
 
 .navIcon {
@@ -152,7 +151,6 @@
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  backdrop-filter: var(--glass-blur);
 }
 
 .pageTitle {

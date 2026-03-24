@@ -5,6 +5,7 @@
 import { ColaEmail, EstadoEmail } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
 import { listRecords, updateRecord, createRecord, AirtableRecord } from './AirtableClient';
+import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
 
 interface AirtableColaEmailFields {
   'Alumno'?: string[];
@@ -31,17 +32,34 @@ function mapToColaEmail(record: AirtableRecord<AirtableColaEmailFields>): ColaEm
   };
 }
 
-export async function fetchColaEmails(filters?: { estado?: EstadoEmail }): Promise<ColaEmail[]> {
+export async function fetchColaEmails(filters?: { estado?: EstadoEmail; tipo?: string }): Promise<ColaEmail[]> {
   const formulas: string[] = [];
   if (filters?.estado) formulas.push(`{Estado} = '${filters.estado}'`);
+  if (filters?.tipo) formulas.push(`{Tipo} = '${filters.tipo}'`);
+
+  const filterByFormula = formulas.length > 1
+    ? `AND(${formulas.join(', ')})`
+    : formulas[0];
 
   const records = await listRecords<AirtableColaEmailFields>(AIRTABLE_TABLES.COLA_EMAILS, {
-    filterByFormula: formulas.length > 0 ? formulas[0] : undefined,
+    filterByFormula,
     sort: [{ field: 'Ultima Modificacion', direction: 'desc' }],
     maxRecords: 100,
   });
 
-  return records.map(mapToColaEmail);
+  const emails = records.map(mapToColaEmail);
+
+  // Enrich alumno names as fallback if lookup field is empty
+  const needsEnrichment = emails.filter(e => !e.alumnoNombre && e.alumnoId);
+  if (needsEnrichment.length > 0) {
+    const ids = [...new Set(needsEnrichment.map(e => e.alumnoId).filter((id): id is string => !!id))];
+    const nombreMap = await fetchAlumnoNombresByIds(ids);
+    emails.forEach(e => {
+      if (!e.alumnoNombre && e.alumnoId) e.alumnoNombre = nombreMap.get(e.alumnoId);
+    });
+  }
+
+  return emails;
 }
 
 export async function aprobarEmail(id: string): Promise<ColaEmail> {

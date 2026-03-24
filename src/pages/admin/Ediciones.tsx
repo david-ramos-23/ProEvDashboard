@@ -3,11 +3,12 @@
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KPICardSkeleton, SkeletonBlock, DataTable, StatusBadge, Column } from '@/components/shared';
+import { KPICardSkeleton, SkeletonBlock, DataTable, Column } from '@/components/shared';
 import { fetchEdiciones, updateEdicion } from '@/data/adapters/airtable/EdicionesAdapter';
 import { fetchModulos } from '@/data/adapters/airtable/ModulosAdapter';
 import { Edicion, Modulo } from '@/types';
 import { formatDate } from '@/utils/formatters';
+import { EDITION_ESTADO_COLORS } from '@/utils/constants';
 import { useTranslation } from '@/i18n';
 
 export default function EdicionesPage() {
@@ -43,17 +44,29 @@ export default function EdicionesPage() {
 
   const edicionColumns: Column<Edicion>[] = [
     {
-      key: 'nombre', header: t('nav.ediciones'), width: '200px',
+      key: 'nombre', header: t('nav.ediciones'), width: '220px',
       render: (e) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: 500 }}>{e.nombre}</span>
-          {e.esEdicionActiva && <span style={{ fontSize: '0.65rem', background: 'var(--color-accent-success)', color: 'white', padding: '1px 6px', borderRadius: '9999px' }}>Activa</span>}
-        </div>
+        <span style={{ fontWeight: 500 }}>{e.nombre}{e.esEdicionActiva ? ' ★' : ''}</span>
       ),
     },
     {
-      key: 'estado', header: t('alumnos.estado'), width: '130px',
-      render: (e) => <StatusBadge status={e.estado} />,
+      key: 'estado', header: t('alumnos.estado'), width: '140px',
+      render: (e) => {
+        const color = EDITION_ESTADO_COLORS[e.estado] || 'var(--color-text-muted)';
+        return (
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            padding: '2px 10px', borderRadius: 9999,
+            fontSize: '0.75rem', fontWeight: 500,
+            color,
+            background: `color-mix(in srgb, ${color} 12%, transparent)`,
+            border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+            {e.estado}
+          </span>
+        );
+      },
     },
     {
       key: 'fechaInicioInscripcion', header: t('ediciones.inscripciones'), width: '200px',

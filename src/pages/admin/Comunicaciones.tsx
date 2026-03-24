@@ -12,10 +12,13 @@ import { useTranslation } from '@/i18n';
 
 type TabType = 'pendientes' | 'cola' | 'enviados' | 'errores';
 
+const TIPOS_EMAIL = ['informacion', 'recordatorio', 'seguimiento', 'bienvenida', 'alerta'];
+
 export default function ComunicacionesPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<TabType>('pendientes');
+  const [filtroTipo, setFiltroTipo] = useState('');
   const [approving, setApproving] = useState<string | null>(null);
 
   const tabFilter: Record<TabType, EstadoEmail | undefined> = {
@@ -26,8 +29,8 @@ export default function ComunicacionesPage() {
   };
 
   const { data: emails = [], isLoading } = useQuery({
-    queryKey: ['cola-emails', { estado: tabFilter[activeTab] }],
-    queryFn: () => fetchColaEmails({ estado: tabFilter[activeTab] }),
+    queryKey: ['cola-emails', { estado: tabFilter[activeTab], tipo: filtroTipo || undefined }],
+    queryFn: () => fetchColaEmails({ estado: tabFilter[activeTab], tipo: filtroTipo || undefined }),
   });
 
   async function handleAprobar(id: string) {
@@ -114,6 +117,16 @@ export default function ComunicacionesPage() {
             }}
           >
             <span>{tab.icon}</span> {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Filtros por tipo */}
+      <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
+        <button className={`btn-sm ${!filtroTipo ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroTipo('')}>Todos</button>
+        {TIPOS_EMAIL.map(tipo => (
+          <button key={tipo} className={`btn-sm ${filtroTipo === tipo ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroTipo(filtroTipo === tipo ? '' : tipo)} style={{ textTransform: 'capitalize' }}>
+            {tipo}
           </button>
         ))}
       </div>

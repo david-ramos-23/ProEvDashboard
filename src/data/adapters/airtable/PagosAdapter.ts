@@ -5,6 +5,7 @@
 import { Pago, EstadoPago, PagoStats } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
 import { listRecords, AirtableRecord } from './AirtableClient';
+import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
 
 interface AirtablePagoFields {
   'Alumno'?: string[];
@@ -77,7 +78,16 @@ export async function fetchPagos(filters?: {
     sort: [{ field: 'Fecha de Pago', direction: 'desc' }],
   });
 
-  return records.map(mapToPago);
+  const pagos = records.map(mapToPago);
+
+  // Enrich with alumno names
+  const alumnoIds = [...new Set(pagos.map(p => p.alumnoId).filter((id): id is string => !!id))];
+  if (alumnoIds.length > 0) {
+    const nombreMap = await fetchAlumnoNombresByIds(alumnoIds);
+    pagos.forEach(p => { if (p.alumnoId) p.alumnoNombre = nombreMap.get(p.alumnoId); });
+  }
+
+  return pagos;
 }
 
 /** Calcula estadísticas de pagos */

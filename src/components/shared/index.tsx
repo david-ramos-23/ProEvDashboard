@@ -3,7 +3,7 @@
  * KPICard, StatusBadge, DataTable, y Loading.
  */
 
-import { ReactNode, memo } from 'react';
+import { ReactNode, memo, useState, useEffect } from 'react';
 import { ESTADO_COLORS, ESTADO_ICONS, REVISION_COLORS, PAGO_COLORS, EMAIL_COLORS } from '@/utils/constants';
 import { EstadoGeneral, EstadoRevision, EstadoPago, EstadoEmail } from '@/types';
 import styles from './Shared.module.css';
@@ -294,5 +294,33 @@ export function LoadingSpinner({ text = 'Cargando...' }: { text?: string }) {
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <span>{text}</span>
     </div>
+  );
+}
+
+// ============================================================
+// Scroll To Top
+// ============================================================
+
+/** Fixed scroll-to-top button, visible after 400px scroll */
+export function ScrollToTop() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setVisible(window.scrollY > 400);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <button
+      className={styles.scrollTop}
+      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      aria-label="Volver arriba"
+      title="Volver arriba"
+    >
+      ↑
+    </button>
   );
 }
