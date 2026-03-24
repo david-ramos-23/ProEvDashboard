@@ -7,7 +7,7 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { StatusBadge, LoadingSpinner } from '@/components/shared';
+import { StatusBadge, SkeletonBlock } from '@/components/shared';
 import { fetchInbox, updateInboxEmail } from '@/data/adapters/airtable/InboxAdapter';
 import { InboxEmail } from '@/types';
 import { formatDateTime, timeAgo } from '@/utils/formatters';
@@ -98,7 +98,6 @@ export default function InboxPage() {
     { key: 'atencion', label: t('inbox.requiereAtencion'), icon: '🔴' },
   ];
 
-  if (isLoading) return <LoadingSpinner text={t('common.loading')} />;
 
   return (
     <div className={`animate-fadeIn ${styles.page}`}>
@@ -133,7 +132,17 @@ export default function InboxPage() {
 
           {/* Items */}
           <div className={styles.listItems}>
-            {filteredEmails.length === 0 ? (
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <SkeletonBlock width="16px" height="16px" borderRadius="4px" />
+                    <SkeletonBlock width={`${50 + (i % 3) * 15}%`} height="14px" />
+                  </div>
+                  <SkeletonBlock width="60%" height="12px" />
+                </div>
+              ))
+            ) : filteredEmails.length === 0 ? (
               <div className={styles.emptyList}>
                 <span className={styles.emptyIcon}>📭</span>
                 <p>{t('inbox.sinEmails')}</p>

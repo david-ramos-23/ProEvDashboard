@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KPICard, KPIGrid, StatusBadge, LoadingSpinner } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge } from '@/components/shared';
 import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adapters/airtable/RevisionesAdapter';
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { formatDate, renderStars, timeAgo } from '@/utils/formatters';
@@ -76,15 +76,19 @@ export default function VideoReviewPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner text={t('common.loading')} />;
-
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
       {/* KPIs */}
       <KPIGrid columns={3}>
-        <KPICard label={t('videoReview.pendientes')} value={stats.pendientes} icon="⏳" color="var(--color-accent-warning)" />
-        <KPICard label={t('videoReview.revisadosHoy')} value={stats.revisadasHoy} icon="✅" color="var(--color-accent-success)" />
-        <KPICard label={t('videoReview.totalRevisiones')} value={stats.total} icon="🎬" color="var(--color-accent-primary)" />
+        {isLoading ? (
+          Array.from({ length: 3 }).map((_, i) => <KPICardSkeleton key={i} />)
+        ) : (
+          <>
+            <KPICard label={t('videoReview.pendientes')} value={stats.pendientes} icon="⏳" color="var(--color-accent-warning)" />
+            <KPICard label={t('videoReview.revisadosHoy')} value={stats.revisadasHoy} icon="✅" color="var(--color-accent-success)" />
+            <KPICard label={t('videoReview.totalRevisiones')} value={stats.total} icon="🎬" color="var(--color-accent-primary)" />
+          </>
+        )}
       </KPIGrid>
 
       {/* Split view */}
@@ -96,7 +100,19 @@ export default function VideoReviewPage() {
             <span className={styles.count}>{revisiones.length}</span>
           </div>
 
-          {revisiones.length === 0 ? (
+          {isLoading ? (
+            <div className={styles.listItems}>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <SkeletonBlock width={`${55 + (i % 3) * 12}%`} height="15px" />
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <SkeletonBlock width="70px" height="20px" borderRadius="9999px" />
+                    <SkeletonBlock width="50px" height="12px" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : revisiones.length === 0 ? (
             <div className={styles.emptyList}>
               <span style={{ fontSize: '2.5rem' }}>🎉</span>
               <p>{t('videoReview.sinPendientes')}</p>

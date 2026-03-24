@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { KPICard, KPIGrid, DataTable, LoadingSpinner, Column } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, DataTable, Column } from '@/components/shared';
 import { fetchDashboardStats } from '@/data/adapters/airtable/AlumnosAdapter';
 import { fetchPagosPorMes } from '@/data/adapters/airtable/PagosAdapter';
 import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
@@ -68,84 +68,48 @@ export default function DashboardPage() {
     },
   ], []);
 
-  if (statsLoading || !stats) return <LoadingSpinner text={t('common.loading')} />;
-
   // Datos para el gráfico de barras
-  const estadosChartData = Object.entries(stats.alumnosPorEstado)
-    .filter(([, count]) => count > 0)
-    .map(([estado, count]) => ({
-      name: estado,
-      value: count,
-      fill: CHART_COLORS[estado] || '#6366f1',
-    }))
-    .sort((a, b) => b.value - a.value);
+  const estadosChartData = stats
+    ? Object.entries(stats.alumnosPorEstado)
+        .filter(([, count]) => count > 0)
+        .map(([estado, count]) => ({ name: estado, value: count, fill: CHART_COLORS[estado] || '#6366f1' }))
+        .sort((a, b) => b.value - a.value)
+    : [];
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
-      {/* KPIs */}
+      {/* KPIs principales */}
       <KPIGrid columns={5}>
-        <KPICard
-          label={t('dashboard.totalAlumnos')}
-          value={formatNumber(stats.totalAlumnos)}
-          icon="👥"
-          color="var(--color-accent-primary)"
-        />
-        <KPICard
-          label={t('dashboard.pagados')}
-          value={formatNumber(stats.totalPagados)}
-          icon="🎉"
-          color="var(--color-accent-success)"
-          subtext={`${stats.totalAlumnos > 0 ? Math.round((stats.totalPagados / stats.totalAlumnos) * 100) : 0}% ${t('dashboard.conversion')}`}
-        />
-        <KPICard
-          label={t('dashboard.pendientesRevision')}
-          value={formatNumber(stats.pendientesRevision)}
-          icon="🎥"
-          color="var(--color-accent-warning)"
-        />
-        <KPICard
-          label={t('dashboard.ingresosTotales')}
-          value={formatCurrency(stats.ingresosTotales)}
-          icon="💰"
-          color="var(--color-accent-info)"
-        />
-        <KPICard
-          label={t('dashboard.engagement')}
-          value={`${stats.engagementPromedio}%`}
-          icon="📈"
-          color="#a78bfa"
-        />
+        {statsLoading || !stats ? (
+          Array.from({ length: 5 }).map((_, i) => <KPICardSkeleton key={i} />)
+        ) : (
+          <>
+            <KPICard label={t('dashboard.totalAlumnos')} value={formatNumber(stats.totalAlumnos)} icon="👥" color="var(--color-accent-primary)" />
+            <KPICard label={t('dashboard.pagados')} value={formatNumber(stats.totalPagados)} icon="🎉" color="var(--color-accent-success)" subtext={`${stats.totalAlumnos > 0 ? Math.round((stats.totalPagados / stats.totalAlumnos) * 100) : 0}% ${t('dashboard.conversion')}`} />
+            <KPICard label={t('dashboard.pendientesRevision')} value={formatNumber(stats.pendientesRevision)} icon="🎥" color="var(--color-accent-warning)" />
+            <KPICard label={t('dashboard.ingresosTotales')} value={formatCurrency(stats.ingresosTotales)} icon="💰" color="var(--color-accent-info)" />
+            <KPICard label={t('dashboard.engagement')} value={`${stats.engagementPromedio}%`} icon="📈" color="#a78bfa" />
+          </>
+        )}
       </KPIGrid>
 
       {/* KPIs de Alertas */}
       <KPIGrid columns={3}>
-        <div style={{ cursor: 'pointer' }} onClick={() => navigate('/admin/alumnos')}>
-          <KPICard
-            label={t('dashboard.alertas')}
-            value={formatNumber((stats.alumnosPorEstado['Plazo Vencido'] || 0) + (stats.alumnosPorEstado['Pago Fallido'] || 0))}
-            icon="⚠️"
-            color="var(--color-accent-danger)"
-            subtext="Plazo vencido + Pago fallido"
-          />
-        </div>
-        <div style={{ cursor: 'pointer' }} onClick={() => navigate('/revisor/emails')}>
-          <KPICard
-            label={t('dashboard.emailsPendientes')}
-            value={formatNumber(emailsPendientes.length)}
-            icon="📧"
-            color="var(--color-accent-warning)"
-            subtext="Pendientes de aprobación"
-          />
-        </div>
-        <div style={{ cursor: 'pointer' }} onClick={() => navigate('/admin/inbox')}>
-          <KPICard
-            label={t('dashboard.inboxAtencion')}
-            value={formatNumber(inboxAlertas.length)}
-            icon="📬"
-            color="var(--color-accent-info)"
-            subtext="Requieren atención"
-          />
-        </div>
+        {statsLoading || !stats ? (
+          Array.from({ length: 3 }).map((_, i) => <KPICardSkeleton key={i} />)
+        ) : (
+          <>
+            <div style={{ cursor: 'pointer' }} onClick={() => navigate('/admin/alumnos')}>
+              <KPICard label={t('dashboard.alertas')} value={formatNumber((stats.alumnosPorEstado['Plazo Vencido'] || 0) + (stats.alumnosPorEstado['Pago Fallido'] || 0))} icon="⚠️" color="var(--color-accent-danger)" subtext="Plazo vencido + Pago fallido" />
+            </div>
+            <div style={{ cursor: 'pointer' }} onClick={() => navigate('/revisor/emails')}>
+              <KPICard label={t('dashboard.emailsPendientes')} value={formatNumber(emailsPendientes.length)} icon="📧" color="var(--color-accent-warning)" subtext="Pendientes de aprobación" />
+            </div>
+            <div style={{ cursor: 'pointer' }} onClick={() => navigate('/admin/inbox')}>
+              <KPICard label={t('dashboard.inboxAtencion')} value={formatNumber(inboxAlertas.length)} icon="📬" color="var(--color-accent-info)" subtext="Requieren atención" />
+            </div>
+          </>
+        )}
       </KPIGrid>
 
       {/* Gráficos */}
@@ -155,22 +119,23 @@ export default function DashboardPage() {
           <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, marginBottom: 'var(--space-md)' }}>
             {t('dashboard.alumnosPorEstado')}
           </h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={estadosChartData} layout="vertical" margin={{ left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-              <YAxis dataKey="name" type="category" width={130} tick={{ fill: '#94a3b8', fontSize: 11 }} />
-              <Tooltip
-                contentStyle={{ background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
-                labelStyle={{ color: '#f1f5f9' }}
-              />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {estadosChartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {statsLoading ? (
+            <SkeletonBlock height="280px" borderRadius="var(--radius-md)" />
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={estadosChartData} layout="vertical" margin={{ left: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <YAxis dataKey="name" type="category" width={130} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} labelStyle={{ color: '#f1f5f9' }} />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  {estadosChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         {/* Pagos por Mes */}
@@ -178,16 +143,15 @@ export default function DashboardPage() {
           <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, marginBottom: 'var(--space-md)' }}>
             {t('dashboard.ingresosPorMes')}
           </h3>
-          {pagosMes.length > 0 ? (
+          {statsLoading ? (
+            <SkeletonBlock height="280px" borderRadius="var(--radius-md)" />
+          ) : pagosMes.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={pagosMes}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="mes" tick={{ fill: '#94a3b8', fontSize: 12 }} />
                 <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{ background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }}
-                  formatter={(value: any) => [formatCurrency(Number(value)), 'Total']}
-                />
+                <Tooltip contentStyle={{ background: '#1a1a3e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8 }} formatter={(value: number) => [formatCurrency(Number(value)), 'Total']} />
                 <Bar dataKey="total" fill="#06b6d4" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

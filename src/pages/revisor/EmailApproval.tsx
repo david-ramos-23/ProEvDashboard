@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KPICard, KPIGrid, LoadingSpinner, StatusBadge } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, StatusBadge } from '@/components/shared';
 import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/ColaEmailsAdapter';
 import { ColaEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
@@ -44,16 +44,41 @@ export default function EmailApprovalPage() {
     }
   }
 
-  if (isLoading) return <LoadingSpinner text={t('common.loading')} />;
-
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
       <KPIGrid columns={2}>
-        <KPICard label={t('emailApproval.pendientesAprobacion')} value={emails.length} icon="⏳" color="var(--color-accent-warning)" />
-        <KPICard label={t('emailApproval.estado')} value={emails.length === 0 ? `${t('emailApproval.alDia')} ✅` : t('emailApproval.requiereAtencion')} icon="📧" color={emails.length === 0 ? 'var(--color-accent-success)' : 'var(--color-accent-warning)'} />
+        {isLoading ? (
+          Array.from({ length: 2 }).map((_, i) => <KPICardSkeleton key={i} />)
+        ) : (
+          <>
+            <KPICard label={t('emailApproval.pendientesAprobacion')} value={emails.length} icon="⏳" color="var(--color-accent-warning)" />
+            <KPICard label={t('emailApproval.estado')} value={emails.length === 0 ? `${t('emailApproval.alDia')} ✅` : t('emailApproval.requiereAtencion')} icon="📧" color={emails.length === 0 ? 'var(--color-accent-success)' : 'var(--color-accent-warning)'} />
+          </>
+        )}
       </KPIGrid>
 
-      {emails.length === 0 ? (
+      {isLoading ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 'var(--space-lg)' }}>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div style={{ padding: 'var(--space-md) var(--space-lg)', borderBottom: '1px solid var(--color-border)' }}>
+              <SkeletonBlock width="60%" height="16px" />
+            </div>
+            <div>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <SkeletonBlock width={`${55 + (i % 3) * 12}%`} height="14px" />
+                  <SkeletonBlock width="50%" height="12px" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+            <SkeletonBlock width="45%" height="22px" />
+            <SkeletonBlock width="30%" height="16px" />
+            <SkeletonBlock width="100%" height="200px" borderRadius="var(--radius-md)" />
+          </div>
+        </div>
+      ) : emails.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 'var(--space-3xl)' }}>
           <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }}>🎉</div>
           <h3>{t('emailApproval.sinPendientes')}</h3>

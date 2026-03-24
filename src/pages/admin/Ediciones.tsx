@@ -3,7 +3,7 @@
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KPICard, KPIGrid, DataTable, StatusBadge, LoadingSpinner, Column } from '@/components/shared';
+import { KPICardSkeleton, SkeletonBlock, DataTable, StatusBadge, Column } from '@/components/shared';
 import { fetchEdiciones, updateEdicion } from '@/data/adapters/airtable/EdicionesAdapter';
 import { fetchModulos } from '@/data/adapters/airtable/ModulosAdapter';
 import { Edicion, Modulo } from '@/types';
@@ -38,8 +38,6 @@ export default function EdicionesPage() {
       console.error('Error actualizando edicion:', err);
     }
   }
-
-  if (edicionesLoading) return <LoadingSpinner text={t('common.loading')} />;
 
   const activa = ediciones.find(e => e.esEdicionActiva);
 
@@ -84,7 +82,17 @@ export default function EdicionesPage() {
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
       {/* Info edición activa */}
-      {activa && (
+      {edicionesLoading ? (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <SkeletonBlock width="50%" height="20px" />
+              <SkeletonBlock width="35%" height="14px" />
+            </div>
+            <SkeletonBlock width="80px" height="24px" borderRadius="9999px" />
+          </div>
+        </div>
+      ) : activa ? (
         <div className="card" style={{ borderColor: 'rgba(34, 197, 94, 0.2)', background: 'rgba(34, 197, 94, 0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -96,13 +104,27 @@ export default function EdicionesPage() {
             <StatusBadge status={activa.estado} />
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Capacidad de módulos */}
       <div>
         <h3 style={{ marginBottom: 'var(--space-md)', fontSize: 'var(--font-size-md)' }}>{t('ediciones.capacidadModulos')}</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: 'var(--space-md)' }}>
-          {modulos.map(mod => {
+          {edicionesLoading ? (
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="card" style={{ padding: 'var(--space-md)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <SkeletonBlock width="55%" height="16px" />
+                  <SkeletonBlock width="20%" height="13px" />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <SkeletonBlock width="40%" height="13px" />
+                  <SkeletonBlock width="30%" height="13px" />
+                </div>
+                <SkeletonBlock width="100%" height="6px" borderRadius="3px" />
+              </div>
+            ))
+          ) : modulos.map(mod => {
             const capacidad = mod.capacidad || 20;
             const inscritos = mod.inscritos || 0;
             const restantes = capacidad - inscritos;
@@ -143,6 +165,7 @@ export default function EdicionesPage() {
         title={t('ediciones.todasEdiciones')}
         columns={edicionColumns}
         data={ediciones}
+        isLoading={edicionesLoading}
         emptyMessage={t('ediciones.sinEdiciones')}
         emptyIcon="📅"
       />

@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { StatusBadge, LoadingSpinner } from '@/components/shared';
+import { StatusBadge, SkeletonBlock } from '@/components/shared';
 import { fetchAlumnoById, updateAlumno } from '@/data/adapters/airtable/AlumnosAdapter';
 import { fetchRevisiones } from '@/data/adapters/airtable/RevisionesAdapter';
 import { fetchPagos } from '@/data/adapters/airtable/PagosAdapter';
@@ -96,7 +96,40 @@ export default function AlumnoDetailPage() {
     }
   }
 
-  if (isLoading || !alumno) return <LoadingSpinner text={t('common.loading')} />;
+  if (isLoading || !alumno) return (
+    <div className={`animate-fadeIn ${styles.container}`}>
+      <div className={styles.header}>
+        <button className="btn-ghost btn-sm" onClick={() => navigate('/admin/alumnos')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          ← {t('common.back')}
+        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'var(--space-md)' }}>
+          <SkeletonBlock width="280px" height="28px" />
+          <SkeletonBlock width="180px" height="16px" />
+          <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+            <SkeletonBlock width="100px" height="22px" borderRadius="9999px" />
+            <SkeletonBlock width="80px" height="22px" borderRadius="9999px" />
+          </div>
+        </div>
+      </div>
+      <div className={styles.tabs}>
+        {['info', 'revisiones', 'pagos', 'historial', 'ia'].map((tab) => (
+          <div key={tab} className={styles.tab} style={{ opacity: 0.4 }}>
+            <SkeletonBlock width="70px" height="14px" />
+          </div>
+        ))}
+      </div>
+      <div className={styles.tabContent}>
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', padding: 'var(--space-xl)' }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <SkeletonBlock width="30%" height="12px" />
+              <SkeletonBlock width={`${50 + i * 8}%`} height="18px" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   const tabs: { key: TabType; label: string; icon: string; count?: number }[] = [
     { key: 'info', label: t('alumnos.info'), icon: '📋' },

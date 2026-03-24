@@ -214,6 +214,41 @@ export function DataTable<T extends { id: string }>({
 }
 
 // ============================================================
+// Skeleton components
+// ============================================================
+
+interface SkeletonBlockProps {
+  width?: string;
+  height?: string;
+  borderRadius?: string;
+  style?: React.CSSProperties;
+}
+
+/** Generic shimmer block for skeleton layouts */
+export function SkeletonBlock({ width = '100%', height = '16px', borderRadius = 'var(--radius-sm)', style }: SkeletonBlockProps) {
+  return (
+    <div
+      className={styles.skeletonCell}
+      style={{ width, height, borderRadius, flexShrink: 0, ...style }}
+    />
+  );
+}
+
+/** Skeleton that mimics a KPICard */
+export function KPICardSkeleton() {
+  return (
+    <div className={styles.kpiCard} style={{ '--kpi-accent': 'rgba(255,255,255,0.06)' } as React.CSSProperties}>
+      <div className={styles.kpiHeader}>
+        <div className={styles.skeletonCell} style={{ width: '55%', height: '13px' }} />
+        <div className={styles.skeletonCell} style={{ width: '28px', height: '28px', borderRadius: '6px' }} />
+      </div>
+      <div className={styles.skeletonCell} style={{ width: '45%', height: '32px', margin: '10px 0 6px' }} />
+      <div className={styles.skeletonCell} style={{ width: '38%', height: '11px' }} />
+    </div>
+  );
+}
+
+// ============================================================
 // Loading spinner
 // ============================================================
 

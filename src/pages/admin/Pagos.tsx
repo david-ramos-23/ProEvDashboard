@@ -4,7 +4,7 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { KPICard, KPIGrid, DataTable, StatusBadge, LoadingSpinner, Column } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, Column } from '@/components/shared';
 import { fetchPagos, fetchPagoStats } from '@/data/adapters/airtable/PagosAdapter';
 import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
@@ -50,19 +50,21 @@ export default function PagosPage() {
     },
   ], []);
 
-  if (isLoading && !stats) return <LoadingSpinner text={t('common.loading')} />;
-
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
       {/* KPIs */}
-      {stats && (
-        <KPIGrid columns={4}>
-          <KPICard label={t('pagos.totalRecaudado')} value={formatCurrency(stats.totalRecaudado)} icon="💰" color="var(--color-accent-success)" />
-          <KPICard label={t('pagos.pagosCompletados')} value={formatNumber(stats.pagosCompletados)} icon="✅" color="var(--color-accent-info)" />
-          <KPICard label={t('pagos.pagosFallidos')} value={formatNumber(stats.pagosFallidos)} icon="⚠️" color="var(--color-accent-danger)" />
-          <KPICard label={t('pagos.reembolsados')} value={formatNumber(stats.pagosReembolsados)} icon="↩️" color="var(--color-accent-warning)" />
-        </KPIGrid>
-      )}
+      <KPIGrid columns={4}>
+        {!stats ? (
+          Array.from({ length: 4 }).map((_, i) => <KPICardSkeleton key={i} />)
+        ) : (
+          <>
+            <KPICard label={t('pagos.totalRecaudado')} value={formatCurrency(stats.totalRecaudado)} icon="💰" color="var(--color-accent-success)" />
+            <KPICard label={t('pagos.pagosCompletados')} value={formatNumber(stats.pagosCompletados)} icon="✅" color="var(--color-accent-info)" />
+            <KPICard label={t('pagos.pagosFallidos')} value={formatNumber(stats.pagosFallidos)} icon="⚠️" color="var(--color-accent-danger)" />
+            <KPICard label={t('pagos.reembolsados')} value={formatNumber(stats.pagosReembolsados)} icon="↩️" color="var(--color-accent-warning)" />
+          </>
+        )}
+      </KPIGrid>
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
