@@ -110,7 +110,7 @@ export default function LoginPage({
           size: 'large',
           width: btnWidth,
           text: 'continue_with',
-          shape: 'rectangular',
+          shape: 'pill',
         });
       }
     };
