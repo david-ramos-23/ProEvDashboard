@@ -5,6 +5,7 @@
 import { Historial } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
 import { listRecords, AirtableRecord } from './AirtableClient';
+import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
 
 interface AirtableHistorialFields {
   'Descripción Detallada'?: string;
@@ -49,5 +50,16 @@ export async function fetchHistorial(options?: {
     maxRecords: options?.maxRecords || 50,
   });
 
-  return records.map(mapToHistorial);
+  const historials = records.map(mapToHistorial);
+
+  // Enrich with alumno names from the Alumnos table
+  const alumnoIds = [...new Set(historials.map(h => h.alumnoId).filter((id): id is string => !!id))];
+  if (alumnoIds.length > 0) {
+    const nombreMap = await fetchAlumnoNombresByIds(alumnoIds);
+    historials.forEach(h => {
+      if (h.alumnoId) h.alumnoNombre = nombreMap.get(h.alumnoId);
+    });
+  }
+
+  return historials;
 }

@@ -148,6 +148,23 @@ export async function updateAlumno(
   return mapToAlumno(record);
 }
 
+/**
+ * Fetches only the Nombre field for a set of alumno record IDs.
+ * Used by other adapters to enrich their records with alumno names.
+ */
+export async function fetchAlumnoNombresByIds(ids: string[]): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const formula = ids.length === 1
+    ? `RECORD_ID() = '${ids[0]}'`
+    : `OR(${ids.map(id => `RECORD_ID() = '${id}'`).join(', ')})`;
+  const records = await listRecords<{ 'Nombre'?: string }>(TABLE, {
+    filterByFormula: formula,
+    fields: ['Nombre'],
+    maxRecords: ids.length,
+  });
+  return new Map(records.map(r => [r.id, r.fields['Nombre'] || '']));
+}
+
 /** Calcula estadísticas del dashboard */
 export async function fetchDashboardStats(): Promise<DashboardStats> {
   const alumnos = await fetchAlumnos();
