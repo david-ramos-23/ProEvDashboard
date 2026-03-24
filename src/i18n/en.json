@@ -48,7 +48,11 @@
     "ingresosPorMes": "Revenue by Month",
     "sinDatosPagos": "No payment data",
     "actividadReciente": "Recent Activity",
-    "sinActividad": "No recent activity"
+    "sinActividad": "No recent activity",
+    "alertas": "Active Alerts",
+    "emailsPendientes": "Pending Emails",
+    "inboxAtencion": "Inbox Attention",
+    "filtrarEdicion": "Filter by edition"
   },
   "alumnos": {
     "title": "Student Management",
@@ -152,5 +156,26 @@
     "mensaje": "Message",
     "aprobarEnviar": "Approve & Send",
     "aprobando": "Approving..."
+  },
+  "inbox": {
+    "title": "Inbox",
+    "requiereAtencion": "Requires Attention",
+    "todos": "All",
+    "recibidos": "Received",
+    "enviados": "Sent",
+    "sinEmails": "No emails",
+    "de": "From",
+    "para": "To",
+    "fecha": "Date",
+    "estado": "Status",
+    "resumenIA": "AI Summary",
+    "respuestaSugerida": "AI Suggested Reply",
+    "respuestaFinal": "Reply / Notes",
+    "guardarRespuesta": "Save Reply",
+    "marcarLeido": "Mark as Read",
+    "marcarRespondido": "Mark as Replied",
+    "seleccionaEmail": "Select an email to view details",
+    "alumno": "Student",
+    "sinSeleccion": "Select an email from the list"
   }
 }

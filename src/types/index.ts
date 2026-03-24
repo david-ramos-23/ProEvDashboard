@@ -197,6 +197,8 @@ export interface InboxEmail extends BaseRecord {
   para: string;
   asunto: string;
   contenido: string;
+  contenidoHtml?: string;
+  fecha?: string;
   direccion: 'Recibido' | 'Enviado';
   estado: 'Nuevo' | 'Leido' | 'Respondido' | 'Archivado' | 'Eliminado';
   alumnoId?: string;
@@ -209,6 +211,8 @@ export interface InboxEmail extends BaseRecord {
   requiereAtencion?: boolean;
   respuestaSugerida?: string;
   respuestaFinal?: string;
+  respuestaEnviada?: boolean;
+  ultimaModificacion?: string;
 }
 
 // ============================================================

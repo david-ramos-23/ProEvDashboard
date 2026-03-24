@@ -66,9 +66,9 @@ export default function PagosPage() {
 
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-        <button className={`btn-ghost btn-sm ${!filtroEstado ? 'btn-primary' : ''}`} onClick={() => setFiltroEstado('')}>Todos</button>
+        <button className={`btn-sm ${!filtroEstado ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroEstado('')}>Todos</button>
         {ESTADOS_PAGO.map(est => (
-          <button key={est} className={`btn-ghost btn-sm ${filtroEstado === est ? 'btn-primary' : ''}`} onClick={() => setFiltroEstado(est === filtroEstado ? '' : est)}>
+          <button key={est} className={`btn-sm ${filtroEstado === est ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroEstado(est === filtroEstado ? '' : est)}>
             {est}
           </button>
         ))}

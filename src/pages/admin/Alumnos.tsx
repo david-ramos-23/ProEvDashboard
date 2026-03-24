@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DataTable, StatusBadge, Column } from '@/components/shared';
 import { fetchAlumnos } from '@/data/adapters/airtable/AlumnosAdapter';
+import { fetchEdiciones } from '@/data/adapters/airtable/EdicionesAdapter';
 import { Alumno, EstadoGeneral } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { ESTADO_ICONS } from '@/utils/constants';
@@ -22,10 +23,15 @@ export default function AlumnosPage() {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<EstadoGeneral | ''>('');
+  const [filtroEdicion, setFiltroEdicion] = useState('');
 
+  const { data: ediciones = [] } = useQuery({
+    queryKey: ['ediciones'],
+    queryFn: fetchEdiciones,
+  });
   const { data: alumnos = [], isLoading } = useQuery({
-    queryKey: ['alumnos', { estado: filtroEstado || undefined }],
-    queryFn: () => fetchAlumnos({ estado: filtroEstado || undefined }),
+    queryKey: ['alumnos', { estado: filtroEstado || undefined, edicionId: filtroEdicion || undefined }],
+    queryFn: () => fetchAlumnos({ estado: filtroEstado || undefined, edicionId: filtroEdicion || undefined }),
   });
 
   // Filtro de búsqueda local (para respuesta instantánea)
@@ -74,10 +80,35 @@ export default function AlumnosPage() {
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+      {/* Filtro por edición */}
+      {ediciones.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>{t('dashboard.filtrarEdicion')}:</span>
+          <select
+            value={filtroEdicion}
+            onChange={e => setFiltroEdicion(e.target.value)}
+            style={{
+              background: 'var(--color-glass-bg)',
+              border: '1px solid var(--color-glass-border)',
+              borderRadius: '8px',
+              color: 'var(--color-text-primary)',
+              padding: '6px 12px',
+              fontSize: '0.8125rem',
+              cursor: 'pointer',
+            }}
+          >
+            <option value="">Todas las ediciones</option>
+            {ediciones.map(ed => (
+              <option key={ed.id} value={ed.id}>{ed.nombre}{ed.esEdicionActiva ? ' ★' : ''}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Filtro por estado */}
       <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap' }}>
         <button
-          className={`btn-ghost btn-sm ${!filtroEstado ? 'btn-primary' : ''}`}
+          className={`btn-sm ${!filtroEstado ? 'btn-primary' : 'btn-ghost'}`}
           onClick={() => setFiltroEstado('')}
         >
           Todos ({alumnos.length})
@@ -85,7 +116,7 @@ export default function AlumnosPage() {
         {ESTADOS.map(est => (
           <button
             key={est}
-            className={`btn-ghost btn-sm ${filtroEstado === est ? 'btn-primary' : ''}`}
+            className={`btn-sm ${filtroEstado === est ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setFiltroEstado(est === filtroEstado ? '' : est)}
           >
             {ESTADO_ICONS[est]} {est}

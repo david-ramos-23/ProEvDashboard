@@ -23,6 +23,13 @@ export default function EdicionesPage() {
     queryFn: fetchModulos,
   });
 
+  function isPastEdicion(e: Edicion): boolean {
+    if (e.estado === 'Finalizada') return true;
+    if (e.fechaFinCurso && new Date(e.fechaFinCurso) < new Date()) return true;
+    if (e.fechaFinInscripcion && new Date(e.fechaFinInscripcion) < new Date() && !e.fechaFinCurso) return true;
+    return false;
+  }
+
   async function toggleActiva(edicion: Edicion) {
     try {
       await updateEdicion(edicion.id, { esEdicionActiva: !edicion.esEdicionActiva });
@@ -55,15 +62,22 @@ export default function EdicionesPage() {
       render: (e) => <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>{formatDate(e.fechaInicioInscripcion)} → {formatDate(e.fechaFinInscripcion)}</span>,
     },
     {
-      key: 'actions', header: '', width: '100px',
-      render: (e) => (
-        <button
-          className={`btn-sm ${e.esEdicionActiva ? 'btn-ghost' : 'btn-primary'}`}
-          onClick={(ev) => { ev.stopPropagation(); toggleActiva(e); }}
-        >
-          {e.esEdicionActiva ? t('common.deactivate') : t('common.activate')}
-        </button>
-      ),
+      key: 'actions', header: '', width: '120px',
+      render: (e) => {
+        const past = isPastEdicion(e);
+        const canActivate = e.esEdicionActiva || !past;
+        return (
+          <button
+            className={`btn-sm ${e.esEdicionActiva ? 'btn-ghost' : canActivate ? 'btn-primary' : 'btn-ghost'}`}
+            disabled={!e.esEdicionActiva && past}
+            title={!e.esEdicionActiva && past ? 'No se puede activar una edición pasada' : undefined}
+            onClick={(ev) => { ev.stopPropagation(); toggleActiva(e); }}
+            style={!e.esEdicionActiva && past ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+          >
+            {e.esEdicionActiva ? t('common.deactivate') : t('common.activate')}
+          </button>
+        );
+      },
     },
   ];
 

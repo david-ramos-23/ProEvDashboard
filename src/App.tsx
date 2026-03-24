@@ -17,6 +17,7 @@ const ComunicacionesPage = lazy(() => import('@/pages/admin/Comunicaciones'));
 const EdicionesPage = lazy(() => import('@/pages/admin/Ediciones'));
 const VideoReviewPage = lazy(() => import('@/pages/revisor/VideoReview'));
 const EmailApprovalPage = lazy(() => import('@/pages/revisor/EmailApproval'));
+const InboxPage = lazy(() => import('@/pages/admin/Inbox'));
 
 export default function App() {
   const [session, setSession] = useState<AuthUser | null>(getSession);
@@ -83,6 +84,7 @@ export default function App() {
               <Route path="/admin/pagos" element={<PagosPage />} />
               <Route path="/admin/comunicaciones" element={<ComunicacionesPage />} />
               <Route path="/admin/ediciones" element={<EdicionesPage />} />
+              <Route path="/admin/inbox" element={<InboxPage />} />
               {/* Admin accede a vistas del revisor */}
               <Route path="/revisor/videos" element={<VideoReviewPage />} />
               <Route path="/revisor/emails" element={<EmailApprovalPage />} />

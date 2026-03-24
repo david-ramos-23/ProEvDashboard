@@ -3,12 +3,15 @@
  */
 
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { KPICard, KPIGrid, DataTable, LoadingSpinner, Column } from '@/components/shared';
 import { fetchDashboardStats } from '@/data/adapters/airtable/AlumnosAdapter';
 import { fetchPagosPorMes } from '@/data/adapters/airtable/PagosAdapter';
 import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
+import { fetchColaEmails } from '@/data/adapters/airtable/ColaEmailsAdapter';
+import { fetchInbox } from '@/data/adapters/airtable/InboxAdapter';
 import { Historial } from '@/types';
 import { formatCurrency, formatNumber, timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
@@ -30,6 +33,7 @@ const CHART_COLORS: Record<string, string> = {
 
 export default function DashboardPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: fetchDashboardStats,
@@ -41,6 +45,14 @@ export default function DashboardPage() {
   const { data: historial = [] } = useQuery({
     queryKey: ['historial', { maxRecords: 15 }],
     queryFn: () => fetchHistorial({ maxRecords: 15 }),
+  });
+  const { data: emailsPendientes = [] } = useQuery({
+    queryKey: ['cola-emails', { estado: 'Pendiente Aprobacion' }],
+    queryFn: () => fetchColaEmails({ estado: 'Pendiente Aprobacion' }),
+  });
+  const { data: inboxAlertas = [] } = useQuery({
+    queryKey: ['inbox', { requiereAtencion: true }],
+    queryFn: () => fetchInbox({ requiereAtencion: true }),
   });
 
   const historialColumns = useMemo<Column<Historial>[]>(() => [
@@ -103,6 +115,37 @@ export default function DashboardPage() {
           icon="📈"
           color="#a78bfa"
         />
+      </KPIGrid>
+
+      {/* KPIs de Alertas */}
+      <KPIGrid columns={3}>
+        <div style={{ cursor: 'pointer' }} onClick={() => navigate('/admin/alumnos')}>
+          <KPICard
+            label={t('dashboard.alertas')}
+            value={formatNumber((stats.alumnosPorEstado['Plazo Vencido'] || 0) + (stats.alumnosPorEstado['Pago Fallido'] || 0))}
+            icon="⚠️"
+            color="var(--color-accent-danger)"
+            subtext="Plazo vencido + Pago fallido"
+          />
+        </div>
+        <div style={{ cursor: 'pointer' }} onClick={() => navigate('/revisor/emails')}>
+          <KPICard
+            label={t('dashboard.emailsPendientes')}
+            value={formatNumber(emailsPendientes.length)}
+            icon="📧"
+            color="var(--color-accent-warning)"
+            subtext="Pendientes de aprobación"
+          />
+        </div>
+        <div style={{ cursor: 'pointer' }} onClick={() => navigate('/admin/inbox')}>
+          <KPICard
+            label={t('dashboard.inboxAtencion')}
+            value={formatNumber(inboxAlertas.length)}
+            icon="📬"
+            color="var(--color-accent-info)"
+            subtext="Requieren atención"
+          />
+        </div>
       </KPIGrid>
 
       {/* Gráficos */}

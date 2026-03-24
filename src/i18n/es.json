@@ -48,7 +48,11 @@
     "ingresosPorMes": "Ingresos por Mes",
     "sinDatosPagos": "Sin datos de pagos",
     "actividadReciente": "Actividad Reciente",
-    "sinActividad": "Sin actividad reciente"
+    "sinActividad": "Sin actividad reciente",
+    "alertas": "Alertas Activas",
+    "emailsPendientes": "Emails Pendientes",
+    "inboxAtencion": "Inbox Atención",
+    "filtrarEdicion": "Filtrar por edición"
   },
   "alumnos": {
     "title": "Gestion de Alumnos",
@@ -152,5 +156,26 @@
     "mensaje": "Mensaje",
     "aprobarEnviar": "Aprobar y Enviar",
     "aprobando": "Aprobando..."
+  },
+  "inbox": {
+    "title": "Bandeja de Entrada",
+    "requiereAtencion": "Requiere Atención",
+    "todos": "Todos",
+    "recibidos": "Recibidos",
+    "enviados": "Enviados",
+    "sinEmails": "Sin emails",
+    "de": "De",
+    "para": "Para",
+    "fecha": "Fecha",
+    "estado": "Estado",
+    "resumenIA": "Resumen IA",
+    "respuestaSugerida": "Respuesta Sugerida",
+    "respuestaFinal": "Respuesta / Notas",
+    "guardarRespuesta": "Guardar Respuesta",
+    "marcarLeido": "Marcar Leído",
+    "marcarRespondido": "Marcar Respondido",
+    "seleccionaEmail": "Selecciona un email para ver el detalle",
+    "alumno": "Alumno",
+    "sinSeleccion": "Selecciona un email de la lista"
   }
 }
