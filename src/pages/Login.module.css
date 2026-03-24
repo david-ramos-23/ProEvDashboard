@@ -165,6 +165,47 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── OR divider ──────────────────────────────────────────────────────────── */
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+}
+
+.dividerLine {
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+}
+
+.dividerText {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Google Sign-In button wrapper ───────────────────────────────────────── */
+
+.googleBtn {
+  margin-top: var(--space-lg);
+  display: flex;
+  justify-content: center;
+  /* The GSI-rendered iframe inherits width from its container.
+     We override the iframe's inline border-radius to match our theme. */
+}
+
+/* Force the GSI button to use the full card width */
+.googleBtn > div,
+.googleBtn iframe {
+  width: 100% !important;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+
 .footer {
   margin-top: var(--space-xl);
   text-align: center;

@@ -1,6 +1,6 @@
 import { useState, useCallback, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { login, logout, getSession, AuthUser } from '@/auth/AuthService';
+import { login, loginWithGoogle, logout, getSession, AuthUser } from '@/auth/AuthService';
 import Layout from '@/components/Layout/Layout';
 import { LoadingSpinner } from '@/components/shared';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -30,6 +30,15 @@ export default function App() {
     return result.error || 'Error desconocido';
   }, []);
 
+  const handleGoogleLogin = useCallback(async (credential: string): Promise<string | null> => {
+    const result = await loginWithGoogle(credential);
+    if (result.success && result.user) {
+      setSession(result.user);
+      return null;
+    }
+    return result.error || 'Error desconocido';
+  }, []);
+
   const handleLogout = useCallback(() => {
     logout();
     setSession(null);
@@ -39,7 +48,7 @@ export default function App() {
   if (!session) {
     return (
       <BrowserRouter>
-        <LoginPage onLogin={handleLogin} />
+        <LoginPage onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} />
         <Analytics />
       </BrowserRouter>
     );

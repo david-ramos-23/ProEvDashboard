@@ -30,7 +30,10 @@
     "subtitle": "Sistema de gestion del curso",
     "emailPlaceholder": "tu@email.com",
     "loginButton": "Iniciar Sesion",
-    "loggingIn": "Verificando..."
+    "loggingIn": "Verificando...",
+    "orDivider": "o",
+    "googleButton": "Continuar con Google",
+    "googleError": "Error al autenticar con Google"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -127,6 +130,14 @@
     "clasificacion": "Clasificacion",
     "sinVideo": "Sin enlace de video",
     "verVideo": "Ver Video"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "markAllRead": "Marcar todo leido",
+    "empty": "Sin notificaciones",
+    "newReviews": "videos pendientes de revision",
+    "newEmails": "emails pendientes de aprobacion",
+    "newActivity": "nueva actividad registrada"
   },
   "emailApproval": {
     "title": "Aprobacion de Emails",

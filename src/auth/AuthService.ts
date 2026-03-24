@@ -1,11 +1,12 @@
 /**
  * AuthService — Servicio de autenticación del dashboard ProEv.
- * 
+ *
  * Implementa:
  * 1. Magic Link: Verifica email contra tabla de usuarios autorizados
- * 2. IP Whitelist: Verifica IP del cliente para acceso admin
- * 3. Sesión con token JWT-like (localStorage)
- * 
+ * 2. Google OAuth: Verifica ID token de Google y extrae perfil
+ * 3. IP Whitelist: Verifica IP del cliente para acceso admin
+ * 4. Sesión con token JWT-like (localStorage)
+ *
  * NOTA: En producción real, estas verificaciones deberían ejecutarse
  * server-side. Este es un MVP que funciona client-side.
  */
@@ -107,6 +108,98 @@ export async function login(email: string): Promise<AuthResult> {
   return {
     success: false,
     error: 'Email no autorizado. Contacta al administrador del sistema.',
+  };
+}
+
+// ============================================================
+// Google OAuth
+// ============================================================
+
+/**
+ * Payload decodificado de un Google ID token (JWT).
+ * Solo los campos que nos interesan.
+ */
+interface GoogleJwtPayload {
+  email?: string;
+  name?: string;
+  picture?: string;
+  email_verified?: boolean;
+}
+
+/**
+ * Decodifica el payload de un Google ID token (JWT) sin verificar firma.
+ * La verificación criptográfica de la firma debe hacerse server-side.
+ * Client-side esto es suficiente para el MVP: Google GSI ya valida el token
+ * antes de entregarlo al callback.
+ */
+function decodeGoogleToken(credential: string): GoogleJwtPayload | null {
+  try {
+    const parts = credential.split('.');
+    if (parts.length !== 3) return null;
+
+    // El payload es la segunda parte, codificado en base64url
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    // Padding necesario para atob
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+    const json = atob(padded);
+    return JSON.parse(json) as GoogleJwtPayload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Autentica al usuario usando un Google ID token (credential) proveniente
+ * del callback de Google Sign-In (GSI).
+ *
+ * Flujo:
+ * 1. Decodifica el JWT para extraer email, name, picture
+ * 2. Verifica el email contra la misma lógica que login()
+ * 3. Crea sesión idéntica a login()
+ */
+export async function loginWithGoogle(credential: string): Promise<AuthResult> {
+  const payload = decodeGoogleToken(credential);
+
+  if (!payload || !payload.email) {
+    return {
+      success: false,
+      error: 'No se pudo leer el token de Google. Inténtalo de nuevo.',
+    };
+  }
+
+  if (!payload.email_verified) {
+    return {
+      success: false,
+      error: 'La cuenta de Google no tiene el email verificado.',
+    };
+  }
+
+  const normalizedEmail = payload.email.toLowerCase().trim();
+  const displayName = payload.name ?? normalizedEmail;
+
+  // Misma lógica de autorización que login()
+
+  if (TEST_USER_PATTERN.test(normalizedEmail)) {
+    return createSession(normalizedEmail, 'admin', displayName);
+  }
+
+  if (ADMIN_ALIAS_PATTERN.test(normalizedEmail)) {
+    return createSession(normalizedEmail, 'admin', displayName);
+  }
+
+  if (REVISOR_ALIAS_PATTERN.test(normalizedEmail)) {
+    return createSession(normalizedEmail, 'revisor', displayName);
+  }
+
+  const authorizedUser = AUTHORIZED_USERS[normalizedEmail];
+  if (authorizedUser) {
+    // Preferir el nombre real de Google sobre el nombre hardcodeado
+    return createSession(normalizedEmail, authorizedUser.role, displayName || authorizedUser.name);
+  }
+
+  return {
+    success: false,
+    error: 'Cuenta de Google no autorizada. Contacta al administrador del sistema.',
   };
 }
 

@@ -30,7 +30,10 @@
     "subtitle": "Course management system",
     "emailPlaceholder": "you@email.com",
     "loginButton": "Sign In",
-    "loggingIn": "Verifying..."
+    "loggingIn": "Verifying...",
+    "orDivider": "or",
+    "googleButton": "Continue with Google",
+    "googleError": "Google authentication failed"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -127,6 +130,14 @@
     "revisionNecesaria": "Needs Revision",
     "sinVideo": "No video link",
     "verVideo": "Watch Video"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "empty": "No notifications",
+    "newReviews": "videos pending review",
+    "newEmails": "emails pending approval",
+    "newActivity": "new activity recorded"
   },
   "emailApproval": {
     "title": "Email Approval",

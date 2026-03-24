@@ -9,6 +9,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ADMIN_NAV, REVISOR_NAV, NavItem } from '@/utils/constants';
 import { getInitials } from '@/utils/formatters';
 import { useTranslation, Locale } from '@/i18n';
+import NotificationBell from '@/components/NotificationBell';
 import styles from './Layout.module.css';
 
 interface LayoutProps {
@@ -89,7 +90,9 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
       <main className={styles.main}>
         <header className={styles.header}>
           <h1 className={styles.pageTitle}>{pageTitle}</h1>
-          <div style={{ display: 'flex', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <NotificationBell />
+            <div style={{ display: 'flex', gap: '4px' }}>
             {(['es', 'en'] as Locale[]).map(l => (
               <button
                 key={l}
@@ -109,6 +112,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
                 {l === 'es' ? 'ES' : 'EN'}
               </button>
             ))}
+            </div>
           </div>
         </header>
         <div className={styles.content}>
