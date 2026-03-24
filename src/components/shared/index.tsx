@@ -440,7 +440,7 @@ export function DataTable<T extends { id: string }>({
             <div ref={colMenuRef} style={{ position: 'relative' }}>
               <button
                 type="button"
-                className={styles.colMenuBtn}
+                className={`${styles.colMenuBtn} ${colMenuOpen ? styles.colMenuBtnActive : ''}`}
                 onClick={() => setColMenuOpen(p => !p)}
                 title="Configurar columnas"
               >

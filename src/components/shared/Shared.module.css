@@ -250,6 +250,12 @@
   border-color: var(--color-border-hover);
 }
 
+.colMenuBtnActive {
+  background: var(--color-accent-primary-glow);
+  color: var(--color-accent-primary);
+  border-color: rgba(12, 90, 69, 0.3);
+}
+
 /* Column config dropdown */
 .colMenuDropdown {
   position: absolute;

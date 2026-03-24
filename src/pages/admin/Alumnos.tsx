@@ -195,7 +195,7 @@ export default function AlumnosPage() {
         {/* Config toggle */}
         <button
           ref={filterBtnRef}
-          className="btn-sm btn-ghost"
+          className={`btn-sm ${configOpen ? 'btn-primary' : 'btn-ghost'}`}
           onClick={() => setConfigOpen(prev => !prev)}
           style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}
         >
