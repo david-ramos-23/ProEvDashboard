@@ -104,7 +104,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
       </aside>
 
       {/* Contenido principal */}
-      <main className={`${styles.main} ${aiOpen ? styles.mainShifted : ''}`}>
+      <main className={styles.main}>
         <header className={styles.header}>
           <h1 className={styles.pageTitle}>{pageTitle}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -170,6 +170,8 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
         </div>
         <ScrollToTop />
       </main>
+      {/* Flex spacer — pushes main content left when AI panel is open */}
+      <div className={`${styles.aiSpacer} ${aiOpen ? styles.aiSpacerOpen : ''}`} />
       <AIAssistant isOpen={aiOpen} onToggle={() => setAiOpen(o => !o)} />
     </div>
   );

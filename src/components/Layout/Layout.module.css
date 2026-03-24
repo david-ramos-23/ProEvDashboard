@@ -169,14 +169,21 @@
 
 .main {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-width);
-  margin-right: 0;
   min-height: 100vh;
-  transition: margin-right 300ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.mainShifted {
-  margin-right: 360px;
+/* Flex spacer — occupies 360px in the flex row when AI panel is open,
+   naturally compressing <main> without any margin tricks */
+.aiSpacer {
+  flex-shrink: 0;
+  width: 0;
+  transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.aiSpacerOpen {
+  width: 360px;
 }
 
 .header {
