@@ -189,9 +189,9 @@
 }
 
 .edicionSelect {
-  padding: 0 18px 0 8px;
-  height: 28px;
-  font-size: 0.65rem;
+  padding: 0 16px 0 6px;
+  height: 24px;
+  font-size: 0.6rem;
   font-family: var(--font-family);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
