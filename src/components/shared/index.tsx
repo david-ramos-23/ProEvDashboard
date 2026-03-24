@@ -4,6 +4,7 @@
  */
 
 import { ReactNode, memo, useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ESTADO_COLORS, ESTADO_ICONS, REVISION_COLORS, PAGO_COLORS, EMAIL_COLORS } from '@/utils/constants';
 import { EstadoGeneral, EstadoRevision, EstadoPago, EstadoEmail } from '@/types';
 import styles from './Shared.module.css';
@@ -341,7 +342,14 @@ export function DataTable<T extends { id: string }>({
   function toggleCol(key: string) {
     setHiddenCols(prev => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        // Don't allow hiding all columns — keep at least one visible
+        const hideableCount = columns.filter(c => c.header && c.hideable !== false).length;
+        if (next.size + 1 >= hideableCount) return prev;
+        next.add(key);
+      }
       return next;
     });
   }
@@ -356,33 +364,34 @@ export function DataTable<T extends { id: string }>({
     e.stopPropagation();
     didResizeRef.current = true;
 
-    // Snapshot all column widths + measure header minimum widths from DOM
+    // Snapshot all column widths from DOM before any state change
     const table = tableRef.current;
-    const minWidths: Record<string, number> = {};
-    if (table) {
-      const ths = table.querySelectorAll('thead th');
-      const snapshot: Record<string, number> = {};
-      ths.forEach((th, i) => {
-        const colKey = visibleColumns[i]?.key;
-        if (colKey) {
-          snapshot[colKey] = th.getBoundingClientRect().width;
-          // Measure header text width as minimum (scrollWidth + padding)
-          minWidths[colKey] = (th as HTMLElement).scrollWidth + 16;
-        }
-      });
-      setColWidths(snapshot);
-    }
+    if (!table) return;
+    const ths = table.querySelectorAll('thead th');
+    const snapshot: Record<string, number> = {};
+    let startW = 0;
+    ths.forEach((th, i) => {
+      const colKey = visibleColumns[i]?.key;
+      if (colKey) {
+        const w = th.getBoundingClientRect().width;
+        snapshot[colKey] = w;
+        if (colKey === key) startW = w;
+      }
+    });
 
-    const th = (e.target as HTMLElement).closest('th');
-    if (!th) return;
-    const startW = th.getBoundingClientRect().width;
-    resizingRef.current = { key, startX: e.clientX, startW };
-    const minW = Math.max(minWidths[key] ?? 80, 80);
+    const startX = e.clientX;
+    resizingRef.current = { key, startX, startW };
+
+    // Apply snapshot so tableLayout: fixed kicks in with correct widths
+    setColWidths(snapshot);
+
+    const col = visibleColumns.find(c => c.key === key);
+    const minW = col?.minWidth ?? 60;
 
     const onMove = (ev: MouseEvent) => {
       if (!resizingRef.current) return;
-      const delta = ev.clientX - resizingRef.current.startX;
-      const newW = Math.max(resizingRef.current.startW + delta, minW);
+      const delta = ev.clientX - startX;
+      const newW = Math.max(startW + delta, minW);
       setColWidths(prev => ({ ...prev, [key]: newW }));
     };
     const onUp = () => {
@@ -443,7 +452,17 @@ export function DataTable<T extends { id: string }>({
               </button>
               {colMenuOpen && (
                 <div className={styles.colMenuDropdown}>
-                  <div className={styles.colMenuHeader}>Columnas visibles</div>
+                  <div className={styles.colMenuHeader}>
+                    <span>Columnas visibles</span>
+                    {hiddenCols.size > 0 && (
+                      <button
+                        className={styles.colMenuReset}
+                        onClick={() => { setHiddenCols(new Set()); setColWidths({}); }}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
                   {columns.filter(c => c.header && c.hideable !== false).map(c => (
                     <label key={c.key} className={styles.colMenuItem}>
                       <input
@@ -563,6 +582,62 @@ export function KPICardSkeleton() {
       <div className={styles.skeletonCell} style={{ width: '45%', height: '32px', margin: '10px 0 6px' }} />
       <div className={styles.skeletonCell} style={{ width: '38%', height: '11px' }} />
     </div>
+  );
+}
+
+// ============================================================
+// Dropdown Menu (portal-based, viewport-aware)
+// ============================================================
+
+interface DropdownMenuProps {
+  open: boolean;
+  onClose: () => void;
+  triggerRef: React.RefObject<HTMLElement | null>;
+  children: ReactNode;
+  width?: number;
+}
+
+export function DropdownMenu({ open, onClose, triggerRef, children, width = 240 }: DropdownMenuProps) {
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const dropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    // Align right edge of dropdown with right edge of trigger
+    let left = rect.right - width;
+    // If it goes off the left edge, push right
+    if (left < 8) left = 8;
+    // If it goes off the right edge, push left
+    if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
+    setPos({ top: rect.bottom + 6 + window.scrollY, left });
+  }, [open, triggerRef, width]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (triggerRef.current?.contains(e.target as Node)) return;
+      if (dropRef.current?.contains(e.target as Node)) return;
+      onClose();
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open, onClose, triggerRef]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div ref={dropRef} className={styles.dropdownPortal} style={{ top: pos.top, left: pos.left, width }}>
+      {children}
+    </div>,
+    document.body
   );
 }
 

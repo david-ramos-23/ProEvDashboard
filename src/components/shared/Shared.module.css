@@ -270,6 +270,9 @@
 }
 
 .colMenuHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: var(--space-xs) var(--space-md);
   font-size: 0.65rem;
   font-weight: var(--font-weight-semibold);
@@ -278,6 +281,21 @@
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--color-border);
   margin-bottom: var(--space-xs);
+}
+
+.colMenuReset {
+  background: none;
+  border: none;
+  color: var(--color-accent-primary);
+  font-size: 0.65rem;
+  cursor: pointer;
+  font-family: var(--font-family);
+  text-transform: none;
+  padding: 0;
+}
+
+.colMenuReset:hover {
+  text-decoration: underline;
 }
 
 .colMenuItem {
@@ -301,6 +319,17 @@
   width: 14px;
   height: 14px;
   flex-shrink: 0;
+}
+
+/* Portal-based dropdown (viewport-aware) */
+.dropdownPortal {
+  position: absolute;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  animation: dropdownIn var(--transition-base) cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .table td {

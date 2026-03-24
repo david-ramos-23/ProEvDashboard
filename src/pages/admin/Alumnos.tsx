@@ -5,7 +5,7 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { DataTable, StatusBadge, Column } from '@/components/shared';
+import { DataTable, StatusBadge, Column, DropdownMenu } from '@/components/shared';
 import { fetchAlumnos } from '@/data/adapters/airtable/AlumnosAdapter';
 import { Alumno, EstadoGeneral } from '@/types';
 import { timeAgo } from '@/utils/formatters';
@@ -59,6 +59,7 @@ export default function AlumnosPage() {
     return new Set(saved?.visible ?? DEFAULT_VISIBLE);
   });
   const [configOpen, setConfigOpen] = useState(false);
+  const filterBtnRef = useRef<HTMLButtonElement>(null);
 
   // Persist on change
   const persistFilters = useCallback((order: EstadoGeneral[], visible: Set<EstadoGeneral>) => {
@@ -129,7 +130,7 @@ export default function AlumnosPage() {
 
   const columns = useMemo<Column<Alumno>[]>(() => [
     {
-      key: 'nombre', header: t('alumnos.alumno'), width: '200px', sortable: true,
+      key: 'nombre', header: t('alumnos.alumno'), width: '200px', sortable: true, minWidth: 140,
       render: (a) => (
         <div>
           <div style={{ fontWeight: 500 }}>{a.nombre || '—'}</div>
@@ -138,19 +139,19 @@ export default function AlumnosPage() {
       ),
     },
     {
-      key: 'estadoGeneral', header: t('alumnos.estado'), width: '170px', sortable: true,
+      key: 'estadoGeneral', header: t('alumnos.estado'), width: '170px', sortable: true, minWidth: 130,
       render: (a) => <StatusBadge status={a.estadoGeneral} type="estado" showIcon />,
     },
     {
-      key: 'moduloSolicitado', header: t('alumnos.modulo'), width: '120px', sortable: true,
+      key: 'moduloSolicitado', header: t('alumnos.modulo'), width: '120px', sortable: true, minWidth: 100,
       render: (a) => <span style={{ color: 'var(--color-text-secondary)' }}>{a.moduloSolicitado || '—'}</span>,
     },
     {
-      key: 'idioma', header: t('alumnos.idioma'), width: '80px',
+      key: 'idioma', header: t('alumnos.idioma'), width: '80px', minWidth: 60,
       render: (a) => <span>{a.idioma === 'Ingles' ? '🇬🇧' : '🇪🇸'}</span>,
     },
     {
-      key: 'engagementScore', header: t('alumnos.engagementCol'), width: '100px', sortable: true,
+      key: 'engagementScore', header: t('alumnos.engagementCol'), width: '100px', sortable: true, minWidth: 70,
       render: (a) => a.engagementScore != null ? (
         <span style={{ color: a.engagementScore > 70 ? 'var(--color-accent-success)' : a.engagementScore > 40 ? 'var(--color-accent-warning)' : 'var(--color-accent-danger)' }}>
           {a.engagementScore}%
@@ -158,7 +159,7 @@ export default function AlumnosPage() {
       ) : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
     },
     {
-      key: 'ultimaModificacion', header: t('alumnos.lastActivity'), width: '120px', sortable: true,
+      key: 'ultimaModificacion', header: t('alumnos.lastActivity'), width: '120px', sortable: true, minWidth: 90,
       render: (a) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(a.ultimaModificacion)}</span>,
     },
   ], []);
@@ -192,56 +193,52 @@ export default function AlumnosPage() {
         )}
 
         {/* Config toggle */}
-        <div style={{ position: 'relative', marginLeft: 'auto' }}>
-          <button
-            className="btn-sm btn-ghost"
-            onClick={() => setConfigOpen(p => !p)}
-            style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-            Filtros
-          </button>
-          {configOpen && (
-            <div style={{
-              position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-              minWidth: 240, background: 'var(--color-bg-card)', border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)', zIndex: 100,
-              padding: '0',
-            }}>
-              <div style={{ padding: '8px 14px', fontSize: '0.65rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--color-border)' }}>
-                Mostrar filtros
-              </div>
-              <div style={{ padding: '6px 0' }}>
-              {/* Active filters first, then inactive */}
-              {[...ALL_ESTADOS].sort((a, b) => {
-                const aActive = visibleChips.has(a) ? 0 : 1;
-                const bActive = visibleChips.has(b) ? 0 : 1;
-                return aActive - bActive;
-              }).map(est => (
-                <label key={est} style={{
-                  display: 'flex', alignItems: 'center', gap: '10px',
-                  padding: '6px 14px', fontSize: '0.8125rem',
-                  color: visibleChips.has(est) ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-                  cursor: 'pointer',
-                  transition: 'background 150ms',
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={visibleChips.has(est)}
-                    onChange={() => toggleChipVisibility(est)}
-                    style={{ accentColor: 'var(--color-accent-primary)', flexShrink: 0 }}
-                  />
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>{ESTADO_ICONS[est]}</span> {est}
-                  </span>
-                </label>
-              ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <button
+          ref={filterBtnRef}
+          className="btn-sm btn-ghost"
+          onClick={() => setConfigOpen(prev => !prev)}
+          style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          Filtros
+        </button>
+
+        <DropdownMenu open={configOpen} onClose={() => setConfigOpen(false)} triggerRef={filterBtnRef} width={240}>
+          <div style={{ padding: '8px 14px', fontSize: '0.65rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Mostrar filtros</span>
+            <button
+              onClick={() => { setVisibleChips(new Set(DEFAULT_VISIBLE)); persistFilters(chipOrder, new Set(DEFAULT_VISIBLE)); }}
+              style={{ background: 'none', border: 'none', color: 'var(--color-accent-primary)', fontSize: '0.65rem', cursor: 'pointer', fontFamily: 'var(--font-family)', textTransform: 'none' }}
+            >
+              Reset
+            </button>
+          </div>
+          <div style={{ padding: '6px 0', maxHeight: 360, overflowY: 'auto' }}>
+            {[...ALL_ESTADOS].sort((a, b) => {
+              const aActive = visibleChips.has(a) ? 0 : 1;
+              const bActive = visibleChips.has(b) ? 0 : 1;
+              return aActive - bActive;
+            }).map(est => (
+              <label key={est} style={{
+                display: 'flex', alignItems: 'center', gap: '10px',
+                padding: '7px 14px', fontSize: '0.8125rem',
+                color: visibleChips.has(est) ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                cursor: 'pointer',
+              }}>
+                <input
+                  type="checkbox"
+                  checked={visibleChips.has(est)}
+                  onChange={() => toggleChipVisibility(est)}
+                  style={{ accentColor: 'var(--color-accent-primary)', flexShrink: 0, width: 14, height: 14 }}
+                />
+                <span>{ESTADO_ICONS[est]} {est}</span>
+              </label>
+            ))}
+          </div>
+        </DropdownMenu>
       </div>
 
       {/* Tabla */}

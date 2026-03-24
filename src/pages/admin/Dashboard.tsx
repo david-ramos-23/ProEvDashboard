@@ -61,14 +61,14 @@ export default function DashboardPage() {
   });
 
   const historialColumns = useMemo<Column<Historial>[]>(() => [
-    { key: 'tipoAccion', header: 'Tipo', width: '140px', sortable: true,
+    { key: 'tipoAccion', header: 'Tipo', width: '140px', sortable: true, minWidth: 90,
       render: (h) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{h.tipoAccion}</span>
     },
     { key: 'descripcion', header: 'Descripción',
       render: (h) => <span style={{ fontSize: '0.8125rem' }}>{h.descripcion?.slice(0, 80) || '—'}</span>
     },
-    { key: 'alumnoNombre', header: 'Alumno', width: '160px', sortable: true },
-    { key: 'createdTime', header: 'Hace', width: '100px', sortable: true,
+    { key: 'alumnoNombre', header: 'Alumno', width: '160px', sortable: true, minWidth: 100 },
+    { key: 'createdTime', header: 'Hace', width: '100px', sortable: true, minWidth: 70,
       render: (h) => <span style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>{timeAgo(h.createdTime)}</span>
     },
   ], []);

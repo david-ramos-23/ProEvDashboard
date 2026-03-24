@@ -237,11 +237,11 @@ function ColaSection() {
   const columns = useMemo<Column<ColaEmail>[]>(() => {
     const cols: Column<ColaEmail>[] = [
       {
-        key: 'alumnoNombre', header: 'Alumno', width: '160px', sortable: true,
+        key: 'alumnoNombre', header: 'Alumno', width: '160px', sortable: true, minWidth: 110,
         render: (e) => <span style={{ fontWeight: 500 }}>{e.alumnoNombre || '—'}</span>,
       },
       {
-        key: 'tipo', header: 'Tipo', width: '120px', sortable: true,
+        key: 'tipo', header: 'Tipo', width: '120px', sortable: true, minWidth: 80,
         render: (e) => <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--color-accent-info)' }}>{e.tipo}</span>,
       },
       {
@@ -249,11 +249,11 @@ function ColaSection() {
         render: (e) => <span style={{ fontSize: '0.8125rem' }}>{e.asunto || e.descripcion || e.mensaje?.slice(0, 80) || '—'}</span>,
       },
       {
-        key: 'estado', header: 'Estado', width: '140px', sortable: true,
+        key: 'estado', header: 'Estado', width: '140px', sortable: true, minWidth: 100,
         render: (e) => <StatusBadge status={e.estado} type="email" />,
       },
       {
-        key: 'createdTime', header: 'Hace', width: '90px', sortable: true,
+        key: 'createdTime', header: 'Hace', width: '90px', sortable: true, minWidth: 60,
         render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
       },
     ];

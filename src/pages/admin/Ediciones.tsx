@@ -92,13 +92,13 @@ export default function EdicionesPage() {
 
   const edicionColumns: Column<Edicion>[] = [
     {
-      key: 'nombre', header: t('nav.ediciones'), width: '220px', sortable: true,
+      key: 'nombre', header: t('nav.ediciones'), width: '220px', sortable: true, minWidth: 120,
       render: (e) => (
         <span style={{ fontWeight: 500 }}>{e.nombre}{e.esEdicionActiva ? ' ★' : ''}</span>
       ),
     },
     {
-      key: 'estado', header: t('alumnos.estado'), width: '140px', sortable: true,
+      key: 'estado', header: t('alumnos.estado'), width: '140px', sortable: true, minWidth: 100,
       render: (e) => {
         const color = EDITION_ESTADO_COLORS[e.estado] || 'var(--color-text-muted)';
         return (
@@ -166,8 +166,8 @@ export default function EdicionesPage() {
               50% { box-shadow: 0 0 0 1px rgba(12, 90, 69, 0.2), 0 4px 32px rgba(12, 90, 69, 0.18); }
             }
             @keyframes badgePulse {
-              0%, 100% { box-shadow: 0 0 0 0 rgba(12, 90, 69, 0.5); }
-              50% { box-shadow: 0 0 0 8px rgba(12, 90, 69, 0); }
+              0%, 100% { box-shadow: 0 0 0 0 rgba(12, 90, 69, 0.4); transform: scale(1); }
+              50% { box-shadow: 0 0 0 8px rgba(12, 90, 69, 0); transform: scale(1.03); }
             }
           `}</style>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -183,11 +183,12 @@ export default function EdicionesPage() {
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '6px 16px', borderRadius: 9999,
               fontSize: '0.8125rem', fontWeight: 600,
-              color: '#fff',
-              background: 'var(--color-accent-primary)',
-              animation: 'badgePulse 2s ease-in-out infinite',
+              color: 'var(--color-accent-primary)',
+              background: 'rgba(12, 90, 69, 0.1)',
+              border: '1px solid rgba(12, 90, 69, 0.25)',
+              animation: 'badgePulse 2.5s ease-in-out infinite',
             }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#fff', display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-accent-primary)', display: 'inline-block', flexShrink: 0, boxShadow: '0 0 6px rgba(12, 90, 69, 0.5)' }} />
               Abierta
             </span>
           </div>

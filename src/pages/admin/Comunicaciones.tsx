@@ -55,11 +55,11 @@ export default function ComunicacionesPage() {
   const columns = useMemo<Column<ColaEmail>[]>(() => {
     const cols: Column<ColaEmail>[] = [
       {
-        key: 'alumnoNombre', header: t('alumnos.alumno'), width: '160px', sortable: true,
+        key: 'alumnoNombre', header: t('alumnos.alumno'), width: '160px', sortable: true, minWidth: 110,
         render: (e) => <span style={{ fontWeight: 500 }}>{e.alumnoNombre || '—'}</span>,
       },
       {
-        key: 'tipo', header: t('comunicaciones.tipo'), width: '120px', sortable: true,
+        key: 'tipo', header: t('comunicaciones.tipo'), width: '120px', sortable: true, minWidth: 80,
         render: (e) => <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--color-accent-info)' }}>{e.tipo}</span>,
       },
       {
@@ -67,11 +67,11 @@ export default function ComunicacionesPage() {
         render: (e) => <span style={{ fontSize: '0.8125rem' }}>{e.asunto || e.descripcion || e.mensaje?.slice(0, 60) || '—'}</span>,
       },
       {
-        key: 'estado', header: t('alumnos.estado'), width: '140px', sortable: true,
+        key: 'estado', header: t('alumnos.estado'), width: '140px', sortable: true, minWidth: 100,
         render: (e) => <StatusBadge status={e.estado} type="email" />,
       },
       {
-        key: 'createdTime', header: t('pagos.fecha'), width: '100px', sortable: true,
+        key: 'createdTime', header: t('pagos.fecha'), width: '100px', sortable: true, minWidth: 70,
         render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
       },
     ];

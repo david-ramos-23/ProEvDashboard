@@ -30,19 +30,19 @@ export default function PagosPage() {
 
   const columns = useMemo<Column<Pago>[]>(() => [
     {
-      key: 'alumnoNombre', header: t('alumnos.alumno'), width: '180px', sortable: true,
+      key: 'alumnoNombre', header: t('alumnos.alumno'), width: '180px', sortable: true, minWidth: 120,
       render: (p) => <span style={{ fontWeight: 500 }}>{p.alumnoNombre || '—'}</span>,
     },
     {
-      key: 'importe', header: t('pagos.importe'), width: '120px', sortable: true,
+      key: 'importe', header: t('pagos.importe'), width: '120px', sortable: true, minWidth: 80,
       render: (p) => <span style={{ fontWeight: 600 }}>{formatCurrency(p.importe, p.moneda)}</span>,
     },
     {
-      key: 'estadoPago', header: t('alumnos.estado'), width: '130px', sortable: true,
+      key: 'estadoPago', header: t('alumnos.estado'), width: '130px', sortable: true, minWidth: 90,
       render: (p) => <StatusBadge status={p.estadoPago} type="pago" />,
     },
     {
-      key: 'fechaPago', header: t('pagos.fecha'), width: '120px', sortable: true,
+      key: 'fechaPago', header: t('pagos.fecha'), width: '120px', sortable: true, minWidth: 90,
       render: (p) => <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{formatDate(p.fechaPago)}</span>,
     },
     {
