@@ -16,6 +16,7 @@ import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
 import { EstadoGeneral } from '@/types';
 import { formatDate, formatCurrency, timeAgo, renderStars } from '@/utils/formatters';
 import { ESTADO_ICONS } from '@/utils/constants';
+import { useTranslation } from '@/i18n';
 import styles from './AlumnoDetail.module.css';
 
 type TabType = 'info' | 'revisiones' | 'pagos' | 'historial' | 'ia';
@@ -26,6 +27,7 @@ const ESTADOS: EstadoGeneral[] = [
 ];
 
 export default function AlumnoDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -94,14 +96,14 @@ export default function AlumnoDetailPage() {
     }
   }
 
-  if (isLoading || !alumno) return <LoadingSpinner text="Cargando alumno..." />;
+  if (isLoading || !alumno) return <LoadingSpinner text={t('common.loading')} />;
 
   const tabs: { key: TabType; label: string; icon: string; count?: number }[] = [
-    { key: 'info', label: 'Información', icon: '📋' },
-    { key: 'revisiones', label: 'Revisiones', icon: '🎬', count: revisiones.length },
-    { key: 'pagos', label: 'Pagos', icon: '💰', count: pagos.length },
-    { key: 'historial', label: 'Historial', icon: '📜', count: historial.length },
-    { key: 'ia', label: 'IA Insights', icon: '🤖' },
+    { key: 'info', label: t('alumnos.info'), icon: '📋' },
+    { key: 'revisiones', label: t('alumnos.revisiones'), icon: '🎬', count: revisiones.length },
+    { key: 'pagos', label: t('nav.pagos'), icon: '💰', count: pagos.length },
+    { key: 'historial', label: t('alumnos.historial'), icon: '📜', count: historial.length },
+    { key: 'ia', label: t('alumnos.iaInsights'), icon: '🤖' },
   ];
 
   const hasChanges = (
@@ -115,7 +117,7 @@ export default function AlumnoDetailPage() {
       {/* Header */}
       <div className={styles.header}>
         <button className="btn-ghost" onClick={() => navigate('/admin/alumnos')}>
-          ← Volver
+          ← {t('common.back')}
         </button>
         <div className={styles.headerInfo}>
           <div className={styles.avatar}>
@@ -137,15 +139,15 @@ export default function AlumnoDetailPage() {
         {/* Métricas rápidas */}
         <div className={styles.quickStats}>
           <div className={styles.quickStat}>
-            <span className={styles.quickLabel}>Módulo</span>
+            <span className={styles.quickLabel}>{t('alumnos.modulo')}</span>
             <span className={styles.quickValue}>{alumno.moduloSolicitado || '—'}</span>
           </div>
           <div className={styles.quickStat}>
-            <span className={styles.quickLabel}>Idioma</span>
+            <span className={styles.quickLabel}>{t('alumnos.idioma')}</span>
             <span className={styles.quickValue}>{alumno.idioma === 'Ingles' ? '🇬🇧 EN' : '🇪🇸 ES'}</span>
           </div>
           <div className={styles.quickStat}>
-            <span className={styles.quickLabel}>Engagement</span>
+            <span className={styles.quickLabel}>{t('alumnos.engagementCol')}</span>
             <span className={styles.quickValue} style={{
               color: (alumno.engagementScore || 0) > 70 ? 'var(--color-accent-success)' : (alumno.engagementScore || 0) > 40 ? 'var(--color-accent-warning)' : 'var(--color-accent-danger)'
             }}>
@@ -153,7 +155,7 @@ export default function AlumnoDetailPage() {
             </span>
           </div>
           <div className={styles.quickStat}>
-            <span className={styles.quickLabel}>Puntuación Video</span>
+            <span className={styles.quickLabel}>{t('alumnos.puntuacionVideo')}</span>
             <span className={styles.quickValue}>{alumno.puntuacionVideo ? renderStars(alumno.puntuacionVideo) : '—'}</span>
           </div>
         </div>
@@ -182,10 +184,10 @@ export default function AlumnoDetailPage() {
           <div className={styles.infoGrid}>
             {/* Columna izquierda: datos */}
             <div className="card" style={{ padding: 'var(--space-lg)' }}>
-              <h3 style={{ marginBottom: 'var(--space-md)' }}>Datos del Alumno</h3>
+              <h3 style={{ marginBottom: 'var(--space-md)' }}>{t('alumnos.datosAlumno')}</h3>
               <div className={styles.fieldGroup}>
                 <div className={styles.field}>
-                  <label>Estado</label>
+                  <label>{t('alumnos.estado')}</label>
                   <select
                     value={editEstado}
                     onChange={(e) => setEditEstado(e.target.value as EstadoGeneral)}
@@ -197,7 +199,7 @@ export default function AlumnoDetailPage() {
                   </select>
                 </div>
                 <div className={styles.field}>
-                  <label>Fecha Plazo</label>
+                  <label>{t('alumnos.fechaPlazo')}</label>
                   <input
                     type="date"
                     value={editPlazo}
@@ -206,11 +208,11 @@ export default function AlumnoDetailPage() {
                   />
                 </div>
                 <div className={styles.field}>
-                  <label>Preinscripción</label>
+                  <label>{t('alumnos.preinscripcion')}</label>
                   <span style={{ color: 'var(--color-text-secondary)' }}>{formatDate(alumno.fechaPreinscripcion)}</span>
                 </div>
                 <div className={styles.field}>
-                  <label>Última Modificación</label>
+                  <label>{t('alumnos.ultimaModificacion')}</label>
                   <span style={{ color: 'var(--color-text-muted)' }}>{timeAgo(alumno.ultimaModificacion)}</span>
                 </div>
               </div>
@@ -218,25 +220,25 @@ export default function AlumnoDetailPage() {
 
             {/* Columna derecha: notas internas */}
             <div className="card" style={{ padding: 'var(--space-lg)' }}>
-              <h3 style={{ marginBottom: 'var(--space-md)' }}>Notas Internas</h3>
+              <h3 style={{ marginBottom: 'var(--space-md)' }}>{t('alumnos.notasInternas')}</h3>
               <textarea
                 value={editNotas}
                 onChange={(e) => setEditNotas(e.target.value)}
                 className={styles.textarea}
-                placeholder="Notas privadas sobre este alumno..."
+                placeholder={t('alumnos.notasPlaceholder')}
                 rows={6}
               />
               {hasChanges && (
                 <div style={{ marginTop: 'var(--space-md)', display: 'flex', gap: 'var(--space-sm)' }}>
                   <button className="btn-primary" onClick={handleSave} disabled={isSaving}>
-                    {isSaving ? 'Guardando...' : '💾 Guardar Cambios'}
+                    {isSaving ? t('common.saving') : `💾 ${t('common.save')}`}
                   </button>
                   <button className="btn-ghost" onClick={() => {
                     setEditEstado(alumno.estadoGeneral);
                     setEditNotas(alumno.notasInternas || '');
                     setEditPlazo(alumno.fechaPlazo || '');
                   }}>
-                    Descartar
+                    {t('common.discard')}
                   </button>
                 </div>
               )}
@@ -250,7 +252,7 @@ export default function AlumnoDetailPage() {
             {revisiones.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', padding: 'var(--space-2xl)' }}>
                 <span style={{ fontSize: '2rem' }}>🎬</span>
-                <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>Sin revisiones de video</p>
+                <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>{t('alumnos.sinRevisiones')}</p>
               </div>
             ) : revisiones.map(rev => (
               <div key={rev.id} className="card" style={{ padding: 'var(--space-md)' }}>
@@ -268,7 +270,7 @@ export default function AlumnoDetailPage() {
                 )}
                 {rev.videoEnviado && (
                   <a href={rev.videoEnviado} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', marginTop: '4px', display: 'inline-block' }}>
-                    🎥 Ver video →
+                    🎥 {t('alumnos.verVideo')} →
                   </a>
                 )}
               </div>
@@ -282,7 +284,7 @@ export default function AlumnoDetailPage() {
             {pagos.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', padding: 'var(--space-2xl)' }}>
                 <span style={{ fontSize: '2rem' }}>💳</span>
-                <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>Sin pagos registrados</p>
+                <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>{t('alumnos.sinPagos')}</p>
               </div>
             ) : pagos.map(pago => (
               <div key={pago.id} className="card" style={{ padding: 'var(--space-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -294,7 +296,7 @@ export default function AlumnoDetailPage() {
                   </div>
                 </div>
                 {pago.linkRecibo && (
-                  <a href={pago.linkRecibo} target="_blank" rel="noopener noreferrer" className="btn-ghost btn-sm">📄 Recibo</a>
+                  <a href={pago.linkRecibo} target="_blank" rel="noopener noreferrer" className="btn-ghost btn-sm">📄 {t('alumnos.recibo')}</a>
                 )}
               </div>
             ))}
@@ -307,7 +309,7 @@ export default function AlumnoDetailPage() {
             {historial.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', padding: 'var(--space-2xl)' }}>
                 <span style={{ fontSize: '2rem' }}>📜</span>
-                <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>Sin historial</p>
+                <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>{t('alumnos.sinHistorial')}</p>
               </div>
             ) : (
               <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -335,15 +337,15 @@ export default function AlumnoDetailPage() {
         {activeTab === 'ia' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-md)' }}>
             <div className="card" style={{ padding: 'var(--space-lg)', background: 'rgba(167, 139, 250, 0.04)', borderColor: 'rgba(167, 139, 250, 0.15)' }}>
-              <h4 style={{ marginBottom: 'var(--space-sm)' }}>🤖 Resumen de Feedback IA</h4>
+              <h4 style={{ marginBottom: 'var(--space-sm)' }}>🤖 {t('alumnos.resumenIA')}</h4>
               <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-                {alumno.resumenFeedbackIA || 'Sin análisis IA disponible para este alumno.'}
+                {alumno.resumenFeedbackIA || t('alumnos.sinAnalisisIA')}
               </p>
             </div>
             <div className="card" style={{ padding: 'var(--space-lg)', background: 'rgba(6, 182, 212, 0.04)', borderColor: 'rgba(6, 182, 212, 0.15)' }}>
-              <h4 style={{ marginBottom: 'var(--space-sm)' }}>📌 Siguiente Acción Recomendada</h4>
+              <h4 style={{ marginBottom: 'var(--space-sm)' }}>📌 {t('alumnos.siguienteAccion')}</h4>
               <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
-                {alumno.siguienteAccionIA || 'Sin acción recomendada por el momento.'}
+                {alumno.siguienteAccionIA || t('alumnos.sinAccionIA')}
               </p>
             </div>
           </div>
