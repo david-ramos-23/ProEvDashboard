@@ -104,10 +104,11 @@ export default function LoginPage({
       });
 
       if (googleBtnRef.current) {
+        const btnWidth = googleBtnRef.current.offsetWidth || 352;
         window.google.accounts.id.renderButton(googleBtnRef.current, {
           theme: 'outline',
           size: 'large',
-          width: '100%',
+          width: btnWidth,
           text: 'continue_with',
           shape: 'rectangular',
         });

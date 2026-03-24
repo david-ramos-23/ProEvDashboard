@@ -266,16 +266,17 @@
 
 .googleBtn {
   margin-top: var(--space-lg);
-  display: flex;
-  justify-content: center;
-  /* The GSI-rendered iframe inherits width from its container.
-     We override the iframe's inline border-radius to match our theme. */
+  width: 100%;
 }
 
-/* Force the GSI button to use the full card width */
+/* Force all GSI-rendered elements to stretch to full card width */
 .googleBtn > div,
-.googleBtn iframe {
+.googleBtn div[role="button"],
+.googleBtn iframe,
+.googleBtn > div > div {
   width: 100% !important;
+  max-width: 100% !important;
+  min-width: 100% !important;
 }
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
