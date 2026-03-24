@@ -298,6 +298,9 @@
 
 .colMenuItem input[type="checkbox"] {
   accent-color: var(--color-accent-primary);
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .table td {
