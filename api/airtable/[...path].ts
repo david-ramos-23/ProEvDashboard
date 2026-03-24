@@ -16,29 +16,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Server misconfigured: missing Airtable credentials' });
   }
 
-  // Extract the path segments after /api/airtable/
-  const pathSegments = req.query.path;
-  if (!pathSegments || (Array.isArray(pathSegments) && pathSegments.length === 0)) {
+  // Extract path + query from the raw URL after /api/airtable/
+  const rawUrl = req.url || '';
+  const prefixIndex = rawUrl.indexOf('/api/airtable/');
+  if (prefixIndex === -1) {
+    return res.status(400).json({ error: 'Missing table path' });
+  }
+  const remainder = rawUrl.slice(prefixIndex + '/api/airtable/'.length);
+  if (!remainder || remainder === '') {
     return res.status(400).json({ error: 'Missing table path' });
   }
 
-  const airtablePath = Array.isArray(pathSegments) ? pathSegments.join('/') : pathSegments;
-
-  // Build Airtable URL with query params
-  const url = new URL(`${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${airtablePath}`);
-
-  // Forward query params (except 'path' which is the catch-all)
-  for (const [key, value] of Object.entries(req.query)) {
-    if (key === 'path') continue;
-    if (Array.isArray(value)) {
-      value.forEach(v => url.searchParams.append(key, v));
-    } else if (value) {
-      url.searchParams.set(key, value);
-    }
-  }
+  // Build Airtable URL preserving the original query string
+  const url = `${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${remainder}`;
 
   try {
-    const airtableRes = await fetch(url.toString(), {
+    const airtableRes = await fetch(url, {
       method: req.method || 'GET',
       headers: {
         'Authorization': `Bearer ${AIRTABLE_PAT}`,
