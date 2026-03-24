@@ -5,7 +5,7 @@
  * Permite aprobar/rechazar videos con puntuación y feedback.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICard, KPIGrid, StatusBadge, LoadingSpinner } from '@/components/shared';
 import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adapters/airtable/RevisionesAdapter';
@@ -34,17 +34,19 @@ export default function VideoReviewPage() {
     queryFn: fetchRevisionStats,
   });
 
-  // Auto-select first revision when data loads and nothing is selected
-  if (revisiones.length > 0 && !selected) {
-    selectRevision(revisiones[0]);
-  }
-
   function selectRevision(rev: RevisionVideo) {
     setSelected(rev);
     setFeedback(rev.feedback || '');
     setPuntuacion(rev.puntuacion || 0);
     setNotas(rev.notasInternas || '');
   }
+
+  // Auto-select first revision when data loads
+  useEffect(() => {
+    if (revisiones.length > 0 && !selected) {
+      selectRevision(revisiones[0]);
+    }
+  }, [revisiones]);
 
   async function handleSave(estado: EstadoRevision) {
     if (!selected) return;

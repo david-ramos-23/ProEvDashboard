@@ -2,7 +2,7 @@
  * Aprobación de Emails — Vista Revisor para aprobar/rechazar emails pendientes.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICard, KPIGrid, LoadingSpinner, StatusBadge } from '@/components/shared';
 import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/ColaEmailsAdapter';
@@ -21,10 +21,12 @@ export default function EmailApprovalPage() {
     queryFn: () => fetchColaEmails({ estado: 'Pendiente Aprobacion' }),
   });
 
-  // Auto-select first email when data loads and nothing is selected
-  if (emails.length > 0 && !selected) {
-    setSelected(emails[0]);
-  }
+  // Auto-select first email when data loads
+  useEffect(() => {
+    if (emails.length > 0 && !selected) {
+      setSelected(emails[0]);
+    }
+  }, [emails]);
 
   async function handleAprobar() {
     if (!selected) return;
