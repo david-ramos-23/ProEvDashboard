@@ -267,6 +267,8 @@
 .googleBtn {
   margin-top: var(--space-lg);
   width: 100%;
+  border-radius: var(--radius-md);
+  overflow: hidden;
 }
 
 /* Force all GSI-rendered elements to stretch to full card width */
