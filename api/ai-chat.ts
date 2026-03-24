@@ -1,15 +1,15 @@
 /**
  * AI Chat API — Serverless proxy for the ProEv AI assistant.
  *
- * Uses Claude (claude-haiku-4-5) with tool_use to query Airtable tables
- * server-side and answer questions about dashboard data.
+ * Uses OpenRouter (OpenAI-compatible) with function calling to query Airtable
+ * tables server-side and answer questions about dashboard data.
  *
- * Required env vars: ANTHROPIC_API_KEY, AIRTABLE_PAT, AIRTABLE_BASE_ID
+ * Required env vars: OPENROUTER_API_KEY, AIRTABLE_PAT, AIRTABLE_BASE_ID
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const AIRTABLE_BASE_URL = 'https://api.airtable.com/v0';
@@ -45,99 +45,123 @@ async function airtablePatch(tableId: string, recordId: string, fields: Record<s
   return res.json();
 }
 
-// ── Tool definitions ───────────────────────────────────────────────────────
+// ── Tool definitions (OpenAI function-calling format) ──────────────────────
 
 const tools = [
   {
-    name: 'search_alumnos',
-    description: 'Search and list alumnos from the ProEv system. Returns name, email, estado, módulo, engagement score.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        search: { type: 'string', description: 'Search by name or email (optional)' },
-        estado: { type: 'string', description: 'Filter by estado: Preinscrito, En revision de video, Aprobado, Rechazado, Pendiente de pago, Reserva, Pagado, Finalizado, Plazo Vencido, Pago Fallido, Privado' },
-        limit: { type: 'number', description: 'Max results (default 10, max 50)' },
+    type: 'function',
+    function: {
+      name: 'search_alumnos',
+      description: 'Search and list alumnos from the ProEv system. Returns name, email, estado, módulo, engagement score.',
+      parameters: {
+        type: 'object',
+        properties: {
+          search: { type: 'string', description: 'Search by name or email (optional)' },
+          estado: { type: 'string', description: 'Filter by estado: Preinscrito, En revision de video, Aprobado, Rechazado, Pendiente de pago, Reserva, Pagado, Finalizado, Plazo Vencido, Pago Fallido, Privado' },
+          limit: { type: 'number', description: 'Max results (default 10, max 50)' },
+        },
       },
     },
   },
   {
-    name: 'get_alumno',
-    description: 'Get full details of a specific alumno by Airtable record ID (starts with rec).',
-    input_schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'Airtable record ID' },
-      },
-      required: ['id'],
-    },
-  },
-  {
-    name: 'list_inbox',
-    description: 'List inbox emails. Can filter by direction (Recibido/Enviado), estado, or requiereAtencion.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        direccion: { type: 'string', description: 'Recibido or Enviado' },
-        requiereAtencion: { type: 'boolean', description: 'Only show emails requiring attention' },
-        limit: { type: 'number', description: 'Max results (default 10)' },
+    type: 'function',
+    function: {
+      name: 'get_alumno',
+      description: 'Get full details of a specific alumno by Airtable record ID (starts with rec).',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Airtable record ID' },
+        },
+        required: ['id'],
       },
     },
   },
   {
-    name: 'list_revisiones',
-    description: 'List video reviews. Optionally filter by alumno ID or estado.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        alumnoId: { type: 'string', description: 'Filter by alumno record ID' },
-        estado: { type: 'string', description: 'Pendiente, Aprobado, Rechazado, Revision Necesaria' },
-        limit: { type: 'number', description: 'Max results (default 10)' },
+    type: 'function',
+    function: {
+      name: 'list_inbox',
+      description: 'List inbox emails. Can filter by direction (Recibido/Enviado), estado, or requiereAtencion.',
+      parameters: {
+        type: 'object',
+        properties: {
+          direccion: { type: 'string', description: 'Recibido or Enviado' },
+          requiereAtencion: { type: 'boolean', description: 'Only show emails requiring attention' },
+          limit: { type: 'number', description: 'Max results (default 10)' },
+        },
       },
     },
   },
   {
-    name: 'list_pagos',
-    description: 'List payment records. Optionally filter by alumno ID.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        alumnoId: { type: 'string', description: 'Filter by alumno record ID' },
-        limit: { type: 'number', description: 'Max results (default 10)' },
+    type: 'function',
+    function: {
+      name: 'list_revisiones',
+      description: 'List video reviews. Optionally filter by alumno ID or estado.',
+      parameters: {
+        type: 'object',
+        properties: {
+          alumnoId: { type: 'string', description: 'Filter by alumno record ID' },
+          estado: { type: 'string', description: 'Pendiente, Aprobado, Rechazado, Revision Necesaria' },
+          limit: { type: 'number', description: 'Max results (default 10)' },
+        },
       },
     },
   },
   {
-    name: 'list_cola_emails',
-    description: 'List email queue (cola de emails). Optionally filter by estado.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        estado: { type: 'string', description: 'Pendiente Aprobacion, Pendiente, Enviado, Error' },
-        limit: { type: 'number', description: 'Max results (default 10)' },
+    type: 'function',
+    function: {
+      name: 'list_pagos',
+      description: 'List payment records. Optionally filter by alumno ID.',
+      parameters: {
+        type: 'object',
+        properties: {
+          alumnoId: { type: 'string', description: 'Filter by alumno record ID' },
+          limit: { type: 'number', description: 'Max results (default 10)' },
+        },
       },
     },
   },
   {
-    name: 'update_alumno_estado',
-    description: 'Update the estado of an alumno. Only use when the user explicitly asks to change a status.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'Airtable record ID of the alumno' },
-        estado: { type: 'string', description: 'New estado value' },
+    type: 'function',
+    function: {
+      name: 'list_cola_emails',
+      description: 'List email queue (cola de emails). Optionally filter by estado.',
+      parameters: {
+        type: 'object',
+        properties: {
+          estado: { type: 'string', description: 'Pendiente Aprobacion, Pendiente, Enviado, Error' },
+          limit: { type: 'number', description: 'Max results (default 10)' },
+        },
       },
-      required: ['id', 'estado'],
     },
   },
   {
-    name: 'approve_email',
-    description: 'Move an email in the cola from Pendiente Aprobacion to Pendiente (approved for sending). Only use when explicitly asked.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: 'Airtable record ID of the cola email' },
+    type: 'function',
+    function: {
+      name: 'update_alumno_estado',
+      description: 'Update the estado of an alumno. Only use when the user explicitly asks to change a status.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Airtable record ID of the alumno' },
+          estado: { type: 'string', description: 'New estado value' },
+        },
+        required: ['id', 'estado'],
       },
-      required: ['id'],
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'approve_email',
+      description: 'Move an email in the cola from Pendiente Aprobacion to Pendiente (approved for sending). Only use when explicitly asked.',
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'Airtable record ID of the cola email' },
+        },
+        required: ['id'],
+      },
     },
   },
 ];
@@ -253,10 +277,12 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
 
 // ── Main handler ───────────────────────────────────────────────────────────
 
+type OAIMessage = { role: string; content: string | null; tool_calls?: unknown[]; tool_call_id?: string; name?: string };
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!ANTHROPIC_API_KEY || !AIRTABLE_PAT || !AIRTABLE_BASE_ID) {
+  if (!OPENROUTER_API_KEY || !AIRTABLE_PAT || !AIRTABLE_BASE_ID) {
     return res.status(500).json({ error: 'Server misconfigured: missing API credentials' });
   }
 
@@ -285,63 +311,66 @@ Responde siempre en el mismo idioma que el usuario (español o inglés). Sé con
 Contexto de página actual: ${pageContext || 'Dashboard principal'}`;
 
   try {
-    // Agentic loop: keep calling until end_turn
-    let conversationMessages = messages.map(m => ({ role: m.role, content: m.content }));
+    // Agentic loop using OpenAI-compatible format (OpenRouter)
+    let conversationMessages: OAIMessage[] = [
+      { role: 'system', content: systemPrompt },
+      ...messages.map(m => ({ role: m.role, content: m.content })),
+    ];
     let finalText = '';
     const MAX_ITERATIONS = 5;
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
-      const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+      const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'x-api-key': ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01',
-          'content-type': 'application/json',
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://dashboard-eight-jade-69.vercel.app',
+          'X-Title': 'ProEv Dashboard Assistant',
         },
         body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
+          model: 'anthropic/claude-haiku-4-5',
           max_tokens: 1024,
-          system: systemPrompt,
           tools,
           messages: conversationMessages,
         }),
       });
 
-      const claudeData = await anthropicRes.json();
+      const data = await orRes.json();
 
-      if (claudeData.error) {
-        return res.status(500).json({ error: claudeData.error.message });
+      if (data.error) {
+        return res.status(500).json({ error: data.error.message || 'OpenRouter error' });
       }
 
-      if (claudeData.stop_reason === 'end_turn') {
-        finalText = claudeData.content
-          .filter((b: { type: string }) => b.type === 'text')
-          .map((b: { text: string }) => b.text)
-          .join('');
-        break;
-      }
+      const choice = data.choices?.[0];
+      if (!choice) break;
 
-      if (claudeData.stop_reason === 'tool_use') {
-        // Execute all tool calls and collect results
-        const toolUseBlocks = claudeData.content.filter((b: { type: string }) => b.type === 'tool_use');
+      const assistantMsg = choice.message as OAIMessage;
+      conversationMessages = [...conversationMessages, assistantMsg];
+
+      if (choice.finish_reason === 'tool_calls' && assistantMsg.tool_calls?.length) {
+        // Execute all tool calls in parallel
         const toolResults = await Promise.all(
-          toolUseBlocks.map(async (block: { id: string; name: string; input: Record<string, unknown> }) => ({
-            type: 'tool_result',
-            tool_use_id: block.id,
-            content: await executeTool(block.name, block.input),
-          }))
+          (assistantMsg.tool_calls as Array<{ id: string; function: { name: string; arguments: string } }>).map(
+            async (tc) => {
+              let input: Record<string, unknown> = {};
+              try { input = JSON.parse(tc.function.arguments); } catch { /* ignore */ }
+              const result = await executeTool(tc.function.name, input);
+              return {
+                role: 'tool' as const,
+                tool_call_id: tc.id,
+                name: tc.function.name,
+                content: result,
+              };
+            }
+          )
         );
-
-        // Add assistant message + tool results to conversation
-        conversationMessages = [
-          ...conversationMessages,
-          { role: 'assistant', content: claudeData.content },
-          { role: 'user', content: toolResults },
-        ];
+        conversationMessages = [...conversationMessages, ...toolResults];
         continue;
       }
 
-      // Unexpected stop reason
+      // end_turn / stop
+      finalText = typeof assistantMsg.content === 'string' ? assistantMsg.content : '';
       break;
     }
 

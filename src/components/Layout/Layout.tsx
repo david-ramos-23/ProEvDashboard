@@ -53,8 +53,12 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
       <aside className={styles.sidebar}>
         {/* Logo */}
         <div className={styles.logo}>
-          <span className={styles.logoText}>ProEv</span>
-          <span className={styles.logoSub}>Dashboard</span>
+          <img
+            src={theme === 'dark' ? '/logo-navbar.png' : '/logo.webp'}
+            alt="FOCUS Dance Studio"
+            className={styles.logoImg}
+          />
+          <span className={styles.logoProev}>ProEv</span>
         </div>
 
         {/* Navegación */}
