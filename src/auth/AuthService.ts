@@ -51,6 +51,8 @@ const ADMIN_DEVICE_IDS: string[] = (() => {
  */
 const AUTHORIZED_USERS: Record<string, { role: UserRole; name: string }> = {
   'andara14@gmail.com': { role: 'admin', name: 'David Ramos' },
+  'david@dravaautomations.com': { role: 'admin', name: 'David Ramos' },
+  'proevolutioncourse@gmail.com': { role: 'admin', name: 'Pro Evolution Course' },
   // Añadir revisores aquí:
   // 'revisor@email.com': { role: 'revisor', name: 'Nombre Revisor' },
 };
