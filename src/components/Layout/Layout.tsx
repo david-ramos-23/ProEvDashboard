@@ -56,14 +56,11 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
         {/* Logo */}
         <div className={styles.logo}>
           <img
-            src={theme === 'dark' ? '/logo-navbar.png' : '/logo.webp'}
+            src="/logo-navbar.png"
             alt="FOCUS Dance Studio"
             className={styles.logoImg}
           />
-          <div className={styles.logoProevBadge}>
-            <span className={styles.logoProevDot} />
-            <span className={styles.logoProev}>ProEv</span>
-          </div>
+          <span className={styles.logoProev}>ProEv</span>
         </div>
 
         {/* Navegación */}
