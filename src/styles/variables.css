@@ -119,10 +119,10 @@
   /* ============================
      Transitions
      ============================ */
-  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-fast: 180ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --transition-base: 260ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --transition-slow: 380ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ============================
      Layout
@@ -131,6 +131,12 @@
   --sidebar-collapsed: 72px;
   --header-height: 64px;
   --content-max-width: 1400px;
+
+  /* ============================
+     Skeleton loading
+     ============================ */
+  --color-skeleton: rgba(0, 0, 0, 0.05);
+  --color-skeleton-highlight: rgba(0, 0, 0, 0.09);
 
   /* ============================
      Z-index scale
@@ -175,6 +181,9 @@
   --color-accent-danger-bg: rgba(239, 68, 68, 0.10);
   --color-accent-info: #38BDF8;
   --color-accent-info-bg: rgba(56, 189, 248, 0.10);
+
+  --color-skeleton: rgba(255, 255, 255, 0.04);
+  --color-skeleton-highlight: rgba(255, 255, 255, 0.08);
 
   --color-estado-privado: #606060;
   --color-estado-preinscrito: #A78BFA;

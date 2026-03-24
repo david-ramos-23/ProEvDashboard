@@ -9,8 +9,11 @@ import { fetchPagos, fetchPagoStats } from '@/data/adapters/airtable/PagosAdapte
 import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
+import { ESTADO_PAGO } from '@/utils/constants';
 
-const ESTADOS_PAGO: EstadoPago[] = ['Pendiente', 'Pagado', 'Fallido', 'Reembolsado'];
+const ESTADOS_PAGO: EstadoPago[] = [
+  ESTADO_PAGO.PENDIENTE, ESTADO_PAGO.PAGADO, ESTADO_PAGO.FALLIDO, ESTADO_PAGO.REEMBOLSADO,
+];
 
 export default function PagosPage() {
   const { t } = useTranslation();
@@ -27,19 +30,19 @@ export default function PagosPage() {
 
   const columns = useMemo<Column<Pago>[]>(() => [
     {
-      key: 'alumnoNombre', header: t('alumnos.alumno'), width: '180px',
+      key: 'alumnoNombre', header: t('alumnos.alumno'), width: '180px', sortable: true,
       render: (p) => <span style={{ fontWeight: 500 }}>{p.alumnoNombre || '—'}</span>,
     },
     {
-      key: 'importe', header: t('pagos.importe'), width: '120px',
+      key: 'importe', header: t('pagos.importe'), width: '120px', sortable: true,
       render: (p) => <span style={{ fontWeight: 600 }}>{formatCurrency(p.importe, p.moneda)}</span>,
     },
     {
-      key: 'estadoPago', header: t('alumnos.estado'), width: '130px',
+      key: 'estadoPago', header: t('alumnos.estado'), width: '130px', sortable: true,
       render: (p) => <StatusBadge status={p.estadoPago} type="pago" />,
     },
     {
-      key: 'fechaPago', header: t('pagos.fecha'), width: '120px',
+      key: 'fechaPago', header: t('pagos.fecha'), width: '120px', sortable: true,
       render: (p) => <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{formatDate(p.fechaPago)}</span>,
     },
     {
@@ -67,17 +70,28 @@ export default function PagosPage() {
       </KPIGrid>
 
       {/* Filtros */}
-      <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-        <button className={`btn-sm ${!filtroEstado ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroEstado('')}>Todos</button>
+      <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap', alignItems: 'center' }}>
         {ESTADOS_PAGO.map(est => (
           <button key={est} className={`btn-sm ${filtroEstado === est ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroEstado(est === filtroEstado ? '' : est)}>
             {est}
           </button>
         ))}
+        {filtroEstado && (
+          <button
+            className="btn-sm btn-ghost"
+            onClick={() => setFiltroEstado('')}
+            style={{ color: 'var(--color-accent-danger)', borderColor: 'rgba(220,38,38,0.2)' }}
+          >
+            Limpiar filtro
+          </button>
+        )}
+        <span style={{ marginLeft: 'auto', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+          {pagos.length} pago{pagos.length !== 1 ? 's' : ''}
+        </span>
       </div>
 
       {/* Tabla */}
-      <DataTable title={t('nav.pagos')} columns={columns} data={pagos} isLoading={isLoading} emptyMessage={t('pagos.sinPagos')} emptyIcon="💳" />
+      <DataTable tableId="pagos" title={t('nav.pagos')} columns={columns} data={pagos} isLoading={isLoading} emptyMessage={t('pagos.sinPagos')} emptyIcon="💳" />
     </div>
   );
 }

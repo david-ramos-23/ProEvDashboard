@@ -9,6 +9,7 @@ import { useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchRevisionStats } from '@/data/adapters/airtable/RevisionesAdapter';
 import { fetchColaEmails } from '@/data/adapters/airtable/ColaEmailsAdapter';
+import { ESTADO_EMAIL } from '@/utils/constants';
 import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
 
 // ---------------------------------------------------------------------------
@@ -70,7 +71,7 @@ async function fetchNotificationData(): Promise<{
 }> {
   const [revisionStats, colaEmails, historial] = await Promise.all([
     fetchRevisionStats(),
-    fetchColaEmails({ estado: 'Pendiente Aprobacion' }),
+    fetchColaEmails({ estado: ESTADO_EMAIL.PENDIENTE_APROBACION }),
     fetchHistorial({ maxRecords: 5 }),
   ]);
 
@@ -188,5 +189,19 @@ export function useNotifications() {
     queryClient.setQueryData(['notifications-poll'], updated);
   }, [queryClient]);
 
-  return { notifications, unreadCount, markAllRead };
+  const markOneRead = useCallback((id: string) => {
+    const stored = loadStored();
+    if (!stored) return;
+
+    const updated: StoredNotifications = {
+      ...stored,
+      notifications: stored.notifications.map((n) =>
+        n.id === id ? { ...n, read: true } : n
+      ),
+    };
+    saveStored(updated);
+    queryClient.setQueryData(['notifications-poll'], updated);
+  }, [queryClient]);
+
+  return { notifications, unreadCount, markAllRead, markOneRead };
 }

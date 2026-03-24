@@ -4,21 +4,23 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge, ConfirmDialog } from '@/components/shared';
 import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/ColaEmailsAdapter';
 import { ColaEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
+import { ESTADO_EMAIL } from '@/utils/constants';
 
 export default function EmailApprovalPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [selected, setSelected] = useState<ColaEmail | null>(null);
   const [isApproving, setIsApproving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { data: emails = [], isLoading } = useQuery({
     queryKey: ['email-approval'],
-    queryFn: () => fetchColaEmails({ estado: 'Pendiente Aprobacion' }),
+    queryFn: () => fetchColaEmails({ estado: ESTADO_EMAIL.PENDIENTE_APROBACION }),
   });
 
   // Auto-select first email when data loads
@@ -92,10 +94,11 @@ export default function EmailApprovalPage() {
               {t('emailApproval.emailsPendientes')} ({emails.length})
             </div>
             <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-              {emails.map(e => (
+              {emails.map((e, idx) => (
                 <button
                   key={e.id}
                   onClick={() => setSelected(e)}
+                  className="animate-cardEnter"
                   style={{
                     width: '100%',
                     textAlign: 'left',
@@ -107,6 +110,7 @@ export default function EmailApprovalPage() {
                     cursor: 'pointer',
                     fontFamily: 'var(--font-family)',
                     transition: 'background 150ms ease',
+                    animationDelay: `${Math.min(idx * 40, 400)}ms`,
                   }}
                 >
                   <div style={{ fontWeight: 500, fontSize: '0.8125rem' }}>{e.alumnoNombre || '—'}</div>
@@ -157,13 +161,27 @@ export default function EmailApprovalPage() {
               </div>
 
               <div style={{ display: 'flex', gap: 'var(--space-md)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-md)' }}>
-                <button className="btn-success btn-lg" onClick={handleAprobar} disabled={isApproving}>
-                  {isApproving ? t('emailApproval.aprobando') : `✅ ${t('emailApproval.aprobarEnviar')}`}
+                <button className="btn-success btn-lg" onClick={() => setConfirmOpen(true)} disabled={isApproving}>
+                  {isApproving ? t('emailApproval.aprobando') : `${t('emailApproval.aprobarEnviar')}`}
                 </button>
                 <button className="btn-danger" disabled={isApproving}>
-                  ❌ {t('common.reject')}
+                  {t('common.reject')}
                 </button>
               </div>
+
+              <ConfirmDialog
+                open={confirmOpen}
+                title={t('emailApproval.aprobarEnviar')}
+                message={`${selected.alumnoNombre || ''} — ${selected.asunto || selected.tipo}`}
+                icon="📧"
+                confirmLabel={t('emailApproval.aprobarEnviar')}
+                variant="success"
+                onConfirm={() => {
+                  setConfirmOpen(false);
+                  handleAprobar();
+                }}
+                onCancel={() => setConfirmOpen(false)}
+              />
             </div>
           )}
         </div>

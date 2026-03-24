@@ -6,7 +6,7 @@
  */
 
 import { Alumno, EstadoGeneral, DashboardStats } from '@/types';
-import { AIRTABLE_TABLES } from '@/utils/constants';
+import { AIRTABLE_TABLES, ESTADO, FIELD } from '@/utils/constants';
 import { listRecords, getRecord, updateRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
 
 /** Campos de Airtable tal como vienen del API (con nombres originales) */
@@ -51,9 +51,9 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
     id: record.id,
     createdTime: record.createdTime,
     nombre: Array.isArray(f['Nombre']) ? (f['Nombre'][0] || '') : (f['Nombre'] || ''),
-    email: f['Email'] || '',
+    email: Array.isArray(f['Email']) ? (f['Email'][0] || '') : (f['Email'] || ''),
     telefono: f['Phone Number'],
-    estadoGeneral: f['Estado General'] || 'Privado',
+    estadoGeneral: f['Estado General'] || ESTADO.PRIVADO,
     idioma: (f['Idioma'] === 'Ingles' ? 'Ingles' : 'Espanol'),
     moduloSolicitado: f['Modulo Solicitado'],
     modulosCompletados: f['Modules'],
@@ -196,28 +196,25 @@ export async function fetchDashboardStats(options?: { edicionNombre?: string }):
     ? `FIND('${sanitizeForFormula(options.edicionNombre)}', ARRAYJOIN({Edicion}))`
     : undefined;
   const records = await listRecords<Pick<AirtableAlumnoFields, 'Estado General' | 'Importe Total Pagado' | 'Engagement Score'>>(TABLE, {
-    fields: ['Estado General', 'Importe Total Pagado', 'Engagement Score'],
+    fields: [FIELD.ESTADO_GENERAL, FIELD.IMPORTE_TOTAL_PAGADO, FIELD.ENGAGEMENT_SCORE],
     filterByFormula,
   });
   const alumnos = records.map(r => r.fields);
 
   const alumnosPorEstado = {} as Record<EstadoGeneral, number>;
-  const estados: EstadoGeneral[] = [
-    'Privado', 'Preinscrito', 'En revision de video', 'Aprobado', 'Rechazado',
-    'Pendiente de pago', 'Reserva', 'Pagado', 'Finalizado', 'Plazo Vencido', 'Pago Fallido'
-  ];
-  estados.forEach(e => { alumnosPorEstado[e] = 0; });
+  const allEstados = Object.values(ESTADO);
+  allEstados.forEach(e => { alumnosPorEstado[e] = 0; });
 
   let ingresosTotales = 0;
   let engagementSum = 0;
   let engagementCount = 0;
 
   alumnos.forEach(f => {
-    const estado = (f['Estado General'] || 'Privado') as EstadoGeneral;
+    const estado = (f[FIELD.ESTADO_GENERAL] || ESTADO.PRIVADO) as EstadoGeneral;
     alumnosPorEstado[estado] = (alumnosPorEstado[estado] || 0) + 1;
-    ingresosTotales += f['Importe Total Pagado'] || 0;
-    if (f['Engagement Score'] != null) {
-      engagementSum += f['Engagement Score']!;
+    ingresosTotales += f[FIELD.IMPORTE_TOTAL_PAGADO] || 0;
+    if (f[FIELD.ENGAGEMENT_SCORE] != null) {
+      engagementSum += f[FIELD.ENGAGEMENT_SCORE]!;
       engagementCount++;
     }
   });
@@ -227,8 +224,8 @@ export async function fetchDashboardStats(options?: { edicionNombre?: string }):
   return {
     totalAlumnos: alumnos.length,
     alumnosPorEstado,
-    totalPagados: alumnosPorEstado['Pagado'] || 0,
-    pendientesRevision: alumnosPorEstado['En revision de video'] || 0,
+    totalPagados: alumnosPorEstado[ESTADO.PAGADO] || 0,
+    pendientesRevision: alumnosPorEstado[ESTADO.EN_REVISION] || 0,
     ingresosTotales,
     engagementPromedio,
   };

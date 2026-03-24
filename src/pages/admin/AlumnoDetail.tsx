@@ -5,23 +5,24 @@
  * Permite editar estado, notas internas, y plazos.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { StatusBadge, SkeletonBlock } from '@/components/shared';
 import { EstadoGeneral } from '@/types';
 import { formatDate, formatCurrency, timeAgo, renderStars } from '@/utils/formatters';
-import { ESTADO_ICONS } from '@/utils/constants';
+import { ESTADO_ICONS, ESTADO } from '@/utils/constants';
 import { useTranslation } from '@/i18n';
 import { useAlumnoDetail, AlumnoDetailTab } from '@/hooks/useAlumnoDetail';
+import { useSchema } from '@/hooks/useSchema';
 import styles from './AlumnoDetail.module.css';
-
-const ESTADOS: EstadoGeneral[] = [
-  'Privado', 'Preinscrito', 'En revision de video', 'Aprobado', 'Rechazado',
-  'Pendiente de pago', 'Reserva', 'Pagado', 'Finalizado', 'Plazo Vencido', 'Pago Fallido'
-];
 
 export default function AlumnoDetailPage() {
   const { t } = useTranslation();
+  const { getOptions } = useSchema();
+  const ESTADOS = useMemo(() => {
+    const fromSchema = getOptions('Alumnos', 'Estado General') as EstadoGeneral[];
+    return fromSchema.length > 0 ? fromSchema : Object.values(ESTADO);
+  }, [getOptions]);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);

@@ -31,6 +31,7 @@
     "subtitle": "Course management system",
     "emailPlaceholder": "you@email.com",
     "loginButton": "Sign In",
+    "magicLink": "Send access link",
     "loggingIn": "Verifying...",
     "orDivider": "or",
     "googleButton": "Continue with Google",
@@ -159,7 +160,7 @@
     "aprobando": "Approving..."
   },
   "inbox": {
-    "title": "Inbox",
+    "title": "Email Management",
     "requiereAtencion": "Requires Attention",
     "todos": "All",
     "recibidos": "Received",

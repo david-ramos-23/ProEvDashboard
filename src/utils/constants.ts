@@ -6,6 +6,63 @@
 import { EstadoGeneral, EstadoRevision, EstadoPago, EstadoEmail } from '../types';
 
 // ============================================================
+// Estado value constants — single source of truth
+// ============================================================
+
+/** All possible values for EstadoGeneral */
+export const ESTADO = {
+  PRIVADO: 'Privado' as EstadoGeneral,
+  PREINSCRITO: 'Preinscrito' as EstadoGeneral,
+  EN_REVISION: 'En revisión de video' as EstadoGeneral,
+  APROBADO: 'Aprobado' as EstadoGeneral,
+  RECHAZADO: 'Rechazado' as EstadoGeneral,
+  PENDIENTE_PAGO: 'Pendiente de pago' as EstadoGeneral,
+  RESERVA: 'Reserva' as EstadoGeneral,
+  PAGADO: 'Pagado' as EstadoGeneral,
+  FINALIZADO: 'Finalizado' as EstadoGeneral,
+  PLAZO_VENCIDO: 'Plazo Vencido' as EstadoGeneral,
+  PAGO_FALLIDO: 'Pago Fallido' as EstadoGeneral,
+} as const;
+
+/** All possible values for EstadoRevision */
+export const ESTADO_REVISION = {
+  PENDIENTE: 'Pendiente' as EstadoRevision,
+  APROBADO: 'Aprobado' as EstadoRevision,
+  RECHAZADO: 'Rechazado' as EstadoRevision,
+  REVISION_NECESARIA: 'Revision Necesaria' as EstadoRevision,
+} as const;
+
+/** All possible values for EstadoPago */
+export const ESTADO_PAGO = {
+  PENDIENTE: 'Pendiente' as EstadoPago,
+  PAGADO: 'Pagado' as EstadoPago,
+  FALLIDO: 'Fallido' as EstadoPago,
+  REEMBOLSADO: 'Reembolsado' as EstadoPago,
+  ENVIADO: 'Enviado' as EstadoPago,
+} as const;
+
+/** All possible values for EstadoEmail */
+export const ESTADO_EMAIL = {
+  PENDIENTE_APROBACION: 'Pendiente Aprobacion' as EstadoEmail,
+  PENDIENTE: 'Pendiente' as EstadoEmail,
+  ENVIANDO: 'Enviando' as EstadoEmail,
+  ENVIADO: 'Enviado' as EstadoEmail,
+  ERROR: 'Error' as EstadoEmail,
+} as const;
+
+/** Airtable field names for Alumnos table */
+export const FIELD = {
+  NOMBRE: 'Nombre',
+  EMAIL: 'Email',
+  ESTADO_GENERAL: 'Estado General',
+  IDIOMA: 'Idioma',
+  EDICION: 'Edicion',
+  NOMBRE_EDICION: 'Nombre Edicion',
+  IMPORTE_TOTAL_PAGADO: 'Importe Total Pagado',
+  ENGAGEMENT_SCORE: 'Engagement Score',
+} as const;
+
+// ============================================================
 // IDs de Tablas Airtable
 // ============================================================
 
@@ -29,7 +86,7 @@ export const AIRTABLE_TABLES = {
 export const ESTADO_COLORS: Record<EstadoGeneral, string> = {
   'Privado': 'var(--color-estado-privado)',
   'Preinscrito': 'var(--color-estado-preinscrito)',
-  'En revision de video': 'var(--color-estado-en-revision)',
+  'En revisión de video': 'var(--color-estado-en-revision)',
   'Aprobado': 'var(--color-estado-aprobado)',
   'Rechazado': 'var(--color-estado-rechazado)',
   'Pendiente de pago': 'var(--color-estado-pendiente-pago)',
@@ -44,7 +101,7 @@ export const ESTADO_COLORS: Record<EstadoGeneral, string> = {
 export const ESTADO_ICONS: Record<EstadoGeneral, string> = {
   'Privado': '🔒',
   'Preinscrito': '📝',
-  'En revision de video': '🎥',
+  'En revisión de video': '🎥',
   'Aprobado': '✅',
   'Rechazado': '❌',
   'Pendiente de pago': '💳',
@@ -72,12 +129,12 @@ export const PAGO_COLORS: Record<EstadoPago, string> = {
   'Enviado': 'var(--color-accent-primary)',
 };
 
-/** Colores de estado de edición */
+/** Colores de estado de edición — synced from Airtable schema */
 export const EDITION_ESTADO_COLORS: Record<string, string> = {
-  'Planificada': 'var(--color-text-muted)',
-  'En Inscripcion': 'var(--color-accent-info)',
-  'Activa': 'var(--color-accent-success)',
-  'Finalizada': 'var(--color-text-muted)',
+  'Planificada': 'var(--color-accent-warning)',
+  'Prelanzamiento': 'var(--color-accent-info)',
+  'Abierta': 'var(--color-accent-success)',
+  'Finalizada': 'var(--color-estado-finalizado)',
 };
 
 /** Colores de estado de email */

@@ -25,7 +25,9 @@
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   box-shadow: var(--shadow-card);
-  transition: all var(--transition-base);
+  transition: border-color var(--transition-base),
+              transform 350ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow var(--transition-base);
   position: relative;
   overflow: hidden;
 }
@@ -59,14 +61,14 @@
 .kpiArrow {
   font-size: var(--font-size-lg);
   opacity: 0.25;
-  transition: opacity 150ms ease, transform 150ms ease;
+  transition: opacity var(--transition-base), transform 350ms cubic-bezier(0.16, 1, 0.3, 1);
   display: inline-block;
   color: var(--kpi-accent, var(--color-accent-primary));
 }
 
 .kpiCardClickable:hover .kpiArrow {
   opacity: 1;
-  transform: translateX(3px);
+  transform: translateX(4px);
 }
 
 .kpiHeader {
@@ -171,6 +173,127 @@
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sortableHeader {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition-fast);
+}
+
+.sortableHeader:hover {
+  color: var(--color-text-primary);
+}
+
+.sortIcon {
+  font-size: 0.65rem;
+  opacity: 0.5;
+  vertical-align: middle;
+}
+
+.sortableHeader:hover .sortIcon {
+  opacity: 0.8;
+}
+
+/* Column resize handle */
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  width: 11px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  z-index: 2;
+}
+
+.resizeHandle::after {
+  content: '';
+  position: absolute;
+  top: 25%;
+  right: 5px;
+  width: 2px;
+  height: 50%;
+  background: transparent;
+  border-radius: 1px;
+  transition: background var(--transition-fast);
+}
+
+.resizeHandle:hover::after {
+  background: var(--color-accent-primary);
+}
+
+/* Column config button */
+.colMenuBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 10px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  font-family: var(--font-family);
+}
+
+.colMenuBtn:hover {
+  background: var(--color-bg-card-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
+}
+
+/* Column config dropdown */
+.colMenuDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown, 100);
+  padding: var(--space-xs) 0;
+  animation: dropdownIn var(--transition-base) cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.colMenuHeader {
+  padding: var(--space-xs) var(--space-md);
+  font-size: 0.65rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-xs);
+}
+
+.colMenuItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 6px var(--space-md);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  white-space: nowrap;
+}
+
+.colMenuItem:hover {
+  background: var(--color-bg-card-hover);
+}
+
+.colMenuItem input[type="checkbox"] {
+  accent-color: var(--color-accent-primary);
 }
 
 .table td {
@@ -178,14 +301,35 @@
   font-size: var(--font-size-sm);
   border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .table tr {
-  transition: background var(--transition-fast);
+  transition: background var(--transition-base);
 }
 
 .table tbody tr:hover {
   background: var(--color-bg-card-hover);
+}
+
+.table tbody tr:active {
+  background: var(--color-bg-tertiary);
+}
+
+.rowEnter {
+  animation: rowFadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes rowFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .clickableRow {
@@ -219,14 +363,8 @@
 .skeletonCell {
   height: 16px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(
-    90deg,
-    #EFECE6 25%,
-    #E8E4DC 50%,
-    #EFECE6 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  background: var(--color-skeleton);
+  animation: skeletonPulse 2s ease-in-out infinite;
 }
 
 /* Stat card (non-navigable) */
@@ -265,14 +403,8 @@
 .skeletonChart {
   height: 280px;
   border-radius: var(--radius-md);
-  background: linear-gradient(
-    90deg,
-    #EFECE6 25%,
-    #E8E4DC 50%,
-    #EFECE6 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  background: var(--color-skeleton);
+  animation: skeletonPulse 2s ease-in-out infinite;
 }
 
 .skeletonListItem {
@@ -287,7 +419,6 @@
 .scrollTop {
   position: fixed;
   bottom: 28px;
-  right: 28px;
   width: 44px;
   height: 44px;
   border-radius: 50%;
@@ -299,7 +430,10 @@
   font-weight: var(--font-weight-bold);
   box-shadow: var(--shadow-md);
   z-index: var(--z-sticky);
-  transition: transform var(--transition-fast), box-shadow var(--transition-fast), opacity var(--transition-fast);
+  transition: transform 350ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow var(--transition-base),
+              opacity var(--transition-base),
+              right 300ms cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -310,4 +444,98 @@
   transform: translateY(-3px);
   box-shadow: var(--shadow-lg);
   background: var(--color-accent-primary-hover);
+}
+
+/* ============================================================
+   Confirm Dialog
+   ============================================================ */
+
+.confirmOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal, 1000);
+  animation: confirmFadeIn 200ms ease;
+}
+
+@keyframes confirmFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.confirmPanel {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-xl);
+  min-width: 360px;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  animation: confirmSlideIn 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes confirmSlideIn {
+  from { opacity: 0; transform: translateY(-10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.confirmIcon {
+  font-size: 2rem;
+  text-align: center;
+}
+
+.confirmTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.confirmMessage {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.confirmActions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: center;
+  margin-top: var(--space-sm);
+}
+
+.confirmCancel {
+  padding: var(--space-sm) var(--space-lg);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-family);
+}
+
+.confirmCancel:hover {
+  background: var(--color-bg-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.confirmOk {
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-family);
 }

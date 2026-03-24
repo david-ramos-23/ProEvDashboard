@@ -1,11 +1,12 @@
 import { useState, useCallback, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { login, loginWithGoogle, logout, getSession, AuthUser } from '@/auth/AuthService';
+import { sendMagicLink, verifyMagicLink, devVerifyMagicLink, loginWithGoogle, logout, getSession, AuthUser } from '@/auth/AuthService';
 import Layout from '@/components/Layout/Layout';
 import { LoadingSpinner } from '@/components/shared';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Analytics } from '@vercel/analytics/react';
 import LoginPage from '@/pages/Login';
+import { EdicionProvider } from '@/context/EdicionContext';
 import '@/styles/global.css';
 
 // Lazy-loaded pages
@@ -21,13 +22,17 @@ const InboxPage = lazy(() => import('@/pages/admin/Inbox'));
 export default function App() {
   const [session, setSession] = useState<AuthUser | null>(getSession);
 
-  const handleLogin = useCallback(async (email: string): Promise<string | null> => {
-    const result = await login(email);
+  const handleSendMagicLink = useCallback(async (email: string) => {
+    return sendMagicLink(email);
+  }, []);
+
+  const handleVerifyMagicLink = useCallback(async (token: string): Promise<string | null> => {
+    const result = await verifyMagicLink(token);
     if (result.success && result.user) {
       setSession(result.user);
       return null;
     }
-    return result.error || 'Error desconocido';
+    return result.error || 'Enlace invalido o expirado';
   }, []);
 
   const handleGoogleLogin = useCallback(async (credential: string): Promise<string | null> => {
@@ -48,7 +53,16 @@ export default function App() {
   if (!session) {
     return (
       <BrowserRouter>
-        <LoginPage onLogin={handleLogin} onGoogleLogin={handleGoogleLogin} />
+        <LoginPage
+          onSendMagicLink={handleSendMagicLink}
+          onVerifyMagicLink={handleVerifyMagicLink}
+          onGoogleLogin={handleGoogleLogin}
+          onDevVerify={() => {
+            const result = devVerifyMagicLink();
+            if (result.success && result.user) setSession(result.user);
+            return { success: result.success, error: result.error };
+          }}
+        />
         <Analytics />
       </BrowserRouter>
     );
@@ -60,6 +74,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ErrorBoundary>
+      <EdicionProvider>
       <Suspense fallback={<LoadingSpinner text="Cargando..." />}>
       <Routes>
         <Route path="/" element={<Navigate to={defaultPath} replace />} />
@@ -103,6 +118,7 @@ export default function App() {
         <Route path="*" element={<Navigate to={defaultPath} replace />} />
       </Routes>
       </Suspense>
+      </EdicionProvider>
       </ErrorBoundary>
       <Analytics />
     </BrowserRouter>

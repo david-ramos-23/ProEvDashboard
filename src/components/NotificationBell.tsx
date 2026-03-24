@@ -77,7 +77,7 @@ function resolveMessage(message: string, t: (key: string) => string): string {
 export default function NotificationBell() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { notifications, unreadCount, markAllRead } = useNotifications();
+  const { notifications, unreadCount, markAllRead, markOneRead } = useNotifications();
 
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -108,6 +108,7 @@ export default function NotificationBell() {
   }, []);
 
   function handleNotificationClick(n: Notification) {
+    if (!n.read) markOneRead(n.id);
     setOpen(false);
     navigate(routeForNotification(n));
   }

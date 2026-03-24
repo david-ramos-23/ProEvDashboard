@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge, ConfirmDialog } from '@/components/shared';
 import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adapters/airtable/RevisionesAdapter';
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { formatDate, renderStars, timeAgo } from '@/utils/formatters';
@@ -31,12 +31,26 @@ function VideoPlayer({ url }: { url: string }) {
     );
   }
 
+  // Instagram Reel / Post — embed via official embed URL
+  const igMatch = url.match(/instagram\.com\/(?:reel|p|tv)\/([^/?]+)/);
+  if (igMatch) {
+    return (
+      <iframe
+        className={styles.videoEmbedVertical}
+        src={`https://www.instagram.com/reel/${igMatch[1]}/embed/`}
+        allowFullScreen
+        title="Video de Instagram"
+        scrolling="no"
+      />
+    );
+  }
+
   // Google Drive — convert share URL to embed URL
   const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
   if (driveMatch) {
     return (
       <iframe
-        className={styles.videoEmbed}
+        className={styles.videoEmbedDrive}
         src={`https://drive.google.com/file/d/${driveMatch[1]}/preview`}
         allow="autoplay"
         allowFullScreen
@@ -45,11 +59,11 @@ function VideoPlayer({ url }: { url: string }) {
     );
   }
 
-  // Direct video file
+  // Direct video file — use natural aspect ratio
   if (!videoErrored && /\.(mp4|webm|mov|avi)(\?|$)/i.test(url)) {
     return (
       <video
-        className={styles.videoEmbed}
+        className={styles.videoEmbedAuto}
         src={url}
         controls
         onError={() => setVideoErrored(true)}
@@ -57,7 +71,7 @@ function VideoPlayer({ url }: { url: string }) {
     );
   }
 
-  // Unknown URL — show external link directly (iframes block for most services)
+  // Unknown URL — show external link
   return (
     <a href={url} target="_blank" rel="noopener noreferrer" className={styles.videoFallback}>
       <span>🎥</span> Abrir video externamente →
@@ -74,7 +88,9 @@ export default function VideoReviewPage() {
   // Campos editables del detalle
   const [feedback, setFeedback] = useState('');
   const [puntuacion, setPuntuacion] = useState(0);
+  const [hoverStar, setHoverStar] = useState(0);
   const [notas, setNotas] = useState('');
+  const [confirmAction, setConfirmAction] = useState<{ estado: EstadoRevision; label: string; icon: string; variant: 'success' | 'danger' | 'warning' } | null>(null);
 
   const { data: revisiones = [], isLoading } = useQuery({
     queryKey: ['revisiones', { estado: 'Pendiente' }],
@@ -170,10 +186,11 @@ export default function VideoReviewPage() {
             </div>
           ) : (
             <div className={styles.listItems}>
-              {revisiones.map((rev) => (
+              {revisiones.map((rev, idx) => (
                 <button
                   key={rev.id}
-                  className={`${styles.listItem} ${selected?.id === rev.id ? styles.listItemActive : ''}`}
+                  className={`${styles.listItem} ${selected?.id === rev.id ? styles.listItemActive : ''} animate-cardEnter`}
+                  style={{ animationDelay: `${Math.min(idx * 40, 400)}ms` }}
                   onClick={() => selectRevision(rev)}
                 >
                   <div className={styles.itemName}>{rev.alumnoNombre || 'Sin nombre'}</div>
@@ -232,12 +249,16 @@ export default function VideoReviewPage() {
               {/* Puntuación */}
               <div className={styles.field}>
                 <label>{t('videoReview.puntuacion')}</label>
-                <div className={styles.stars}>
+                <div
+                  className={styles.stars}
+                  onMouseLeave={() => setHoverStar(0)}
+                >
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
-                      className={`${styles.star} ${star <= puntuacion ? styles.starFilled : ''}`}
+                      className={`${styles.star} ${star <= (hoverStar || puntuacion) ? styles.starFilled : ''} ${hoverStar > 0 && star <= hoverStar ? styles.starHover : ''}`}
                       onClick={() => setPuntuacion(star)}
+                      onMouseEnter={() => setHoverStar(star)}
                     >
                       ★
                     </button>
@@ -272,27 +293,41 @@ export default function VideoReviewPage() {
               {/* Botones de acción */}
               <div className={styles.actions}>
                 <button
-                  className="btn-success btn-lg"
-                  onClick={() => handleSave('Aprobado')}
+                  className={styles.actionBtn + ' ' + styles.actionApprove}
+                  onClick={() => setConfirmAction({ estado: 'Aprobado', label: t('videoReview.aprobar'), icon: '✅', variant: 'success' })}
                   disabled={isSaving}
                 >
-                  {isSaving ? t('common.saving') : `✅ ${t('videoReview.aprobar')}`}
+                  {isSaving ? t('common.saving') : t('videoReview.aprobar')}
                 </button>
                 <button
-                  className="btn-danger btn-lg"
-                  onClick={() => handleSave('Rechazado')}
+                  className={styles.actionBtn + ' ' + styles.actionReject}
+                  onClick={() => setConfirmAction({ estado: 'Rechazado', label: t('videoReview.rechazar'), icon: '❌', variant: 'danger' })}
                   disabled={isSaving}
                 >
-                  {isSaving ? t('common.saving') : `❌ ${t('videoReview.rechazar')}`}
+                  {isSaving ? t('common.saving') : t('videoReview.rechazar')}
                 </button>
                 <button
-                  className="btn-ghost"
-                  onClick={() => handleSave('Revision Necesaria')}
+                  className={styles.actionBtn + ' ' + styles.actionRevision}
+                  onClick={() => setConfirmAction({ estado: 'Revision Necesaria', label: t('videoReview.revisionNecesaria'), icon: '🔄', variant: 'warning' })}
                   disabled={isSaving}
                 >
-                  🔄 {t('videoReview.revisionNecesaria')}
+                  {t('videoReview.revisionNecesaria')}
                 </button>
               </div>
+
+              <ConfirmDialog
+                open={!!confirmAction}
+                title={`${confirmAction?.label ?? ''}`}
+                message={`${selected.alumnoNombre || 'este video'}`}
+                icon={confirmAction?.icon}
+                confirmLabel={confirmAction?.label ?? ''}
+                variant={confirmAction?.variant ?? 'success'}
+                onConfirm={() => {
+                  if (confirmAction) handleSave(confirmAction.estado);
+                  setConfirmAction(null);
+                }}
+                onCancel={() => setConfirmAction(null)}
+              />
             </>
           ) : (
             <div className={styles.noSelection}>

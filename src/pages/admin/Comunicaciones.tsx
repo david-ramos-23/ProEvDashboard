@@ -55,11 +55,11 @@ export default function ComunicacionesPage() {
   const columns = useMemo<Column<ColaEmail>[]>(() => {
     const cols: Column<ColaEmail>[] = [
       {
-        key: 'alumnoNombre', header: t('alumnos.alumno'), width: '160px',
+        key: 'alumnoNombre', header: t('alumnos.alumno'), width: '160px', sortable: true,
         render: (e) => <span style={{ fontWeight: 500 }}>{e.alumnoNombre || '—'}</span>,
       },
       {
-        key: 'tipo', header: t('comunicaciones.tipo'), width: '120px',
+        key: 'tipo', header: t('comunicaciones.tipo'), width: '120px', sortable: true,
         render: (e) => <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--color-accent-info)' }}>{e.tipo}</span>,
       },
       {
@@ -67,17 +67,17 @@ export default function ComunicacionesPage() {
         render: (e) => <span style={{ fontSize: '0.8125rem' }}>{e.asunto || e.descripcion || e.mensaje?.slice(0, 60) || '—'}</span>,
       },
       {
-        key: 'estado', header: t('alumnos.estado'), width: '140px',
+        key: 'estado', header: t('alumnos.estado'), width: '140px', sortable: true,
         render: (e) => <StatusBadge status={e.estado} type="email" />,
       },
       {
-        key: 'createdTime', header: t('pagos.fecha'), width: '100px',
+        key: 'createdTime', header: t('pagos.fecha'), width: '100px', sortable: true,
         render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
       },
     ];
     if (activeTab === 'pendientes') {
       cols.push({
-        key: 'actions', header: '', width: '100px',
+        key: 'actions', header: '', width: '100px', hideable: false,
         render: (e) => (
           <button
             className="btn-success btn-sm"
@@ -133,6 +133,7 @@ export default function ComunicacionesPage() {
 
       {/* Tabla */}
       <DataTable
+        tableId="comunicaciones"
         columns={columns}
         data={emails}
         isLoading={isLoading}

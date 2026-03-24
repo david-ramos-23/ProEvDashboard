@@ -1,17 +1,17 @@
 /**
- * Página Login — autenticación con AuthService.
+ * Pagina Login - autenticacion con Magic Link + Google Sign-In.
  *
- * Diseño premium dark con glassmorphism.
- * Soporta:
- * - Email directo contra lista de usuarios autorizados
- * - Google Sign-In (GSI) si VITE_GOOGLE_CLIENT_ID está configurado
+ * Flujos:
+ * 1. Magic Link: email -> API envia enlace -> usuario clickea -> verifica token
+ * 2. Google Sign-In (GSI) si VITE_GOOGLE_CLIENT_ID esta configurado
+ * 3. Token en URL: verifica automaticamente al cargar la pagina
  */
 
 import { useState, FormEvent, useEffect, useRef } from 'react';
 import styles from './Login.module.css';
 import { useTranslation } from '@/i18n';
 
-// ── Google GSI types (la librería se carga vía script tag en index.html) ──────
+// ── Google GSI types ──────────────────────────────────────────────────────────
 declare global {
   interface Window {
     google?: {
@@ -40,23 +40,48 @@ declare global {
   }
 }
 
+type LoginState = 'idle' | 'sending' | 'sent' | 'verifying';
+
 interface LoginProps {
-  /** Retorna null si ok, string error si falla */
-  onLogin: (email: string) => Promise<string | null>;
-  /** Retorna null si ok, string error si falla. Recibe el credential JWT de Google. */
   onGoogleLogin: (credential: string) => Promise<string | null>;
+  onSendMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>;
+  onVerifyMagicLink: (token: string) => Promise<string | null>;
+  onDevVerify?: () => { success: boolean; error?: string };
 }
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
-export default function LoginPage({ onLogin, onGoogleLogin }: LoginProps) {
+const IS_DEV = import.meta.env.DEV;
+
+export default function LoginPage({
+  onGoogleLogin,
+  onSendMagicLink,
+  onVerifyMagicLink,
+  onDevVerify,
+}: LoginProps) {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [state, setState] = useState<LoginState>('idle');
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
-  // Inicializar Google GSI una vez que el script externo esté disponible
+  // ── Check for magic link token in URL on mount ────────────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      setState('verifying');
+      window.history.replaceState({}, '', '/login');
+      onVerifyMagicLink(token).then(err => {
+        if (err) {
+          setError(err);
+          setState('idle');
+        }
+      });
+    }
+  }, [onVerifyMagicLink]);
+
+  // ── Initialize Google GSI ─────────────────────────────────────────────────
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
 
@@ -66,13 +91,13 @@ export default function LoginPage({ onLogin, onGoogleLogin }: LoginProps) {
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: async (response) => {
-          setIsLoading(true);
+          setState('verifying');
           setError('');
           const errorMsg = await onGoogleLogin(response.credential);
           if (errorMsg) {
             setError(errorMsg);
+            setState('idle');
           }
-          setIsLoading(false);
         },
         auto_select: false,
         use_fedcm_for_prompt: true,
@@ -89,7 +114,6 @@ export default function LoginPage({ onLogin, onGoogleLogin }: LoginProps) {
       }
     };
 
-    // El script puede estar ya cargado o aún cargando
     if (window.google?.accounts?.id) {
       initGoogle();
     } else {
@@ -102,24 +126,34 @@ export default function LoginPage({ onLogin, onGoogleLogin }: LoginProps) {
     }
   }, [onGoogleLogin]);
 
+  // ── Send magic link ───────────────────────────────────────────────────────
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setState('sending');
     setError('');
 
-    const errorMsg = await onLogin(email);
-    if (errorMsg) {
-      setError(errorMsg);
+    const result = await onSendMagicLink(email);
+    if (result.success) {
+      setState('sent');
+    } else {
+      setError(result.error || 'Error al enviar el enlace');
+      setState('idle');
     }
-
-    setIsLoading(false);
   };
+
+  const isLoading = state === 'sending' || state === 'verifying';
 
   return (
     <div className={styles.container}>
-      <div className={styles.bgOrb1} />
-      <div className={styles.bgOrb2} />
-      <div className={styles.bgOrb3} />
+      <video
+        className={styles.videoBg}
+        src="https://alonsoynoeliaonline.com/wp-content/uploads/2026/02/hero-completo.mp4"
+        autoPlay
+        muted
+        loop
+        playsInline
+      />
+      <div className={styles.videoOverlay} />
 
       <div className={styles.card}>
         <div className={styles.header}>
@@ -132,57 +166,93 @@ export default function LoginPage({ onLogin, onGoogleLogin }: LoginProps) {
           <p className={styles.subtitle}>Dashboard</p>
         </div>
 
-        <form onSubmit={handleSubmit} className={styles.form}>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              className={styles.input}
-              placeholder="tu@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-              disabled={isLoading}
-            />
+        {state === 'verifying' ? (
+          /* ── Verifying token state ─────────────────────────────────── */
+          <div className={styles.sentState}>
+            <span className={styles.spinner} />
+            <p className={styles.sentTitle}>Verificando acceso...</p>
           </div>
-
-          {error && (
-            <div className={styles.error}>
-              <span aria-hidden="true">&#9888;</span> {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className={styles.submitBtn}
-            disabled={isLoading || !email}
-          >
-            {isLoading ? (
-              <>
-                <span className={styles.spinner} />
-                {t('login.loggingIn')}
-              </>
-            ) : (
-              t('login.loginButton')
+        ) : state === 'sent' ? (
+          /* ── Email sent state ──────────────────────────────────────── */
+          <div className={styles.sentState}>
+            <div className={styles.sentIcon}>&#9993;</div>
+            <p className={styles.sentTitle}>Revisa tu correo</p>
+            <p className={styles.sentDesc}>
+              Enviamos un enlace de acceso a <strong>{email}</strong>.
+              Expira en 10 minutos.
+            </p>
+            {IS_DEV && onDevVerify && (
+              <button
+                className={styles.submitBtn}
+                style={{ marginTop: 8, width: '100%' }}
+                onClick={() => {
+                  const result = onDevVerify();
+                  if (result.success) return; // session created, App re-renders
+                  setError(result.error || 'Error');
+                  setState('idle');
+                }}
+              >
+                <span className={styles.btnText}>[DEV] Acceder sin email</span>
+                <span className={styles.btnSpinner}><span className={styles.spinner} /></span>
+              </button>
             )}
-          </button>
-        </form>
-
-        {GOOGLE_CLIENT_ID && (
+            <button
+              className={styles.backBtn}
+              onClick={() => { setState('idle'); setError(''); }}
+            >
+              Usar otro email
+            </button>
+          </div>
+        ) : (
+          /* ── Default: email form ───────────────────────────────────── */
           <>
-            <div className={styles.divider}>
-              <span className={styles.dividerLine} />
-              <span className={styles.dividerText}>{t('login.orDivider')}</span>
-              <span className={styles.dividerLine} />
-            </div>
+            <form onSubmit={handleSubmit} className={styles.form}>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="email">Email</label>
+                <input
+                  id="email"
+                  type="email"
+                  className={styles.input}
+                  placeholder="tu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                  disabled={isLoading}
+                />
+              </div>
 
-            <div
-              ref={googleBtnRef}
-              className={styles.googleBtn}
-              aria-label={t('login.googleButton')}
-            />
+              {error && (
+                <div className={styles.error}>
+                  <span aria-hidden="true">&#9888;</span> {error}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className={`${styles.submitBtn} ${state === 'sending' ? styles.submitBtnLoading : ''}`}
+                disabled={isLoading || !email}
+              >
+                <span className={styles.btnText}>{t('login.magicLink') || 'Enviar enlace de acceso'}</span>
+                <span className={styles.btnSpinner}><span className={styles.spinner} /></span>
+              </button>
+            </form>
+
+            {GOOGLE_CLIENT_ID && (
+              <>
+                <div className={styles.divider}>
+                  <span className={styles.dividerLine} />
+                  <span className={styles.dividerText}>{t('login.orDivider')}</span>
+                  <span className={styles.dividerLine} />
+                </div>
+
+                <div
+                  ref={googleBtnRef}
+                  className={styles.googleBtn}
+                  aria-label={t('login.googleButton')}
+                />
+              </>
+            )}
           </>
         )}
 

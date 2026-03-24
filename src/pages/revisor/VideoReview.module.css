@@ -135,13 +135,25 @@
   border-radius: var(--radius-md);
 }
 
-.videoEmbed {
+/* Base video embed — vertical 9:16 (most videos are phone-recorded) */
+.videoEmbed,
+.videoEmbedDrive,
+.videoEmbedVertical,
+.videoEmbedAuto {
   width: 100%;
-  aspect-ratio: 16 / 9;
+  max-width: 360px;
+  aspect-ratio: 9 / 16;
   border-radius: var(--radius-md);
   border: none;
   background: #000;
   display: block;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+/* Instagram embed needs a slightly different bg */
+.videoEmbedVertical {
+  background: var(--color-bg-secondary);
 }
 
 .videoExternalLink {
@@ -254,12 +266,71 @@
   text-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
 }
 
+.starHover {
+  color: #f59e0b;
+  text-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+  transform: scale(1.2);
+}
+
 /* Acciones */
 .actions {
   display: flex;
   gap: var(--space-md);
   padding-top: var(--space-md);
   border-top: 1px solid var(--color-border);
+}
+
+.actionBtn {
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  line-height: 1.5;
+}
+
+.actionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actionApprove {
+  background: rgba(12, 90, 69, 0.1);
+  color: var(--color-accent-primary);
+  border-color: rgba(12, 90, 69, 0.25);
+}
+
+.actionApprove:hover:not(:disabled) {
+  background: var(--color-accent-primary);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(12, 90, 69, 0.3);
+}
+
+.actionReject {
+  background: rgba(180, 60, 60, 0.08);
+  color: #c45454;
+  border-color: rgba(180, 60, 60, 0.2);
+}
+
+.actionReject:hover:not(:disabled) {
+  background: #9b3c3c;
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(155, 60, 60, 0.3);
+}
+
+.actionRevision {
+  background: rgba(180, 130, 40, 0.08);
+  color: #b8860b;
+  border-color: rgba(180, 130, 40, 0.2);
+}
+
+.actionRevision:hover:not(:disabled) {
+  background: #92700c;
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(146, 112, 12, 0.3);
 }
 
 .noSelection {

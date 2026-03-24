@@ -5,7 +5,7 @@
  * Se adapta según el rol del usuario autenticado.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ADMIN_NAV, REVISOR_NAV, NavItem } from '@/utils/constants';
 import { getInitials } from '@/utils/formatters';
@@ -13,6 +13,7 @@ import { useTranslation, Locale } from '@/i18n';
 import NotificationBell from '@/components/NotificationBell';
 import { ScrollToTop } from '@/components/shared';
 import { useTheme } from '@/hooks/useTheme';
+import { useEdicion } from '@/context/EdicionContext';
 import AIAssistant from '@/components/AIAssistant/AIAssistant';
 import styles from './Layout.module.css';
 
@@ -40,14 +41,23 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   '/revisor/emails': 'emailApproval.title',
 };
 
+/** Pages where edition filter doesn't apply */
+const NO_EDITION_FILTER_PAGES = new Set(['/admin/ediciones', '/admin/inbox', '/revisor/emails']);
+
 export default function Layout({ role, userName, userEmail, onLogout }: LayoutProps) {
   const location = useLocation();
   const { t, locale, setLocale } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const [aiOpen, setAiOpen] = useState(false);
+  const { ediciones, selectedNombre, setSelectedNombre } = useEdicion();
   const navItems: NavItem[] = role === 'admin' ? ADMIN_NAV : REVISOR_NAV;
   const basePath = '/' + location.pathname.split('/').slice(1, 3).join('/');
   const pageTitle = t(PAGE_TITLE_KEYS[basePath] || 'common.noData');
+  const showEdicionFilter = !NO_EDITION_FILTER_PAGES.has(basePath);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   return (
     <div className={styles.layout}>
@@ -103,7 +113,22 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
       {/* Contenido principal */}
       <main className={styles.main}>
         <header className={styles.header}>
-          <h1 className={styles.pageTitle}>{pageTitle}</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+            <h1 className={styles.pageTitle}>{pageTitle}</h1>
+            {showEdicionFilter && ediciones.length > 0 && (
+              <select
+                value={selectedNombre}
+                onChange={e => setSelectedNombre(e.target.value)}
+                className={styles.edicionSelect}
+              >
+                {ediciones.map(ed => (
+                  <option key={ed.id} value={ed.nombre}>
+                    {ed.nombre}{ed.esEdicionActiva ? ' ★' : ''}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               onClick={toggleTheme}
@@ -162,10 +187,10 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
             </button>
           </div>
         </header>
-        <div className={styles.content}>
+        <div className={styles.content} key={location.pathname}>
           <Outlet />
         </div>
-        <ScrollToTop />
+        <ScrollToTop aiOpen={aiOpen} />
       </main>
       {/* Flex spacer — pushes main content left when AI panel is open */}
       <div className={`${styles.aiSpacer} ${aiOpen ? styles.aiSpacerOpen : ''}`} />

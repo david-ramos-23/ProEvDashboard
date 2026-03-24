@@ -238,9 +238,10 @@
 }
 
 .itemTime {
+  display: block;
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  margin-top: 2px;
+  margin-top: var(--space-xs, 6px);
 }
 
 /* ── Unread indicator dot (right side) ───────────────────── */

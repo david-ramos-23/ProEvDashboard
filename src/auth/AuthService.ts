@@ -204,6 +204,117 @@ export async function loginWithGoogle(credential: string): Promise<AuthResult> {
   };
 }
 
+// ============================================================
+// Magic Link
+// ============================================================
+
+/**
+ * Solicita un magic link por email.
+ * En produccion (Vercel) llama a la API serverless.
+ * En dev (Vite) usa login directo como fallback.
+ */
+export async function sendMagicLink(email: string): Promise<{ success: boolean; error?: string }> {
+  const normalized = email.toLowerCase().trim();
+
+  try {
+    const res = await fetch('/api/auth/send-magic-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: normalized }),
+    });
+
+    // If API doesn't exist (dev mode), the response will be HTML (Vite's index.html fallback)
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      // Dev mode fallback: simulate magic link by logging in directly
+      console.warn('[Auth] Magic link API not available — using dev fallback');
+      return devFallbackSendMagicLink(normalized);
+    }
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { success: false, error: data.error || 'Error al enviar el enlace' };
+    }
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Error de conexion. Intentalo de nuevo.' };
+  }
+}
+
+/**
+ * Dev fallback: simulates sending a magic link by directly creating a session.
+ * Only used when the serverless API is not available (local Vite dev).
+ */
+async function devFallbackSendMagicLink(email: string): Promise<{ success: boolean; error?: string }> {
+  await new Promise(resolve => setTimeout(resolve, 800));
+
+  // Check authorization using same logic
+  const isAuth = TEST_USER_PATTERN.test(email)
+    || ADMIN_ALIAS_PATTERN.test(email)
+    || REVISOR_ALIAS_PATTERN.test(email)
+    || !!AUTHORIZED_USERS[email];
+
+  if (!isAuth) {
+    // Still return success to prevent enumeration (same as production)
+    return { success: true };
+  }
+
+  // Store a dev token so verifyMagicLink can pick it up
+  sessionStorage.setItem('proev_dev_magic_email', email);
+  return { success: true };
+}
+
+/**
+ * Verifica un token de magic link contra la API server-side.
+ * Si es valido, crea la sesion local.
+ */
+export async function verifyMagicLink(token: string): Promise<AuthResult> {
+  try {
+    const res = await fetch('/api/auth/verify-magic-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return { success: false, error: 'Servicio no disponible. Intentalo de nuevo.' };
+    }
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      return { success: false, error: data.error || 'Enlace invalido o expirado' };
+    }
+
+    return createSession(data.user.email, data.user.role as UserRole, data.user.name);
+  } catch {
+    return { success: false, error: 'Error de conexion. Intentalo de nuevo.' };
+  }
+}
+
+/**
+ * Dev fallback: verifies the magic link locally using sessionStorage.
+ * Called from Login.tsx when user clicks "Ya he revisado mi correo" in dev mode.
+ */
+export function devVerifyMagicLink(): AuthResult {
+  const email = sessionStorage.getItem('proev_dev_magic_email');
+  sessionStorage.removeItem('proev_dev_magic_email');
+
+  if (!email) {
+    return { success: false, error: 'No hay enlace pendiente.' };
+  }
+
+  if (TEST_USER_PATTERN.test(email)) return createSession(email, 'admin', 'Test User');
+  if (ADMIN_ALIAS_PATTERN.test(email)) return createSession(email, 'admin', 'Admin (alias)');
+  if (REVISOR_ALIAS_PATTERN.test(email)) return createSession(email, 'revisor', 'Revisor (alias)');
+
+  const user = AUTHORIZED_USERS[email];
+  if (user) return createSession(email, user.role, user.name);
+
+  return { success: false, error: 'Email no autorizado.' };
+}
+
 /**
  * Cierra la sesión actual.
  */

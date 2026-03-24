@@ -6,8 +6,10 @@ const STORAGE_KEY = 'proev_theme';
 
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'light';
-    return (localStorage.getItem(STORAGE_KEY) as Theme) || 'light';
+    if (typeof window === 'undefined') return 'dark';
+    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
+    if (stored) return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
   useEffect(() => {

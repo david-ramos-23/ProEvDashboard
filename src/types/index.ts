@@ -11,7 +11,7 @@
 export type EstadoGeneral =
   | 'Privado'
   | 'Preinscrito'
-  | 'En revision de video'
+  | 'En revisión de video'
   | 'Aprobado'
   | 'Rechazado'
   | 'Pendiente de pago'

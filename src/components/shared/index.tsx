@@ -3,10 +3,109 @@
  * KPICard, StatusBadge, DataTable, y Loading.
  */
 
-import { ReactNode, memo, useState, useEffect } from 'react';
+import { ReactNode, memo, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { ESTADO_COLORS, ESTADO_ICONS, REVISION_COLORS, PAGO_COLORS, EMAIL_COLORS } from '@/utils/constants';
 import { EstadoGeneral, EstadoRevision, EstadoPago, EstadoEmail } from '@/types';
 import styles from './Shared.module.css';
+
+// ============================================================
+// Animated count-up hook
+// ============================================================
+
+/**
+ * Animates a number from 0 to target with ease-out cubic.
+ */
+function useCountUp(target: number, decimals: number, duration = 900): number {
+  const [display, setDisplay] = useState(0);
+  const raf = useRef(0);
+
+  useEffect(() => {
+    if (target === 0) { setDisplay(0); return; }
+
+    const t0 = performance.now();
+    const animate = () => {
+      const elapsed = performance.now() - t0;
+      const p = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - p, 3);
+      const val = target * eased;
+      setDisplay(decimals > 0 ? parseFloat(val.toFixed(decimals)) : Math.round(val));
+      if (p < 1) raf.current = requestAnimationFrame(animate);
+    };
+    raf.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf.current);
+  }, [target, decimals, duration]);
+
+  return display;
+}
+
+/**
+ * Parses a formatted value string and returns the numeric value,
+ * decimal count, and a re-formatter function.
+ *
+ * Supports es-ES locale (20.000,00 €) and en-US locale ($20,000.00).
+ */
+function parseFormattedValue(value: string | number): {
+  num: number;
+  decimals: number;
+  format: (n: number) => string;
+} | null {
+  const str = String(value);
+  if (str === '—' || str === '0') return null;
+
+  // Split into prefix (non-digit), numeric part, suffix
+  const m = str.match(/^([^0-9]*?)([\d.,]+)(.*)$/);
+  if (!m) return null;
+
+  const [, prefix, numStr, suffix] = m;
+
+  // Detect comma-decimal format: "200,00" or "20.000,00" (es-ES locale)
+  const hasCommaDecimal = /,\d{1,2}$/.test(numStr);
+  // Detect dot-decimal format: "200.00" or "20,000.00" (en-US locale)
+  const hasDotDecimal = /\.\d{1,2}$/.test(numStr) && !hasCommaDecimal;
+
+  let num: number;
+  let decimals = 0;
+  let localeFormat: 'es' | 'en' = 'es';
+
+  if (hasCommaDecimal) {
+    // es-ES: "200,00" or "20.000,00" → comma is decimal separator
+    const commaIdx = numStr.lastIndexOf(',');
+    decimals = numStr.length - commaIdx - 1;
+    num = parseFloat(numStr.replace(/\./g, '').replace(',', '.'));
+    localeFormat = 'es';
+  } else if (hasDotDecimal) {
+    // en-US: "200.00" or "20,000.00" → dot is decimal separator
+    const dotIdx = numStr.lastIndexOf('.');
+    decimals = numStr.length - dotIdx - 1;
+    num = parseFloat(numStr.replace(/,/g, ''));
+    localeFormat = 'en';
+  } else {
+    // Plain integer: detect separator type by context
+    // "1.234" (es-ES thousands) vs "1,234" (en-US thousands)
+    num = parseInt(numStr.replace(/[.,]/g, ''), 10);
+    localeFormat = numStr.includes('.') ? 'es' : 'en';
+  }
+
+  if (isNaN(num)) return null;
+
+  const locale = localeFormat === 'es' ? 'es-ES' : 'en-US';
+  const format = (n: number) => {
+    const formatted = decimals > 0
+      ? n.toLocaleString(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
+      : n.toLocaleString(locale);
+    return prefix + formatted + suffix;
+  };
+
+  return { num, decimals, format };
+}
+
+function AnimatedValue({ value }: { value: string | number }) {
+  const parsed = parseFormattedValue(value);
+  const animatedNum = useCountUp(parsed?.num ?? 0, parsed?.decimals ?? 0);
+
+  if (!parsed) return <>{value}</>;
+  return <>{parsed.format(animatedNum)}</>;
+}
 
 // ============================================================
 // KPI Card
@@ -35,7 +134,7 @@ export const KPICard = memo(function KPICard({ label, value, icon, color = 'var(
           {onClick ? <span className={styles.kpiArrow}>→</span> : icon}
         </span>
       </div>
-      <div className={styles.kpiValue} style={{ color }}>{value}</div>
+      <div className={styles.kpiValue} style={{ color }}><AnimatedValue value={value} /></div>
       {subtext && <div className={styles.kpiSubtext}>{subtext}</div>}
     </div>
   );
@@ -47,7 +146,7 @@ export function StatCard({ label, value, icon }: { label: string; value: string;
     <div className={styles.statCard}>
       <span className={styles.statIcon}>{icon}</span>
       <div>
-        <div className={styles.statValue}>{value}</div>
+        <div className={styles.statValue}><AnimatedValue value={value} /></div>
         <div className={styles.statLabel}>{label}</div>
       </div>
     </div>
@@ -126,6 +225,9 @@ export interface Column<T> {
   header: string;
   render?: (item: T) => ReactNode;
   width?: string;
+  minWidth?: number;
+  sortable?: boolean;
+  hideable?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -140,12 +242,43 @@ interface DataTableProps<T> {
   onSearchChange?: (value: string) => void;
   searchPlaceholder?: string;
   actions?: ReactNode;
+  tableId?: string;
 }
+
+type SortDir = 'asc' | 'desc';
 
 // Precomputed skeleton widths to avoid Math.random() in render
 const SKELETON_WIDTHS = Array.from({ length: 30 }, () => `${60 + Math.random() * 40}%`);
 
-/** Tabla de datos con búsqueda, loading skeleton, y filas clickeables */
+function comparePrimitive(a: unknown, b: unknown, dir: SortDir): number {
+  const aVal = a ?? '';
+  const bVal = b ?? '';
+  let cmp = 0;
+  if (typeof aVal === 'number' && typeof bVal === 'number') {
+    cmp = aVal - bVal;
+  } else {
+    cmp = String(aVal).localeCompare(String(bVal), undefined, { numeric: true, sensitivity: 'base' });
+  }
+  return dir === 'asc' ? cmp : -cmp;
+}
+
+interface TablePrefs {
+  hiddenCols?: string[];
+  colWidths?: Record<string, number>;
+}
+
+function loadTablePrefs(tableId: string): TablePrefs {
+  try {
+    const raw = localStorage.getItem(`proev_table_${tableId}`);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function saveTablePrefs(tableId: string, prefs: TablePrefs) {
+  try { localStorage.setItem(`proev_table_${tableId}`, JSON.stringify(prefs)); } catch { /* noop */ }
+}
+
+/** Tabla de datos con búsqueda, sorting, columnas configurables, y filas clickeables */
 export function DataTable<T extends { id: string }>({
   title,
   columns,
@@ -158,77 +291,242 @@ export function DataTable<T extends { id: string }>({
   onSearchChange,
   searchPlaceholder = 'Buscar...',
   actions,
+  tableId,
 }: DataTableProps<T>) {
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    if (!tableId) return new Set();
+    return new Set(loadTablePrefs(tableId).hiddenCols ?? []);
+  });
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    if (!tableId) return {};
+    return loadTablePrefs(tableId).colWidths ?? {};
+  });
+  const [colMenuOpen, setColMenuOpen] = useState(false);
+  const colMenuRef = useRef<HTMLDivElement>(null);
+  const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  const didResizeRef = useRef(false);
+
+  // Persist prefs
+  useEffect(() => {
+    if (!tableId) return;
+    saveTablePrefs(tableId, {
+      hiddenCols: [...hiddenCols],
+      colWidths,
+    });
+  }, [tableId, hiddenCols, colWidths]);
+
+  // Close column menu on outside click
+  useEffect(() => {
+    if (!colMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (colMenuRef.current && !colMenuRef.current.contains(e.target as Node)) setColMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [colMenuOpen]);
+
+  function handleSort(key: string) {
+    if (didResizeRef.current) { didResizeRef.current = false; return; }
+    if (sortKey === key) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }
+
+  function toggleCol(key: string) {
+    setHiddenCols(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  const visibleColumns = useMemo(
+    () => columns.filter(c => !hiddenCols.has(c.key)),
+    [columns, hiddenCols]
+  );
+
+  const handleResizeStart = useCallback((key: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    didResizeRef.current = true;
+
+    // Snapshot all column widths + measure header minimum widths from DOM
+    const table = tableRef.current;
+    const minWidths: Record<string, number> = {};
+    if (table) {
+      const ths = table.querySelectorAll('thead th');
+      const snapshot: Record<string, number> = {};
+      ths.forEach((th, i) => {
+        const colKey = visibleColumns[i]?.key;
+        if (colKey) {
+          snapshot[colKey] = th.getBoundingClientRect().width;
+          // Measure header text width as minimum (scrollWidth + padding)
+          minWidths[colKey] = (th as HTMLElement).scrollWidth + 16;
+        }
+      });
+      setColWidths(snapshot);
+    }
+
+    const th = (e.target as HTMLElement).closest('th');
+    if (!th) return;
+    const startW = th.getBoundingClientRect().width;
+    resizingRef.current = { key, startX: e.clientX, startW };
+    const minW = Math.max(minWidths[key] ?? 80, 80);
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizingRef.current) return;
+      const delta = ev.clientX - resizingRef.current.startX;
+      const newW = Math.max(resizingRef.current.startW + delta, minW);
+      setColWidths(prev => ({ ...prev, [key]: newW }));
+    };
+    const onUp = () => {
+      resizingRef.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setTimeout(() => { didResizeRef.current = false; }, 50);
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [visibleColumns]);
+
+  const sortedData = useMemo(() => {
+    if (!sortKey) return data;
+    return [...data].sort((a, b) =>
+      comparePrimitive(
+        (a as Record<string, unknown>)[sortKey],
+        (b as Record<string, unknown>)[sortKey],
+        sortDir,
+      )
+    );
+  }, [data, sortKey, sortDir]);
+
+  const hasHideableColumns = columns.some(c => c.hideable !== false && c.header);
+
   return (
     <div className={styles.tableWrapper}>
-      {(title || onSearchChange || actions) && (
-        <div className={styles.tableHeader}>
-          {title && <h3 className={styles.tableTitle}>{title}</h3>}
-          <div className={styles.tableActions}>
-            {onSearchChange && (
-              <input
-                type="text"
-                className={styles.searchInput}
-                placeholder={searchPlaceholder}
-                value={searchValue || ''}
-                onChange={(e) => onSearchChange(e.target.value)}
-              />
-            )}
-            {actions}
-          </div>
-        </div>
-      )}
-
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            {columns.map((col) => (
-              <th key={col.key} style={col.width ? { width: col.width } : undefined}>
-                {col.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading ? (
-            // Skeleton loading
-            Array.from({ length: 5 }).map((_, i) => (
-              <tr key={`skeleton-${i}`}>
-                {columns.map((col, j) => (
-                  <td key={col.key}>
-                    <div className={styles.skeletonCell} style={{ width: SKELETON_WIDTHS[(i * columns.length + j) % SKELETON_WIDTHS.length] }} />
-                  </td>
-                ))}
-              </tr>
-            ))
-          ) : data.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length}>
-                <div className={styles.emptyState}>
-                  <div className={styles.emptyIcon}>{emptyIcon}</div>
-                  <div className={styles.emptyText}>{emptyMessage}</div>
-                </div>
-              </td>
-            </tr>
-          ) : (
-            data.map((item) => (
-              <tr
-                key={item.id}
-                className={onRowClick ? styles.clickableRow : ''}
-                onClick={() => onRowClick?.(item)}
-              >
-                {columns.map((col) => (
-                  <td key={col.key}>
-                    {col.render
-                      ? col.render(item)
-                      : String((item as Record<string, unknown>)[col.key] ?? '—')}
-                  </td>
-                ))}
-              </tr>
-            ))
+      <div className={styles.tableHeader}>
+        {title && <h3 className={styles.tableTitle}>{title}</h3>}
+        <div className={styles.tableActions}>
+          {onSearchChange && (
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder={searchPlaceholder}
+              value={searchValue || ''}
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
           )}
-        </tbody>
-      </table>
+          {actions}
+          {hasHideableColumns && (
+            <div ref={colMenuRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className={styles.colMenuBtn}
+                onClick={() => setColMenuOpen(p => !p)}
+                title="Configurar columnas"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18" />
+                  <path d="M3 9h18M3 15h18" />
+                </svg>
+                <span style={{ fontSize: '0.7rem' }}>Columnas</span>
+              </button>
+              {colMenuOpen && (
+                <div className={styles.colMenuDropdown}>
+                  <div className={styles.colMenuHeader}>Columnas visibles</div>
+                  {columns.filter(c => c.header && c.hideable !== false).map(c => (
+                    <label key={c.key} className={styles.colMenuItem}>
+                      <input
+                        type="checkbox"
+                        checked={!hiddenCols.has(c.key)}
+                        onChange={() => toggleCol(c.key)}
+                      />
+                      <span>{c.header}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table ref={tableRef} className={styles.table} style={{ tableLayout: Object.keys(colWidths).length > 0 ? 'fixed' : undefined }}>
+          <thead>
+            <tr>
+              {visibleColumns.map((col) => (
+                <th
+                  key={col.key}
+                  style={{ width: colWidths[col.key] ? `${colWidths[col.key]}px` : col.width, position: 'relative', minWidth: col.minWidth ?? 60 }}
+                  className={col.sortable ? styles.sortableHeader : undefined}
+                  onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                >
+                  {col.header}
+                  {col.sortable && (
+                    <span className={styles.sortIcon}>
+                      {sortKey === col.key ? (sortDir === 'asc' ? ' \u2191' : ' \u2193') : ' \u2195'}
+                    </span>
+                  )}
+                  <span
+                    className={styles.resizeHandle}
+                    onMouseDown={(e) => handleResizeStart(col.key, e)}
+                  />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <tr key={`skeleton-${i}`}>
+                  {visibleColumns.map((col, j) => (
+                    <td key={col.key}>
+                      <div className={styles.skeletonCell} style={{ width: SKELETON_WIDTHS[(i * visibleColumns.length + j) % SKELETON_WIDTHS.length] }} />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : sortedData.length === 0 ? (
+              <tr>
+                <td colSpan={visibleColumns.length}>
+                  <div className={styles.emptyState}>
+                    <div className={styles.emptyIcon}>{emptyIcon}</div>
+                    <div className={styles.emptyText}>{emptyMessage}</div>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              sortedData.map((item, idx) => (
+                <tr
+                  key={item.id}
+                  className={`${onRowClick ? styles.clickableRow : ''} ${styles.rowEnter}`}
+                  style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
+                  onClick={() => onRowClick?.(item)}
+                >
+                  {visibleColumns.map((col) => (
+                    <td key={col.key}>
+                      {col.render
+                        ? col.render(item)
+                        : String((item as Record<string, unknown>)[col.key] ?? '—')}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -269,6 +567,77 @@ export function KPICardSkeleton() {
 }
 
 // ============================================================
+// Confirm Dialog
+// ============================================================
+
+interface ConfirmDialogProps {
+  open: boolean;
+  title: string;
+  message?: string;
+  icon?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: 'success' | 'danger' | 'warning';
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+const VARIANT_STYLES: Record<string, React.CSSProperties> = {
+  success: { background: 'var(--color-accent-success, #16a34a)', color: '#fff' },
+  danger: { background: 'var(--color-accent-danger, #dc2626)', color: '#fff' },
+  warning: { background: 'var(--color-accent-warning, #f59e0b)', color: '#fff' },
+};
+
+export function ConfirmDialog({
+  open,
+  title,
+  message,
+  icon,
+  confirmLabel = 'Confirmar',
+  cancelLabel = 'Cancelar',
+  variant = 'success',
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+
+  return (
+    <div className={styles.confirmOverlay} onClick={onCancel}>
+      <div
+        className={styles.confirmPanel}
+        onClick={(e) => e.stopPropagation()}
+        role="alertdialog"
+        aria-labelledby="confirm-title"
+        aria-describedby="confirm-message"
+      >
+        {icon && <div className={styles.confirmIcon}>{icon}</div>}
+        <div className={styles.confirmTitle} id="confirm-title">{title}</div>
+        {message && <div className={styles.confirmMessage} id="confirm-message">{message}</div>}
+        <div className={styles.confirmActions}>
+          <button className={styles.confirmCancel} onClick={onCancel}>{cancelLabel}</button>
+          <button
+            className={styles.confirmOk}
+            style={VARIANT_STYLES[variant]}
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // Loading spinner
 // ============================================================
 
@@ -302,7 +671,7 @@ export function LoadingSpinner({ text = 'Cargando...' }: { text?: string }) {
 // ============================================================
 
 /** Fixed scroll-to-top button, visible after 400px scroll */
-export function ScrollToTop() {
+export function ScrollToTop({ aiOpen = false }: { aiOpen?: boolean }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -316,6 +685,7 @@ export function ScrollToTop() {
   return (
     <button
       className={styles.scrollTop}
+      style={{ right: aiOpen ? 388 : 28, transition: 'right 300ms cubic-bezier(0.16, 1, 0.3, 1)' }}
       onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="Volver arriba"
       title="Volver arriba"

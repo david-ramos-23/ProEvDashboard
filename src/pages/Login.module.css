@@ -5,54 +5,39 @@
   justify-content: center;
   position: relative;
   overflow: hidden;
-  background: var(--color-bg-primary);
+  background: #0a0a0a;
 }
 
-/* Decorative background blobs */
-.bgOrb1, .bgOrb2, .bgOrb3 {
+/* Hero video background */
+.videoBg {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(120px);
-  opacity: 0.08;
-  pointer-events: none;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
 }
 
-.bgOrb1 {
-  width: 500px;
-  height: 500px;
-  background: var(--color-accent-primary);
-  top: -150px;
-  right: -150px;
-}
-
-.bgOrb2 {
-  width: 350px;
-  height: 350px;
-  background: #D8C7A5;
-  bottom: -80px;
-  left: -80px;
-}
-
-.bgOrb3 {
-  width: 250px;
-  height: 250px;
-  background: var(--color-accent-primary);
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+/* Dark overlay so card stays readable */
+.videoOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1;
 }
 
 .card {
   width: 100%;
   max-width: 420px;
-  background: var(--color-bg-card);
-  border: 1px solid var(--color-border);
+  background: rgba(0, 0, 0, 0.35);
+  border: none;
   border-radius: var(--radius-xl);
   padding: var(--space-2xl);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.3);
   position: relative;
-  z-index: 1;
+  z-index: 2;
   animation: fadeIn var(--transition-slow) ease-out;
+  backdrop-filter: blur(20px);
 }
 
 .header {
@@ -68,7 +53,7 @@
 }
 
 .logoImg {
-  height: 96px;
+  height: 140px;
   width: auto;
   object-fit: contain;
 }
@@ -104,23 +89,27 @@
 .label {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .input {
   padding: 12px 16px;
   font-size: var(--font-size-md);
-  background: var(--color-bg-input);
-  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-md);
-  color: var(--color-text-primary);
+  color: #fff;
   transition: all var(--transition-fast);
 }
 
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
 .input:focus {
-  border-color: var(--color-accent-primary);
-  box-shadow: 0 0 0 3px var(--color-accent-primary-glow);
-  background: var(--color-bg-input-focus);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .error {
@@ -145,10 +134,8 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-sm);
+  position: relative;
+  overflow: hidden;
 }
 
 .submitBtn:hover:not(:disabled) {
@@ -161,14 +148,37 @@
 }
 
 .submitBtn:disabled {
-  opacity: 0.5;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
+.btnText {
+  display: block;
+  transition: opacity var(--transition-fast);
+}
+
+.btnSpinner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.submitBtnLoading .btnText {
+  opacity: 0;
+}
+
+.submitBtnLoading .btnSpinner {
+  opacity: 1;
+}
+
 .spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -176,6 +186,57 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* ── Magic link "sent" state ─────────────────────────────────────────────── */
+
+.sentState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-lg) 0;
+  gap: var(--space-sm);
+}
+
+.sentIcon {
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.sentTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: #fff;
+  margin: 0;
+}
+
+.sentDesc {
+  font-size: var(--font-size-sm);
+  color: rgba(255, 255, 255, 0.65);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.sentDesc strong {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.backBtn {
+  margin-top: var(--space-sm);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 8px 20px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.backBtn:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
 }
 
 /* ── OR divider ──────────────────────────────────────────────────────────── */
@@ -190,12 +251,12 @@
 .dividerLine {
   flex: 1;
   height: 1px;
-  background: var(--color-border);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .dividerText {
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.45);
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -226,5 +287,5 @@
 
 .footer p {
   font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.4);
 }

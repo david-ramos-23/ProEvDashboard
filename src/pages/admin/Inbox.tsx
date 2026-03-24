@@ -8,12 +8,13 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { StatusBadge, SkeletonBlock, DataTable, Column } from '@/components/shared';
+import { StatusBadge, SkeletonBlock, DataTable, Column, ConfirmDialog } from '@/components/shared';
 import { fetchInbox, updateInboxEmail } from '@/data/adapters/airtable/InboxAdapter';
 import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/ColaEmailsAdapter';
 import { InboxEmail, ColaEmail, EstadoEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
+import { ESTADO_EMAIL } from '@/utils/constants';
 import styles from './Inbox.module.css';
 
 type SectionType = 'bandeja' | 'cola';
@@ -201,7 +202,7 @@ function EmailCard({ email, isExpanded, onToggle, onUpdate, isPending }: EmailCa
 
 type ColaTab = 'pendientes' | 'cola' | 'enviados' | 'errores';
 const COLA_TABS: { key: ColaTab; label: string; icon: string; estado: EstadoEmail }[] = [
-  { key: 'pendientes', label: 'Por aprobar', icon: '⏳', estado: 'Pendiente Aprobacion' },
+  { key: 'pendientes', label: 'Por aprobar', icon: '⏳', estado: ESTADO_EMAIL.PENDIENTE_APROBACION },
   { key: 'cola',       label: 'En cola',     icon: '📤', estado: 'Pendiente' },
   { key: 'enviados',   label: 'Enviados',    icon: '✅', estado: 'Enviado' },
   { key: 'errores',    label: 'Errores',     icon: '❌', estado: 'Error' },
@@ -214,6 +215,7 @@ function ColaSection() {
   const [colaTab, setColaTab] = useState<ColaTab>('pendientes');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [approving, setApproving] = useState<string | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const activeEstado = COLA_TABS.find(t => t.key === colaTab)!.estado;
 
@@ -235,11 +237,11 @@ function ColaSection() {
   const columns = useMemo<Column<ColaEmail>[]>(() => {
     const cols: Column<ColaEmail>[] = [
       {
-        key: 'alumnoNombre', header: 'Alumno', width: '160px',
+        key: 'alumnoNombre', header: 'Alumno', width: '160px', sortable: true,
         render: (e) => <span style={{ fontWeight: 500 }}>{e.alumnoNombre || '—'}</span>,
       },
       {
-        key: 'tipo', header: 'Tipo', width: '120px',
+        key: 'tipo', header: 'Tipo', width: '120px', sortable: true,
         render: (e) => <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--color-accent-info)' }}>{e.tipo}</span>,
       },
       {
@@ -247,21 +249,21 @@ function ColaSection() {
         render: (e) => <span style={{ fontSize: '0.8125rem' }}>{e.asunto || e.descripcion || e.mensaje?.slice(0, 80) || '—'}</span>,
       },
       {
-        key: 'estado', header: 'Estado', width: '140px',
+        key: 'estado', header: 'Estado', width: '140px', sortable: true,
         render: (e) => <StatusBadge status={e.estado} type="email" />,
       },
       {
-        key: 'createdTime', header: 'Hace', width: '90px',
+        key: 'createdTime', header: 'Hace', width: '90px', sortable: true,
         render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
       },
     ];
     if (colaTab === 'pendientes') {
       cols.push({
-        key: 'actions', header: '', width: '100px',
+        key: 'actions', header: '', width: '100px', hideable: false,
         render: (e) => (
           <button
             className="btn-success btn-sm"
-            onClick={(ev) => { ev.stopPropagation(); handleAprobar(e.id); }}
+            onClick={(ev) => { ev.stopPropagation(); setConfirmId(e.id); }}
             disabled={approving === e.id}
           >
             {approving === e.id ? '...' : t('common.approve')}
@@ -306,11 +308,26 @@ function ColaSection() {
       </div>
 
       <DataTable
+        tableId="inbox-cola"
         columns={columns}
         data={colaEmails}
         isLoading={isLoading}
         emptyMessage={`No hay emails en "${COLA_TABS.find(t => t.key === colaTab)!.label}"`}
         emptyIcon="📧"
+      />
+
+      <ConfirmDialog
+        open={!!confirmId}
+        title={t('common.approve')}
+        message={colaEmails.find(e => e.id === confirmId)?.alumnoNombre || ''}
+        icon="📧"
+        confirmLabel={t('common.approve')}
+        variant="success"
+        onConfirm={() => {
+          if (confirmId) handleAprobar(confirmId);
+          setConfirmId(null);
+        }}
+        onCancel={() => setConfirmId(null)}
       />
     </div>
   );
@@ -466,15 +483,16 @@ export default function InboxPage() {
                 <p>{t('inbox.sinEmails')}</p>
               </div>
             ) : (
-              sorted.map(email => (
+              sorted.map((email, idx) => (
+                <div key={email.id} className={styles.cardEnter} style={{ animationDelay: `${Math.min(idx * 40, 400)}ms` }}>
                 <EmailCard
-                  key={email.id}
                   email={email}
                   isExpanded={expandedId === email.id}
                   onToggle={() => setExpandedId(expandedId === email.id ? null : email.id)}
                   onUpdate={(id, updates) => updateMutation.mutate({ id, updates })}
                   isPending={updateMutation.isPending}
                   />
+                </div>
               ))
             )}
           </div>

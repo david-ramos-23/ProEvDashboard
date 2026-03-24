@@ -14,7 +14,7 @@
 
 .logo {
   padding: var(--space-lg) var(--space-lg) var(--space-xl);
-  background: linear-gradient(180deg, #0C5A45 0%, #0C5A45 50%, rgba(12, 90, 69, 0) 100%);
+  background: linear-gradient(180deg, #0C5A45 0%, #0C5A45 72%, rgba(12, 90, 69, 0) 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -33,7 +33,7 @@
   font-weight: 800;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 @keyframes logoPulse {
@@ -59,7 +59,10 @@
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-base),
+              color var(--transition-base),
+              border-color var(--transition-base),
+              transform 250ms cubic-bezier(0.16, 1, 0.3, 1);
   text-decoration: none;
   border: 1px solid transparent;
 }
@@ -67,6 +70,7 @@
 .navItem:hover {
   background: var(--color-bg-card-hover);
   color: var(--color-text-primary);
+  transform: translateX(2px);
 }
 
 .navItemActive {
@@ -157,7 +161,7 @@
 .aiSpacer {
   flex-shrink: 0;
   width: 0;
-  transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width 550ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .aiSpacerOpen {
@@ -181,10 +185,51 @@
 .pageTitle {
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.edicionSelect {
+  padding: 3px 22px 3px 8px;
+  font-size: var(--font-size-xs);
+  font-family: var(--font-family);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent-primary);
+  background: var(--color-accent-primary-glow);
+  border: 1px solid rgba(12, 90, 69, 0.2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%230C5A45' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.edicionSelect:hover {
+  border-color: rgba(12, 90, 69, 0.4);
+}
+
+.edicionSelect:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-accent-primary-glow);
 }
 
 .content {
   padding: var(--space-xl);
   max-width: var(--content-max-width);
-  animation: fadeIn var(--transition-slow) ease-out;
+  animation: pageEnter 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
 }

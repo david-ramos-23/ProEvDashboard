@@ -21,6 +21,10 @@ interface AIAssistantProps {
   onToggle: () => void;
 }
 
+const AI_CHAT_URL = import.meta.env.DEV
+  ? (import.meta.env.VITE_AI_CHAT_URL || 'https://dashboard-eight-jade-69.vercel.app/api/ai-chat')
+  : '/api/ai-chat';
+
 const SUGGESTIONS = [
   '¿Cuántos alumnos están en revisión de vídeo?',
   '¿Hay emails pendientes de atención en el inbox?',
@@ -56,7 +60,7 @@ export default function AIAssistant({ isOpen, onToggle }: AIAssistantProps) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ai-chat', {
+      const res = await fetch(AI_CHAT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -88,6 +92,11 @@ export default function AIAssistant({ isOpen, onToggle }: AIAssistantProps) {
   }
 
   return (
+    <>
+    <div
+      className={`${styles.backdrop} ${isOpen ? styles.backdropOpen : ''}`}
+      onClick={onToggle}
+    />
     <div
       className={`${styles.panel} ${isOpen ? styles.panelOpen : ''}`}
       role="complementary"
@@ -184,5 +193,6 @@ export default function AIAssistant({ isOpen, onToggle }: AIAssistantProps) {
         </button>
       </div>
     </div>
+    </>
   );
 }
