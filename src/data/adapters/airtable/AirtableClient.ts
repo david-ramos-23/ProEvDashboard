@@ -7,7 +7,7 @@
  * Rate limit del plan free: 5 requests/segundo.
  */
 
-const USE_PROXY = !import.meta.env.VITE_AIRTABLE_PAT;
+const USE_PROXY = import.meta.env.PROD || !import.meta.env.VITE_AIRTABLE_PAT;
 const DIRECT_BASE_URL = 'https://api.airtable.com/v0';
 const PROXY_BASE_URL = '/api/airtable';
 const PAT = import.meta.env.VITE_AIRTABLE_PAT;
