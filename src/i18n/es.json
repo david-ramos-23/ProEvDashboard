@@ -33,7 +33,8 @@
     "loggingIn": "Verificando...",
     "orDivider": "o",
     "googleButton": "Continuar con Google",
-    "googleError": "Error al autenticar con Google"
+    "googleError": "Error al autenticar con Google",
+    "footer": "Sistema de gestión del curso Professional Evolution"
   },
   "dashboard": {
     "title": "Dashboard",

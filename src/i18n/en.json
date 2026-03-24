@@ -33,7 +33,8 @@
     "loggingIn": "Verifying...",
     "orDivider": "or",
     "googleButton": "Continue with Google",
-    "googleError": "Google authentication failed"
+    "googleError": "Google authentication failed",
+    "footer": "Professional Evolution course management system"
   },
   "dashboard": {
     "title": "Dashboard",

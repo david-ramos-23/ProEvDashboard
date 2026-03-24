@@ -182,7 +182,7 @@ export default function LoginPage({ onLogin, onGoogleLogin }: LoginProps) {
         )}
 
         <div className={styles.footer}>
-          <p>Sistema de gestión del curso Professional Evolution</p>
+          <p>{t('login.footer')}</p>
         </div>
       </div>
     </div>

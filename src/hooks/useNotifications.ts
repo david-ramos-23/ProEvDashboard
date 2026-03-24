@@ -70,7 +70,7 @@ async function fetchNotificationData(): Promise<{
 }> {
   const [revisionStats, colaEmails, historial] = await Promise.all([
     fetchRevisionStats(),
-    fetchColaEmails({ estado: 'Pendiente' }),
+    fetchColaEmails({ estado: 'Pendiente Aprobacion' }),
     fetchHistorial({ maxRecords: 5 }),
   ]);
 
