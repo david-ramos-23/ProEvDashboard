@@ -277,6 +277,9 @@
 .googleBtn iframe {
   width: 100% !important;
   max-width: 100% !important;
+  margin: 0 !important;
+  position: relative !important;
+  left: 0 !important;
 }
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
