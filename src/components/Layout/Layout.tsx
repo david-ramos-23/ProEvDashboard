@@ -11,6 +11,8 @@ import { getInitials } from '@/utils/formatters';
 import { useTranslation, Locale } from '@/i18n';
 import NotificationBell from '@/components/NotificationBell';
 import { ScrollToTop } from '@/components/shared';
+import { useTheme } from '@/hooks/useTheme';
+import AIAssistant from '@/components/AIAssistant/AIAssistant';
 import styles from './Layout.module.css';
 
 interface LayoutProps {
@@ -40,6 +42,7 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
 export default function Layout({ role, userName, userEmail, onLogout }: LayoutProps) {
   const location = useLocation();
   const { t, locale, setLocale } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
   const navItems: NavItem[] = role === 'admin' ? ADMIN_NAV : REVISOR_NAV;
   const basePath = '/' + location.pathname.split('/').slice(1, 3).join('/');
   const pageTitle = t(PAGE_TITLE_KEYS[basePath] || 'common.noData');
@@ -92,6 +95,20 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
         <header className={styles.header}>
           <h1 className={styles.pageTitle}>{pageTitle}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={toggleTheme}
+              title={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
+              style={{
+                width: 36, height: 36, borderRadius: 'var(--radius-md)',
+                background: 'transparent', border: '1px solid var(--color-border)',
+                color: 'var(--color-text-muted)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.1rem', transition: 'all var(--transition-fast)',
+                fontFamily: 'var(--font-family)',
+              }}
+            >
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
             <NotificationBell />
             <div style={{ display: 'flex', gap: '4px' }}>
             {(['es', 'en'] as Locale[]).map(l => (
@@ -121,6 +138,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
         </div>
       </main>
       <ScrollToTop />
+      <AIAssistant />
     </div>
   );
 }

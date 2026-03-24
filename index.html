@@ -8,6 +8,13 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <title>ProEv Dashboard</title>
+    <!-- Theme init: apply before React renders to prevent flash -->
+    <script>
+      (function () {
+        var t = localStorage.getItem('proev_theme') || 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
     <!-- Google Sign-In (GSI) — only used when VITE_GOOGLE_CLIENT_ID is set -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>

@@ -16,6 +16,7 @@ import { useTranslation } from '@/i18n';
 import styles from './Inbox.module.css';
 
 type FilterType = 'all' | 'atencion' | 'sinResponder' | 'Recibido' | 'Enviado';
+type EstadoFilter = '' | 'Nuevo' | 'Leido' | 'Respondido' | 'Archivado';
 
 function buildQueryFilters(filter: FilterType) {
   if (filter === 'Recibido') return { direccion: 'Recibido' };
@@ -191,6 +192,7 @@ export default function InboxPage() {
   const { t } = useTranslation();
 
   const [filter, setFilter] = useState<FilterType>('all');
+  const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
@@ -214,6 +216,10 @@ export default function InboxPage() {
       ? emails.filter(e => e.estado !== 'Respondido' && e.estado !== 'Archivado')
       : emails;
 
+    if (estadoFilter) {
+      list = list.filter(e => e.estado === estadoFilter);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(e =>
@@ -224,7 +230,7 @@ export default function InboxPage() {
     }
 
     return sortEmails(list);
-  }, [emails, filter, search]);
+  }, [emails, filter, estadoFilter, search]);
 
   const filters: { key: FilterType; label: string; icon: string }[] = [
     { key: 'all', label: t('inbox.todos'), icon: '📬' },
@@ -260,6 +266,25 @@ export default function InboxPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+      </div>
+
+      {/* Estado filter chips */}
+      <div className={styles.filterRow}>
+        {([
+          { key: '' as EstadoFilter, label: 'Todos los estados' },
+          { key: 'Nuevo' as EstadoFilter, label: '🔵 Nuevo' },
+          { key: 'Leido' as EstadoFilter, label: '👁 Leído' },
+          { key: 'Respondido' as EstadoFilter, label: '✅ Respondido' },
+          { key: 'Archivado' as EstadoFilter, label: '📁 Archivado' },
+        ]).map(opt => (
+          <button
+            key={opt.key}
+            className={`${styles.filterBtn} ${estadoFilter === opt.key ? styles.filterBtnActive : ''}`}
+            onClick={() => setEstadoFilter(opt.key)}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
 
       {/* Count */}

@@ -281,3 +281,25 @@ button {
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius-md);
 }
+
+/* ============================
+   Dark theme overrides
+   ============================ */
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .skeleton {
+  background: linear-gradient(
+    90deg,
+    #222222 25%,
+    #2A2A2A 50%,
+    #222222 75%
+  );
+  background-size: 200% 100%;
+}

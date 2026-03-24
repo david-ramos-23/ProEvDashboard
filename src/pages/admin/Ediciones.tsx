@@ -3,7 +3,7 @@
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KPICardSkeleton, SkeletonBlock, DataTable, Column } from '@/components/shared';
+import { KPICardSkeleton, SkeletonBlock, DataTable, Column, StatusBadge } from '@/components/shared';
 import { fetchEdiciones, updateEdicion } from '@/data/adapters/airtable/EdicionesAdapter';
 import { fetchModulos } from '@/data/adapters/airtable/ModulosAdapter';
 import { Edicion, Modulo } from '@/types';
@@ -156,7 +156,7 @@ export default function EdicionesPage() {
                     {restantes} {t('ediciones.plazasLibres')}
                   </span>
                 </div>
-                <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ height: 6, background: 'var(--color-bg-tertiary)', borderRadius: 3, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${Math.min(porcentaje, 100)}%`, background: barColor, borderRadius: 3, transition: 'width 300ms ease' }} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: '8px' }}>
