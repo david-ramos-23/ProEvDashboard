@@ -82,9 +82,10 @@ export default function App() {
               <Route path="/admin/alumnos" element={<AlumnosPage />} />
               <Route path="/admin/alumnos/:id" element={<AlumnoDetailPage />} />
               <Route path="/admin/pagos" element={<PagosPage />} />
-              <Route path="/admin/comunicaciones" element={<ComunicacionesPage />} />
-              <Route path="/admin/ediciones" element={<EdicionesPage />} />
               <Route path="/admin/inbox" element={<InboxPage />} />
+              {/* Redirect legacy Comunicaciones URL */}
+              <Route path="/admin/comunicaciones" element={<Navigate to="/admin/inbox" replace />} />
+              <Route path="/admin/ediciones" element={<EdicionesPage />} />
               {/* Admin accede a vistas del revisor */}
               <Route path="/revisor/videos" element={<VideoReviewPage />} />
               <Route path="/revisor/emails" element={<EmailApprovalPage />} />

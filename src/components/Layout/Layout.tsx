@@ -34,7 +34,7 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   '/admin/dashboard': 'dashboard.title',
   '/admin/alumnos': 'alumnos.title',
   '/admin/pagos': 'pagos.title',
-  '/admin/comunicaciones': 'comunicaciones.title',
+  '/admin/inbox': 'inbox.title',
   '/admin/ediciones': 'ediciones.title',
   '/revisor/videos': 'videoReview.title',
   '/revisor/emails': 'emailApproval.title',

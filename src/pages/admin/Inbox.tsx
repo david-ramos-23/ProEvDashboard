@@ -1,19 +1,22 @@
 /**
- * Inbox — Bandeja de entrada de emails del sistema ProEv.
+ * Emails — Bandeja de entrada + Cola de emails del sistema ProEv.
  *
- * Task-queue style: prioritized card list with inline accordion expansion.
- * Sort: requiereAtencion → Nuevo (unread) → by date.
- * Each card expands inline to show full content + response area.
+ * Two sections:
+ *  - Bandeja: Gmail inbox (task-queue card list with inline expansion)
+ *  - Cola:    Automated email queue (approve / track status)
  */
 
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { StatusBadge, SkeletonBlock } from '@/components/shared';
+import { StatusBadge, SkeletonBlock, DataTable, Column } from '@/components/shared';
 import { fetchInbox, updateInboxEmail } from '@/data/adapters/airtable/InboxAdapter';
-import { InboxEmail } from '@/types';
+import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/ColaEmailsAdapter';
+import { InboxEmail, ColaEmail, EstadoEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
 import styles from './Inbox.module.css';
+
+type SectionType = 'bandeja' | 'cola';
 
 type FilterType = 'all' | 'atencion' | 'sinResponder' | 'Recibido' | 'Enviado';
 type EstadoFilter = '' | 'Nuevo' | 'Leido' | 'Respondido' | 'Archivado';
@@ -194,10 +197,132 @@ function EmailCard({ email, isExpanded, onToggle, onUpdate, isPending }: EmailCa
   );
 }
 
+// ── Cola de Emails section ─────────────────────────────────────────────────
+
+type ColaTab = 'pendientes' | 'cola' | 'enviados' | 'errores';
+const COLA_TABS: { key: ColaTab; label: string; icon: string; estado: EstadoEmail }[] = [
+  { key: 'pendientes', label: 'Por aprobar', icon: '⏳', estado: 'Pendiente Aprobacion' },
+  { key: 'cola',       label: 'En cola',     icon: '📤', estado: 'Pendiente' },
+  { key: 'enviados',   label: 'Enviados',    icon: '✅', estado: 'Enviado' },
+  { key: 'errores',    label: 'Errores',     icon: '❌', estado: 'Error' },
+];
+const TIPOS_EMAIL = ['informacion', 'recordatorio', 'seguimiento', 'bienvenida', 'alerta'];
+
+function ColaSection() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const [colaTab, setColaTab] = useState<ColaTab>('pendientes');
+  const [filtroTipo, setFiltroTipo] = useState('');
+  const [approving, setApproving] = useState<string | null>(null);
+
+  const activeEstado = COLA_TABS.find(t => t.key === colaTab)!.estado;
+
+  const { data: colaEmails = [], isLoading } = useQuery({
+    queryKey: ['cola-emails', { estado: activeEstado, tipo: filtroTipo || undefined }],
+    queryFn: () => fetchColaEmails({ estado: activeEstado, tipo: filtroTipo || undefined }),
+  });
+
+  async function handleAprobar(id: string) {
+    setApproving(id);
+    try {
+      await aprobarEmail(id);
+      await queryClient.invalidateQueries({ queryKey: ['cola-emails'] });
+    } finally {
+      setApproving(null);
+    }
+  }
+
+  const columns = useMemo<Column<ColaEmail>[]>(() => {
+    const cols: Column<ColaEmail>[] = [
+      {
+        key: 'alumnoNombre', header: 'Alumno', width: '160px',
+        render: (e) => <span style={{ fontWeight: 500 }}>{e.alumnoNombre || '—'}</span>,
+      },
+      {
+        key: 'tipo', header: 'Tipo', width: '120px',
+        render: (e) => <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--color-accent-info)' }}>{e.tipo}</span>,
+      },
+      {
+        key: 'asunto', header: 'Asunto / Mensaje',
+        render: (e) => <span style={{ fontSize: '0.8125rem' }}>{e.asunto || e.descripcion || e.mensaje?.slice(0, 80) || '—'}</span>,
+      },
+      {
+        key: 'estado', header: 'Estado', width: '140px',
+        render: (e) => <StatusBadge status={e.estado} type="email" />,
+      },
+      {
+        key: 'createdTime', header: 'Hace', width: '90px',
+        render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
+      },
+    ];
+    if (colaTab === 'pendientes') {
+      cols.push({
+        key: 'actions', header: '', width: '100px',
+        render: (e) => (
+          <button
+            className="btn-success btn-sm"
+            onClick={(ev) => { ev.stopPropagation(); handleAprobar(e.id); }}
+            disabled={approving === e.id}
+          >
+            {approving === e.id ? '...' : t('common.approve')}
+          </button>
+        ),
+      });
+    }
+    return cols;
+  }, [colaTab, approving]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+      {/* Sub-tabs */}
+      <div style={{ display: 'flex', gap: 'var(--space-xs)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-xs)' }}>
+        {COLA_TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setColaTab(tab.key)}
+            className={styles.filterBtn}
+            style={{
+              background: colaTab === tab.key ? 'var(--color-accent-primary-glow)' : 'transparent',
+              borderColor: colaTab === tab.key ? 'rgba(12, 90, 69, 0.3)' : 'transparent',
+              color: colaTab === tab.key ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)',
+              borderRadius: '8px 8px 0 0',
+            }}
+          >
+            <span>{tab.icon}</span> {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tipo filter */}
+      <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
+        <button className={`btn-sm ${!filtroTipo ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroTipo('')}>Todos</button>
+        {TIPOS_EMAIL.map(tipo => (
+          <button key={tipo} className={`btn-sm ${filtroTipo === tipo ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setFiltroTipo(filtroTipo === tipo ? '' : tipo)}
+            style={{ textTransform: 'capitalize' }}>
+            {tipo}
+          </button>
+        ))}
+      </div>
+
+      <DataTable
+        columns={columns}
+        data={colaEmails}
+        isLoading={isLoading}
+        emptyMessage={`No hay emails en "${COLA_TABS.find(t => t.key === colaTab)!.label}"`}
+        emptyIcon="📧"
+      />
+    </div>
+  );
+}
+
+// ── Main page ───────────────────────────────────────────────────────────────
+
 export default function InboxPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
+  const [section, setSection] = useState<SectionType>('bandeja');
   const [filter, setFilter] = useState<FilterType>('all');
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -208,6 +333,7 @@ export default function InboxPage() {
   const { data: emails = [], isLoading } = useQuery({
     queryKey: ['inbox', queryFilters],
     queryFn: () => fetchInbox(queryFilters),
+    enabled: section === 'bandeja',
   });
 
   const updateMutation = useMutation({
@@ -222,11 +348,7 @@ export default function InboxPage() {
     let list = filter === 'sinResponder'
       ? emails.filter(e => e.estado !== 'Respondido' && e.estado !== 'Archivado')
       : emails;
-
-    if (estadoFilter) {
-      list = list.filter(e => e.estado === estadoFilter);
-    }
-
+    if (estadoFilter) list = list.filter(e => e.estado === estadoFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(e =>
@@ -235,7 +357,6 @@ export default function InboxPage() {
         e.para?.toLowerCase().includes(q)
       );
     }
-
     return sortEmails(list);
   }, [emails, filter, estadoFilter, search]);
 
@@ -249,92 +370,116 @@ export default function InboxPage() {
 
   return (
     <div className={`animate-fadeIn ${styles.page}`}>
-      {/* Filter bar + search */}
-      <div className={styles.toolbar}>
-        <div className={styles.filterRow}>
-          {filters.map(f => (
-            <button
-              key={f.key}
-              className={`${styles.filterBtn} ${filter === f.key ? styles.filterBtnActive : ''}`}
-              onClick={() => setFilter(f.key)}
-            >
-              <span>{f.icon}</span>
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <div className={styles.searchWrap}>
-          <span className={styles.searchIcon}>🔍</span>
-          <input
-            type="text"
-            className={styles.searchInput}
-            placeholder={t('common.search')}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+      {/* Section switcher */}
+      <div className={styles.sectionSwitcher}>
+        <button
+          className={`${styles.sectionBtn} ${section === 'bandeja' ? styles.sectionBtnActive : ''}`}
+          onClick={() => setSection('bandeja')}
+        >
+          <span>📬</span> Bandeja de entrada
+        </button>
+        <button
+          className={`${styles.sectionBtn} ${section === 'cola' ? styles.sectionBtnActive : ''}`}
+          onClick={() => setSection('cola')}
+        >
+          <span>📧</span> Cola de emails
+        </button>
       </div>
 
-      {/* Estado filter chips */}
-      <div className={styles.filterRow}>
-        {([
-          { key: '' as EstadoFilter, label: 'Todos los estados' },
-          { key: 'Nuevo' as EstadoFilter, label: '🔵 Nuevo' },
-          { key: 'Leido' as EstadoFilter, label: '👁 Leído' },
-          { key: 'Respondido' as EstadoFilter, label: '✅ Respondido' },
-          { key: 'Archivado' as EstadoFilter, label: '📁 Archivado' },
-        ]).map(opt => (
-          <button
-            key={opt.key}
-            className={`${styles.filterBtn} ${estadoFilter === opt.key ? styles.filterBtnActive : ''}`}
-            onClick={() => setEstadoFilter(opt.key)}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+      {/* Cola section */}
+      {section === 'cola' && <ColaSection />}
 
-      {/* Count */}
-      {!isLoading && (
-        <div className={styles.resultCount}>
-          {sorted.length} {sorted.length === 1 ? 'mensaje' : 'mensajes'}
-        </div>
-      )}
-
-      {/* Card list */}
-      <div className={styles.cardList}>
-        {isLoading ? (
-          Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className={styles.emailCard}>
-              <div className={styles.emailCardHeader} style={{ pointerEvents: 'none' }}>
-                <div className={styles.cardLeft}>
-                  <SkeletonBlock width="20px" height="20px" borderRadius="4px" />
-                </div>
-                <div className={styles.cardBody} style={{ gap: '8px', display: 'flex', flexDirection: 'column' }}>
-                  <SkeletonBlock width={`${55 + (i % 3) * 15}%`} height="14px" />
-                  <SkeletonBlock width="40%" height="12px" />
-                </div>
-              </div>
+      {/* Bandeja section */}
+      {section === 'bandeja' && (
+        <>
+          {/* Filter bar + search */}
+          <div className={styles.toolbar}>
+            <div className={styles.filterRow}>
+              {filters.map(f => (
+                <button
+                  key={f.key}
+                  className={`${styles.filterBtn} ${filter === f.key ? styles.filterBtnActive : ''}`}
+                  onClick={() => setFilter(f.key)}
+                >
+                  <span>{f.icon}</span>
+                  {f.label}
+                </button>
+              ))}
             </div>
-          ))
-        ) : sorted.length === 0 ? (
-          <div className={styles.emptyState}>
-            <span className={styles.emptyIcon}>📭</span>
-            <p>{t('inbox.sinEmails')}</p>
+            <div className={styles.searchWrap}>
+              <span className={styles.searchIcon}>🔍</span>
+              <input
+                type="text"
+                className={styles.searchInput}
+                placeholder={t('common.search')}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
-        ) : (
-          sorted.map(email => (
-            <EmailCard
-              key={email.id}
-              email={email}
-              isExpanded={expandedId === email.id}
-              onToggle={() => setExpandedId(expandedId === email.id ? null : email.id)}
-              onUpdate={(id, updates) => updateMutation.mutate({ id, updates })}
-              isPending={updateMutation.isPending}
-            />
-          ))
-        )}
-      </div>
+
+          {/* Estado filter chips */}
+          <div className={styles.filterRow}>
+            {([
+              { key: '' as EstadoFilter, label: 'Todos los estados' },
+              { key: 'Nuevo' as EstadoFilter, label: '🔵 Nuevo' },
+              { key: 'Leido' as EstadoFilter, label: '👁 Leído' },
+              { key: 'Respondido' as EstadoFilter, label: '✅ Respondido' },
+              { key: 'Archivado' as EstadoFilter, label: '📁 Archivado' },
+            ]).map(opt => (
+              <button
+                key={opt.key}
+                className={`${styles.filterBtn} ${estadoFilter === opt.key ? styles.filterBtnActive : ''}`}
+                onClick={() => setEstadoFilter(opt.key)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Count */}
+          {!isLoading && (
+            <div className={styles.resultCount}>
+              {sorted.length} {sorted.length === 1 ? 'mensaje' : 'mensajes'}
+            </div>
+          )}
+
+          {/* Card list */}
+          <div className={styles.cardList}>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className={styles.emailCard}>
+                  <div className={styles.emailCardHeader} style={{ pointerEvents: 'none' }}>
+                    <div className={styles.cardLeft}>
+                      <SkeletonBlock width="20px" height="20px" borderRadius="4px" />
+                    </div>
+                    <div className={styles.cardBody} style={{ gap: '8px', display: 'flex', flexDirection: 'column' }}>
+                      <SkeletonBlock width={`${55 + (i % 3) * 15}%`} height="14px" />
+                      <SkeletonBlock width="40%" height="12px" />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : sorted.length === 0 ? (
+              <div className={styles.emptyState}>
+                <span className={styles.emptyIcon}>📭</span>
+                <p>{t('inbox.sinEmails')}</p>
+              </div>
+            ) : (
+              sorted.map(email => (
+                <EmailCard
+                  key={email.id}
+                  email={email}
+                  isExpanded={expandedId === email.id}
+                  onToggle={() => setExpandedId(expandedId === email.id ? null : email.id)}
+                  onUpdate={(id, updates) => updateMutation.mutate({ id, updates })}
+                  isPending={updateMutation.isPending}
+                  />
+              ))
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

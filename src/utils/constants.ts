@@ -103,11 +103,9 @@ export const ADMIN_NAV: NavItem[] = [
   { label: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
   { label: 'Alumnos', path: '/admin/alumnos', icon: '👥' },
   { label: 'Pagos', path: '/admin/pagos', icon: '💰' },
-  { label: 'Comunicaciones', path: '/admin/comunicaciones', icon: '📧' },
+  { label: 'Emails', path: '/admin/inbox', icon: '📬' },
   { label: 'Ediciones', path: '/admin/ediciones', icon: '📅' },
-  { label: 'Inbox', path: '/admin/inbox', icon: '📬' },
   { label: 'Revisión Videos', path: '/revisor/videos', icon: '🎬' },
-  { label: 'Aprobar Emails', path: '/revisor/emails', icon: '✉️' },
 ];
 
 export const REVISOR_NAV: NavItem[] = [
