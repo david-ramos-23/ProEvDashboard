@@ -5,13 +5,13 @@
  * Se adapta según el rol del usuario autenticado.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ADMIN_NAV, REVISOR_NAV, NavItem } from '@/utils/constants';
 import { getInitials } from '@/utils/formatters';
 import { useTranslation, Locale } from '@/i18n';
 import NotificationBell from '@/components/NotificationBell';
-import { ScrollToTop } from '@/components/shared';
+import { ScrollToTop, DropdownMenu } from '@/components/shared';
 import { useTheme } from '@/hooks/useTheme';
 import { useEdicion } from '@/context/EdicionContext';
 import AIAssistant from '@/components/AIAssistant/AIAssistant';
@@ -49,6 +49,8 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
   const { t, locale, setLocale } = useTranslation();
   const { theme, toggleTheme } = useTheme();
   const [aiOpen, setAiOpen] = useState(false);
+  const [edicionOpen, setEdicionOpen] = useState(false);
+  const edicionBtnRef = useRef<HTMLButtonElement>(null);
   const { ediciones, selectedNombre, setSelectedNombre } = useEdicion();
   const navItems: NavItem[] = role === 'admin' ? ADMIN_NAV : REVISOR_NAV;
   const basePath = '/' + location.pathname.split('/').slice(1, 3).join('/');
@@ -116,17 +118,27 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
             <h1 className={styles.pageTitle}>{pageTitle}</h1>
             {showEdicionFilter && ediciones.length > 0 && (
-              <select
-                value={selectedNombre}
-                onChange={e => setSelectedNombre(e.target.value)}
-                className={styles.edicionSelect}
-              >
-                {ediciones.map(ed => (
-                  <option key={ed.id} value={ed.nombre}>
-                    {ed.nombre}{ed.esEdicionActiva ? ' ★' : ''}
-                  </option>
-                ))}
-              </select>
+              <>
+                <button
+                  ref={edicionBtnRef}
+                  className={`${styles.edicionSelect} ${edicionOpen ? styles.edicionSelectActive : ''}`}
+                  onClick={() => setEdicionOpen(p => !p)}
+                >
+                  {selectedNombre}{ediciones.find(e => e.nombre === selectedNombre)?.esEdicionActiva ? ' ★' : ''}
+                </button>
+                <DropdownMenu open={edicionOpen} onClose={() => setEdicionOpen(false)} triggerRef={edicionBtnRef} width={180}>
+                  {ediciones.map(ed => (
+                    <button
+                      key={ed.id}
+                      className={styles.edicionOption}
+                      style={ed.nombre === selectedNombre ? { background: 'var(--color-accent-primary-glow)', color: 'var(--color-accent-primary)' } : undefined}
+                      onClick={() => { setSelectedNombre(ed.nombre); setEdicionOpen(false); }}
+                    >
+                      {ed.nombre}{ed.esEdicionActiva ? ' ★' : ''}
+                    </button>
+                  ))}
+                </DropdownMenu>
+              </>
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
