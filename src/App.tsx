@@ -13,7 +13,6 @@ const DashboardPage = lazy(() => import('@/pages/admin/Dashboard'));
 const AlumnosPage = lazy(() => import('@/pages/admin/Alumnos'));
 const AlumnoDetailPage = lazy(() => import('@/pages/admin/AlumnoDetail'));
 const PagosPage = lazy(() => import('@/pages/admin/Pagos'));
-const ComunicacionesPage = lazy(() => import('@/pages/admin/Comunicaciones'));
 const EdicionesPage = lazy(() => import('@/pages/admin/Ediciones'));
 const VideoReviewPage = lazy(() => import('@/pages/revisor/VideoReview'));
 const EmailApprovalPage = lazy(() => import('@/pages/revisor/EmailApproval'));

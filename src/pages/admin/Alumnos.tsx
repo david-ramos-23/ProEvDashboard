@@ -31,8 +31,8 @@ export default function AlumnosPage() {
     queryFn: fetchEdiciones,
   });
   const { data: alumnos = [], isLoading } = useQuery({
-    queryKey: ['alumnos', { estado: filtroEstado || undefined, edicionId: filtroEdicion || undefined }],
-    queryFn: () => fetchAlumnos({ estado: filtroEstado || undefined, edicionId: filtroEdicion || undefined }),
+    queryKey: ['alumnos', { estado: filtroEstado || undefined, edicionNombre: filtroEdicion || undefined }],
+    queryFn: () => fetchAlumnos({ estado: filtroEstado || undefined, edicionNombre: filtroEdicion || undefined }),
   });
 
   // Filtro de búsqueda local (para respuesta instantánea)
@@ -100,7 +100,7 @@ export default function AlumnosPage() {
           >
             <option value="">Todas las ediciones</option>
             {ediciones.map(ed => (
-              <option key={ed.id} value={ed.id}>{ed.nombre}{ed.esEdicionActiva ? ' ★' : ''}</option>
+              <option key={ed.id} value={ed.nombre}>{ed.nombre}{ed.esEdicionActiva ? ' ★' : ''}</option>
             ))}
           </select>
         </div>

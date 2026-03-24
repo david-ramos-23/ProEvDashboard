@@ -50,7 +50,7 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
   return {
     id: record.id,
     createdTime: record.createdTime,
-    nombre: f['Nombre'] || '',
+    nombre: Array.isArray(f['Nombre']) ? (f['Nombre'][0] || '') : (f['Nombre'] || ''),
     email: f['Email'] || '',
     telefono: f['Phone Number'],
     estadoGeneral: f['Estado General'] || 'Privado',
@@ -90,7 +90,7 @@ const TABLE = AIRTABLE_TABLES.ALUMNOS;
 /** Lista todos los alumnos, con filtros opcionales */
 export async function fetchAlumnos(filters?: {
   estado?: EstadoGeneral;
-  edicionId?: string;
+  edicionNombre?: string;
   modulo?: string;
   search?: string;
 }): Promise<Alumno[]> {
@@ -99,8 +99,8 @@ export async function fetchAlumnos(filters?: {
   if (filters?.estado) {
     formulas.push(`{Estado General} = '${sanitizeForFormula(filters.estado)}'`);
   }
-  if (filters?.edicionId) {
-    formulas.push(`FIND('${sanitizeForFormula(filters.edicionId)}', ARRAYJOIN({Edicion}))`);
+  if (filters?.edicionNombre) {
+    formulas.push(`FIND('${sanitizeForFormula(filters.edicionNombre)}', ARRAYJOIN({Edicion}))`);
   }
   if (filters?.modulo) {
     formulas.push(`{Modulo Solicitado} = '${sanitizeForFormula(filters.modulo)}'`);
@@ -191,9 +191,9 @@ export async function fetchAlumnoNombresByIds(ids: string[]): Promise<Map<string
 }
 
 /** Calcula estadísticas del dashboard — solo descarga los campos necesarios */
-export async function fetchDashboardStats(options?: { edicionId?: string }): Promise<DashboardStats> {
-  const filterByFormula = options?.edicionId
-    ? `FIND('${sanitizeForFormula(options.edicionId)}', ARRAYJOIN({Edicion}))`
+export async function fetchDashboardStats(options?: { edicionNombre?: string }): Promise<DashboardStats> {
+  const filterByFormula = options?.edicionNombre
+    ? `FIND('${sanitizeForFormula(options.edicionNombre)}', ARRAYJOIN({Edicion}))`
     : undefined;
   const records = await listRecords<Pick<AirtableAlumnoFields, 'Estado General' | 'Importe Total Pagado' | 'Engagement Score'>>(TABLE, {
     fields: ['Estado General', 'Importe Total Pagado', 'Engagement Score'],

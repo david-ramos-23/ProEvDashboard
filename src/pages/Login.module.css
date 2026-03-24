@@ -60,12 +60,46 @@
   margin-bottom: var(--space-2xl);
 }
 
-.logo {
-  font-size: var(--font-size-4xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-accent-primary);
-  letter-spacing: 0.06em;
+.logoImg {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: var(--space-sm);
+}
+
+.logoProevBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px 3px 8px;
+  border: 1px solid rgba(12, 90, 69, 0.25);
+  border-radius: 9999px;
+  background: rgba(12, 90, 69, 0.06);
   margin-bottom: var(--space-xs);
+}
+
+.logoProevDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.logoProev {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: linear-gradient(120deg, #0C5A45 0%, #1dab77 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
 }
 
 .subtitle {

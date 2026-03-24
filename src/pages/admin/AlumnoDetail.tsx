@@ -119,7 +119,7 @@ export default function AlumnoDetailPage() {
             {alumno.fotoPerfil ? (
               <img src={alumno.fotoPerfil} alt={alumno.nombre} />
             ) : (
-              <span>{alumno.nombre.charAt(0).toUpperCase()}</span>
+              <span>{String(alumno.nombre || '').charAt(0).toUpperCase()}</span>
             )}
           </div>
           <div>

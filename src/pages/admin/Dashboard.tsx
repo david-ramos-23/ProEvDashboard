@@ -44,8 +44,8 @@ export default function DashboardPage() {
   const activeEdicion = ediciones.find(e => e.esEdicionActiva);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ['dashboard-stats', { edicionId: activeEdicion?.id }],
-    queryFn: () => fetchDashboardStats({ edicionId: activeEdicion?.id }),
+    queryKey: ['dashboard-stats', { edicionNombre: activeEdicion?.nombre }],
+    queryFn: () => fetchDashboardStats({ edicionNombre: activeEdicion?.nombre }),
     // Always enabled — shows all-time data if no active edition found yet
   });
   const { data: pagosMes = [] } = useQuery({
@@ -101,12 +101,12 @@ export default function DashboardPage() {
           Array.from({ length: 6 }).map((_, i) => <KPICardSkeleton key={i} />)
         ) : (
           <>
-            <KPICard label={t('dashboard.totalAlumnos')} value={formatNumber(stats.totalAlumnos)} icon="👥" color="var(--color-accent-primary)" onClick={() => navigate(activeEdicion ? `/admin/alumnos?edicion=${activeEdicion.id}` : '/admin/alumnos')} />
+            <KPICard label={t('dashboard.totalAlumnos')} value={formatNumber(stats.totalAlumnos)} icon="👥" color="var(--color-accent-primary)" onClick={() => navigate(activeEdicion ? `/admin/alumnos?edicion=${encodeURIComponent(activeEdicion.nombre)}` : '/admin/alumnos')} />
             <KPICard label={t('dashboard.ingresosTotales')} value={formatCurrency(stats.ingresosTotales)} icon="💰" color="var(--color-accent-success)" onClick={() => navigate('/admin/pagos')} />
             <KPICard label={t('dashboard.pendientesRevision')} value={formatNumber(stats.pendientesRevision)} icon="🎥" color="var(--color-accent-warning)" onClick={() => navigate('/revisor/videos')} />
             <KPICard label={t('dashboard.emailsPendientes')} value={formatNumber(emailsPendientes.length)} icon="📧" color="var(--color-accent-warning)" onClick={() => navigate('/revisor/emails')} />
             <KPICard label={t('dashboard.inboxAtencion')} value={formatNumber(inboxAlertas.length)} icon="📬" color="var(--color-accent-info)" onClick={() => navigate('/admin/inbox')} />
-            <KPICard label={t('dashboard.alertas')} value={formatNumber((stats.alumnosPorEstado['Plazo Vencido'] || 0) + (stats.alumnosPorEstado['Pago Fallido'] || 0))} icon="⚠️" color="var(--color-accent-danger)" subtext="Plazo vencido · Pago fallido" onClick={() => navigate(activeEdicion ? `/admin/alumnos?edicion=${activeEdicion.id}` : '/admin/alumnos')} />
+            <KPICard label={t('dashboard.alertas')} value={formatNumber((stats.alumnosPorEstado['Plazo Vencido'] || 0) + (stats.alumnosPorEstado['Pago Fallido'] || 0))} icon="⚠️" color="var(--color-accent-danger)" subtext="Plazo vencido · Pago fallido" onClick={() => navigate(activeEdicion ? `/admin/alumnos?edicion=${encodeURIComponent(activeEdicion.nombre)}` : '/admin/alumnos')} />
           </>
         )}
       </KPIGrid>

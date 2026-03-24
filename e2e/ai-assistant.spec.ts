@@ -1,5 +1,7 @@
 /**
  * E2E tests for the AI Assistant panel.
+ *
+ * The assistant is a fixed right-column panel (360px) toggled by the ✦ button in the header.
  */
 
 import { test, expect } from '@playwright/test';
@@ -16,34 +18,45 @@ test.describe('AI Assistant', () => {
     await page.waitForURL('**/admin/dashboard', { timeout: 10000 });
   });
 
-  test('trigger button is visible in layout', async ({ page }) => {
+  test('botón ✦ de toggle es visible en el header', async ({ page }) => {
     await expect(page.locator('button[aria-label="Abrir asistente IA"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test('clicking trigger opens the chat panel', async ({ page }) => {
+  test('clicking toggle abre el panel lateral', async ({ page }) => {
     await page.locator('button[aria-label="Abrir asistente IA"]').click();
-    await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('[role="complementary"][aria-label*="Asistente"]')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('text=Asistente ProEv')).toBeVisible();
   });
 
-  test('welcome screen shows suggestions', async ({ page }) => {
+  test('la pantalla de bienvenida muestra sugerencias', async ({ page }) => {
     await page.locator('button[aria-label="Abrir asistente IA"]').click();
     await expect(page.locator('[class*="suggestionBtn"]').first()).toBeVisible({ timeout: 5000 });
   });
 
-  test('close button closes the panel', async ({ page }) => {
+  test('botón de cerrar cierra el panel', async ({ page }) => {
     await page.locator('button[aria-label="Abrir asistente IA"]').click();
-    await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 5000 });
-    await page.locator('button[aria-label="Cerrar"]').click();
-    await expect(page.locator('[role="dialog"]')).not.toBeVisible({ timeout: 3000 });
+    await expect(page.locator('text=Asistente ProEv')).toBeVisible({ timeout: 5000 });
+    // Close via toggle button again
+    await page.locator('button[aria-label="Abrir asistente IA"]').click();
+    await expect(page.locator('text=Asistente ProEv')).not.toBeVisible({ timeout: 3000 });
   });
 
-  test('typing in input enables send button', async ({ page }) => {
+  test('escribir en el input habilita el botón de enviar', async ({ page }) => {
     await page.locator('button[aria-label="Abrir asistente IA"]').click();
-    await page.waitForSelector('[class*="input"]', { timeout: 5000 });
+    await page.waitForSelector('textarea[placeholder*="Pregunta"]', { timeout: 5000 });
     const sendBtn = page.locator('button[aria-label="Enviar"]');
     await expect(sendBtn).toBeDisabled();
     await page.locator('textarea[placeholder*="Pregunta"]').fill('Hola');
     await expect(sendBtn).toBeEnabled();
+  });
+
+  test('el panel empuja el contenido (no se superpone)', async ({ page }) => {
+    // Check the spacer div expands when panel is open
+    const spacer = page.locator('[class*="aiSpacer"]');
+    const widthBefore = await spacer.evaluate(el => (el as HTMLElement).offsetWidth);
+    await page.locator('button[aria-label="Abrir asistente IA"]').click();
+    await page.waitForTimeout(400); // allow CSS transition
+    const widthAfter = await spacer.evaluate(el => (el as HTMLElement).offsetWidth);
+    expect(widthAfter).toBeGreaterThan(widthBefore);
   });
 });

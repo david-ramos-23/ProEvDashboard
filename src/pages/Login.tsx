@@ -10,6 +10,7 @@
 import { useState, FormEvent, useEffect, useRef } from 'react';
 import styles from './Login.module.css';
 import { useTranslation } from '@/i18n';
+import { useTheme } from '@/hooks/useTheme';
 
 // ── Google GSI types (la librería se carga vía script tag en index.html) ──────
 declare global {
@@ -51,6 +52,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undef
 
 export default function LoginPage({ onLogin, onGoogleLogin }: LoginProps) {
   const { t } = useTranslation();
+  const { theme } = useTheme();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -123,7 +125,15 @@ export default function LoginPage({ onLogin, onGoogleLogin }: LoginProps) {
 
       <div className={styles.card}>
         <div className={styles.header}>
-          <h1 className={styles.logo}>ProEv</h1>
+          <img
+            src={theme === 'dark' ? '/logo-navbar.png' : '/logo.webp'}
+            alt="FOCUS Dance Studio"
+            className={styles.logoImg}
+          />
+          <div className={styles.logoProevBadge}>
+            <span className={styles.logoProevDot} />
+            <span className={styles.logoProev}>ProEv</span>
+          </div>
           <p className={styles.subtitle}>Dashboard</p>
         </div>
 
