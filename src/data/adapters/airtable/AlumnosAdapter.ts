@@ -190,9 +190,12 @@ export async function fetchAlumnoNombresByIds(ids: string[]): Promise<Map<string
   return new Map(records.map(r => [r.id, r.fields['Nombre'] || '']));
 }
 
-/** Calcula estadísticas del dashboard */
+/** Calcula estadísticas del dashboard — solo descarga los campos necesarios */
 export async function fetchDashboardStats(): Promise<DashboardStats> {
-  const alumnos = await fetchAlumnos();
+  const records = await listRecords<Pick<AirtableAlumnoFields, 'Estado General' | 'Importe Total Pagado' | 'Engagement Score'>>(TABLE, {
+    fields: ['Estado General', 'Importe Total Pagado', 'Engagement Score'],
+  });
+  const alumnos = records.map(r => r.fields);
 
   const alumnosPorEstado = {} as Record<EstadoGeneral, number>;
   const estados: EstadoGeneral[] = [
@@ -200,13 +203,22 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
     'Pendiente de pago', 'Reserva', 'Pagado', 'Finalizado', 'Plazo Vencido', 'Pago Fallido'
   ];
   estados.forEach(e => { alumnosPorEstado[e] = 0; });
-  alumnos.forEach(a => { alumnosPorEstado[a.estadoGeneral]++; });
 
-  const ingresosTotales = alumnos.reduce((sum, a) => sum + (a.importeTotalPagado || 0), 0);
-  const scores = alumnos.filter(a => a.engagementScore != null).map(a => a.engagementScore!);
-  const engagementPromedio = scores.length > 0
-    ? Math.round(scores.reduce((s, v) => s + v, 0) / scores.length)
-    : 0;
+  let ingresosTotales = 0;
+  let engagementSum = 0;
+  let engagementCount = 0;
+
+  alumnos.forEach(f => {
+    const estado = (f['Estado General'] || 'Privado') as EstadoGeneral;
+    alumnosPorEstado[estado] = (alumnosPorEstado[estado] || 0) + 1;
+    ingresosTotales += f['Importe Total Pagado'] || 0;
+    if (f['Engagement Score'] != null) {
+      engagementSum += f['Engagement Score']!;
+      engagementCount++;
+    }
+  });
+
+  const engagementPromedio = engagementCount > 0 ? Math.round(engagementSum / engagementCount) : 0;
 
   return {
     totalAlumnos: alumnos.length,

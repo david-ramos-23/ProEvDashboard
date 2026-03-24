@@ -109,18 +109,23 @@ export async function updateRevision(
   return mapToRevision(record);
 }
 
-/** Cuenta revisiones por estado */
+/** Cuenta revisiones por estado — solo descarga los campos necesarios */
 export async function fetchRevisionStats(): Promise<{
   pendientes: number;
   revisadasHoy: number;
   total: number;
 }> {
-  const allRevisiones = await fetchRevisiones();
+  const records = await listRecords<{ 'Estado de Revisión'?: string; 'Fecha de Revisión'?: string }>(TABLE, {
+    fields: ['Estado de Revisión', 'Fecha de Revisión'],
+  });
   const today = new Date().toISOString().split('T')[0];
 
-  return {
-    pendientes: allRevisiones.filter(r => r.estadoRevision === 'Pendiente').length,
-    revisadasHoy: allRevisiones.filter(r => r.fechaRevision?.startsWith(today)).length,
-    total: allRevisiones.length,
-  };
+  let pendientes = 0;
+  let revisadasHoy = 0;
+  records.forEach(r => {
+    if (r.fields['Estado de Revisión'] === 'Pendiente') pendientes++;
+    if (r.fields['Fecha de Revisión']?.startsWith(today)) revisadasHoy++;
+  });
+
+  return { pendientes, revisadasHoy, total: records.length };
 }

@@ -81,27 +81,40 @@ export async function fetchPagos(filters?: {
 }
 
 /** Calcula estadísticas de pagos */
+/** Calcula estadísticas de pagos — solo descarga los campos necesarios */
 export async function fetchPagoStats(): Promise<PagoStats> {
-  const pagos = await fetchPagos();
+  const records = await listRecords<Pick<AirtablePagoFields, 'Estado de Pago' | 'Importe'>>(TABLE, {
+    fields: ['Estado de Pago', 'Importe'],
+  });
 
-  return {
-    totalRecaudado: pagos
-      .filter(p => p.estadoPago === 'Pagado')
-      .reduce((sum, p) => sum + p.importe, 0),
-    pagosCompletados: pagos.filter(p => p.estadoPago === 'Pagado').length,
-    pagosFallidos: pagos.filter(p => p.estadoPago === 'Fallido').length,
-    pagosReembolsados: pagos.filter(p => p.estadoPago === 'Reembolsado').length,
-  };
+  let totalRecaudado = 0;
+  let pagosCompletados = 0;
+  let pagosFallidos = 0;
+  let pagosReembolsados = 0;
+
+  records.forEach(r => {
+    const estado = normalizeEstadoPago(r.fields['Estado de Pago']);
+    const importe = r.fields['Importe'] || 0;
+    if (estado === 'Pagado') { totalRecaudado += importe; pagosCompletados++; }
+    else if (estado === 'Fallido') pagosFallidos++;
+    else if (estado === 'Reembolsado') pagosReembolsados++;
+  });
+
+  return { totalRecaudado, pagosCompletados, pagosFallidos, pagosReembolsados };
 }
 
-/** Agrupa pagos por mes para gráficos */
+/** Agrupa pagos por mes para gráficos — solo descarga los campos necesarios */
 export async function fetchPagosPorMes(): Promise<{ mes: string; total: number }[]> {
-  const pagos = await fetchPagos({ estado: 'Pagado' });
+  const records = await listRecords<Pick<AirtablePagoFields, 'Estado de Pago' | 'Importe' | 'Mes de Pago' | 'Fecha de Pago'>>(TABLE, {
+    filterByFormula: `OR({Estado de Pago} = 'Pagado', {Estado de Pago} = 'Completado')`,
+    fields: ['Estado de Pago', 'Importe', 'Mes de Pago', 'Fecha de Pago'],
+  });
 
   const porMes = new Map<string, number>();
-  pagos.forEach(p => {
-    const mes = p.mesPago || (p.fechaPago ? new Date(p.fechaPago).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }) : 'Sin fecha');
-    porMes.set(mes, (porMes.get(mes) || 0) + p.importe);
+  records.forEach(r => {
+    const f = r.fields;
+    const mes = f['Mes de Pago'] || (f['Fecha de Pago'] ? new Date(f['Fecha de Pago']!).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }) : 'Sin fecha');
+    porMes.set(mes, (porMes.get(mes) || 0) + (f['Importe'] || 0));
   });
 
   return Array.from(porMes.entries()).map(([mes, total]) => ({ mes, total }));

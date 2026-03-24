@@ -3,7 +3,7 @@
  * KPICard, StatusBadge, DataTable, y Loading.
  */
 
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 import { ESTADO_COLORS, ESTADO_ICONS, REVISION_COLORS, PAGO_COLORS, EMAIL_COLORS } from '@/utils/constants';
 import { EstadoGeneral, EstadoRevision, EstadoPago, EstadoEmail } from '@/types';
 import styles from './Shared.module.css';
@@ -22,7 +22,7 @@ interface KPICardProps {
 }
 
 /** Tarjeta de métrica con glassmorphism y acento de color superior */
-export function KPICard({ label, value, icon, color = 'var(--color-accent-primary)', subtext, onClick }: KPICardProps) {
+export const KPICard = memo(function KPICard({ label, value, icon, color = 'var(--color-accent-primary)', subtext, onClick }: KPICardProps) {
   return (
     <div
       className={`${styles.kpiCard} ${onClick ? styles.kpiCardClickable : ''}`}
@@ -39,7 +39,7 @@ export function KPICard({ label, value, icon, color = 'var(--color-accent-primar
       {subtext && <div className={styles.kpiSubtext}>{subtext}</div>}
     </div>
   );
-}
+});
 
 /** Tarjeta de estadística no navegable — sin acento, sin hover */
 export function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
@@ -98,7 +98,7 @@ function getStatusColor(status: string, type: StatusType): string {
 }
 
 /** Badge de estado con dot de color y texto */
-export function StatusBadge({ status, type = 'estado', showIcon = false }: StatusBadgeProps) {
+export const StatusBadge = memo(function StatusBadge({ status, type = 'estado', showIcon = false }: StatusBadgeProps) {
   const color = getStatusColor(status, type);
   const icon = type === 'estado' ? ESTADO_ICONS[status as EstadoGeneral] : undefined;
 
@@ -115,7 +115,7 @@ export function StatusBadge({ status, type = 'estado', showIcon = false }: Statu
       {status}
     </span>
   );
-}
+});
 
 // ============================================================
 // Data Table
