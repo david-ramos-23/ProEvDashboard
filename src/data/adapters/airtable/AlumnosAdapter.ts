@@ -148,6 +148,31 @@ export async function updateAlumno(
   return mapToAlumno(record);
 }
 
+/** Strips accents and lowercases — used for fuzzy module name matching */
+function normalizeStr(s: string): string {
+  return s.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+}
+
+/**
+ * Returns a count of alumnos per normalized module name (Modulo Solicitado).
+ * Used by ModulosAdapter to compute inscritos counts since the Modulos table
+ * has no Inscritos field.
+ */
+export async function fetchAlumnoCountByModulo(): Promise<Map<string, number>> {
+  const records = await listRecords<{ 'Modulo Solicitado'?: string }>(TABLE, {
+    filterByFormula: "{Modulo Solicitado} != ''",
+    fields: ['Modulo Solicitado'],
+  });
+  const counts = new Map<string, number>();
+  records.forEach(r => {
+    const raw = r.fields['Modulo Solicitado'];
+    if (!raw) return;
+    const key = normalizeStr(raw);
+    counts.set(key, (counts.get(key) || 0) + 1);
+  });
+  return counts;
+}
+
 /**
  * Fetches only the Nombre field for a set of alumno record IDs.
  * Used by other adapters to enrich their records with alumno names.
