@@ -170,7 +170,13 @@
 .main {
   flex: 1;
   margin-left: var(--sidebar-width);
+  margin-right: 0;
   min-height: 100vh;
+  transition: margin-right 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mainShifted {
+  margin-right: 360px;
 }
 
 .header {
@@ -184,6 +190,7 @@
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
+  /* inherits margin-right from parent .main / .mainShifted */
 }
 
 .pageTitle {

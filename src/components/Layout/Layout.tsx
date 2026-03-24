@@ -5,6 +5,7 @@
  * Se adapta según el rol del usuario autenticado.
  */
 
+import { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { ADMIN_NAV, REVISOR_NAV, NavItem } from '@/utils/constants';
 import { getInitials } from '@/utils/formatters';
@@ -43,6 +44,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
   const location = useLocation();
   const { t, locale, setLocale } = useTranslation();
   const { theme, toggleTheme } = useTheme();
+  const [aiOpen, setAiOpen] = useState(false);
   const navItems: NavItem[] = role === 'admin' ? ADMIN_NAV : REVISOR_NAV;
   const basePath = '/' + location.pathname.split('/').slice(1, 3).join('/');
   const pageTitle = t(PAGE_TITLE_KEYS[basePath] || 'common.noData');
@@ -102,7 +104,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
       </aside>
 
       {/* Contenido principal */}
-      <main className={styles.main}>
+      <main className={`${styles.main} ${aiOpen ? styles.mainShifted : ''}`}>
         <header className={styles.header}>
           <h1 className={styles.pageTitle}>{pageTitle}</h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -142,14 +144,33 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
               </button>
             ))}
             </div>
+            {/* AI Assistant toggle */}
+            <button
+              onClick={() => setAiOpen(o => !o)}
+              title={aiOpen ? 'Cerrar asistente IA' : 'Abrir asistente IA'}
+              aria-label="Abrir asistente IA"
+              style={{
+                width: 36, height: 36, borderRadius: 'var(--radius-md)',
+                background: aiOpen ? 'var(--color-accent-primary)' : 'transparent',
+                border: aiOpen ? 'none' : '1px solid var(--color-border)',
+                color: aiOpen ? 'white' : 'var(--color-text-muted)',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1rem', transition: 'all var(--transition-fast)',
+                fontFamily: 'var(--font-family)',
+                fontWeight: 600,
+              }}
+            >
+              ✦
+            </button>
           </div>
         </header>
         <div className={styles.content}>
           <Outlet />
         </div>
+        <ScrollToTop />
       </main>
-      <ScrollToTop />
-      <AIAssistant />
+      <AIAssistant isOpen={aiOpen} onToggle={() => setAiOpen(o => !o)} />
     </div>
   );
 }
