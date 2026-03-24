@@ -43,18 +43,6 @@ export default function DashboardPage() {
     queryFn: () => fetchHistorial({ maxRecords: 15 }),
   });
 
-  if (statsLoading || !stats) return <LoadingSpinner text={t('common.loading')} />;
-
-  // Datos para el gráfico de barras
-  const estadosChartData = Object.entries(stats.alumnosPorEstado)
-    .filter(([, count]) => count > 0)
-    .map(([estado, count]) => ({
-      name: estado,
-      value: count,
-      fill: CHART_COLORS[estado] || '#6366f1',
-    }))
-    .sort((a, b) => b.value - a.value);
-
   const historialColumns = useMemo<Column<Historial>[]>(() => [
     { key: 'tipoAccion', header: 'Tipo', width: '140px',
       render: (h) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{h.tipoAccion}</span>
@@ -67,6 +55,18 @@ export default function DashboardPage() {
       render: (h) => <span style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>{timeAgo(h.createdTime)}</span>
     },
   ], []);
+
+  if (statsLoading || !stats) return <LoadingSpinner text={t('common.loading')} />;
+
+  // Datos para el gráfico de barras
+  const estadosChartData = Object.entries(stats.alumnosPorEstado)
+    .filter(([, count]) => count > 0)
+    .map(([estado, count]) => ({
+      name: estado,
+      value: count,
+      fill: CHART_COLORS[estado] || '#6366f1',
+    }))
+    .sort((a, b) => b.value - a.value);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
