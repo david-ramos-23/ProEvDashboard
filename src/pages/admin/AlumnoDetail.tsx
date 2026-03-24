@@ -7,19 +7,13 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { StatusBadge, SkeletonBlock } from '@/components/shared';
-import { fetchAlumnoById, updateAlumno } from '@/data/adapters/airtable/AlumnosAdapter';
-import { fetchRevisiones } from '@/data/adapters/airtable/RevisionesAdapter';
-import { fetchPagos } from '@/data/adapters/airtable/PagosAdapter';
-import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
 import { EstadoGeneral } from '@/types';
 import { formatDate, formatCurrency, timeAgo, renderStars } from '@/utils/formatters';
 import { ESTADO_ICONS } from '@/utils/constants';
 import { useTranslation } from '@/i18n';
+import { useAlumnoDetail, AlumnoDetailTab } from '@/hooks/useAlumnoDetail';
 import styles from './AlumnoDetail.module.css';
-
-type TabType = 'info' | 'revisiones' | 'pagos' | 'historial' | 'ia';
 
 const ESTADOS: EstadoGeneral[] = [
   'Privado', 'Preinscrito', 'En revision de video', 'Aprobado', 'Rechazado',
@@ -30,8 +24,6 @@ export default function AlumnoDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<TabType>('info');
   const [isSaving, setIsSaving] = useState(false);
 
   // Campos editables
@@ -39,26 +31,7 @@ export default function AlumnoDetailPage() {
   const [editNotas, setEditNotas] = useState('');
   const [editPlazo, setEditPlazo] = useState('');
 
-  const { data: alumno, isLoading } = useQuery({
-    queryKey: ['alumno', id],
-    queryFn: () => fetchAlumnoById(id!),
-    enabled: !!id,
-  });
-  const { data: revisiones = [] } = useQuery({
-    queryKey: ['revisiones', { alumnoId: id }],
-    queryFn: () => fetchRevisiones({ alumnoId: id }),
-    enabled: !!id,
-  });
-  const { data: pagos = [] } = useQuery({
-    queryKey: ['pagos', { alumnoId: id }],
-    queryFn: () => fetchPagos({ alumnoId: id }),
-    enabled: !!id,
-  });
-  const { data: historial = [] } = useQuery({
-    queryKey: ['historial', { alumnoId: id, maxRecords: 20 }],
-    queryFn: () => fetchHistorial({ alumnoId: id, maxRecords: 20 }),
-    enabled: !!id,
-  });
+  const { alumno, isLoading, revisiones, pagos, historial, activeTab, goToTab, saveAlumno } = useAlumnoDetail(id);
 
   // Sync edit fields when alumno data loads
   useEffect(() => {
@@ -70,25 +43,14 @@ export default function AlumnoDetailPage() {
   }, [alumno]);
 
   async function handleSave() {
-    if (!alumno || !id) return;
+    if (!alumno) return;
     setIsSaving(true);
     try {
-      const updates: Parameters<typeof updateAlumno>[1] = {};
-      if (editEstado && editEstado !== alumno.estadoGeneral) {
-        updates.estadoGeneral = editEstado;
-      }
-      if (editNotas !== (alumno.notasInternas || '')) {
-        updates.notasInternas = editNotas;
-      }
-      if (editPlazo !== (alumno.fechaPlazo || '')) {
-        updates.fechaPlazo = editPlazo;
-      }
-
-      if (Object.keys(updates).length > 0) {
-        await updateAlumno(id, updates);
-        await queryClient.invalidateQueries({ queryKey: ['alumno', id] });
-        await queryClient.invalidateQueries({ queryKey: ['alumnos'] });
-      }
+      const updates: { estadoGeneral?: EstadoGeneral; notasInternas?: string; fechaPlazo?: string } = {};
+      if (editEstado && editEstado !== alumno.estadoGeneral) updates.estadoGeneral = editEstado;
+      if (editNotas !== (alumno.notasInternas || '')) updates.notasInternas = editNotas;
+      if (editPlazo !== (alumno.fechaPlazo || '')) updates.fechaPlazo = editPlazo;
+      if (Object.keys(updates).length > 0) await saveAlumno(updates);
     } catch (err) {
       console.error('Error guardando cambios:', err);
     } finally {
@@ -131,7 +93,7 @@ export default function AlumnoDetailPage() {
     </div>
   );
 
-  const tabs: { key: TabType; label: string; icon: string; count?: number }[] = [
+  const tabs: { key: AlumnoDetailTab; label: string; icon: string; count?: number }[] = [
     { key: 'info', label: t('alumnos.info'), icon: '📋' },
     { key: 'revisiones', label: t('alumnos.revisiones'), icon: '🎬', count: revisiones.length },
     { key: 'pagos', label: t('nav.pagos'), icon: '💰', count: pagos.length },
@@ -200,7 +162,7 @@ export default function AlumnoDetailPage() {
           <button
             key={tab.key}
             className={`${styles.tab} ${activeTab === tab.key ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => goToTab(tab.key)}
           >
             <span>{tab.icon}</span> {tab.label}
             {tab.count != null && tab.count > 0 && (

@@ -184,8 +184,8 @@ export function useNotifications() {
     };
     saveStored(updated);
 
-    // Invalidate so the query re-reads fresh data from storage on next render
-    queryClient.invalidateQueries({ queryKey: ['notifications-poll'] });
+    // Update cache directly — no refetch needed, just marking read state
+    queryClient.setQueryData(['notifications-poll'], updated);
   }, [queryClient]);
 
   return { notifications, unreadCount, markAllRead };

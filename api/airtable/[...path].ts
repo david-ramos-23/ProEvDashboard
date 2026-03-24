@@ -11,9 +11,25 @@ const AIRTABLE_PAT = process.env.AIRTABLE_PAT;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const AIRTABLE_BASE_URL = 'https://api.airtable.com/v0';
 
+// Allowed origins: production URL + local dev. Add ALLOWED_ORIGINS env var (comma-separated) to extend.
+const ALLOWED_ORIGINS = [
+  'https://dashboard-eight-jade-69.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:4173',
+  ...(process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean),
+];
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!AIRTABLE_PAT || !AIRTABLE_BASE_ID) {
     return res.status(500).json({ error: 'Server misconfigured: missing Airtable credentials' });
+  }
+
+  // Reject requests from disallowed browser origins.
+  // Note: the Origin header is set by browsers for cross-origin requests; same-origin
+  // requests and server-side calls typically omit it, so we only block when it IS present.
+  const origin = req.headers['origin'] as string | undefined;
+  if (origin && !ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed))) {
+    return res.status(403).json({ error: 'Forbidden' });
   }
 
   // Extract path + query from the raw URL after /api/airtable/

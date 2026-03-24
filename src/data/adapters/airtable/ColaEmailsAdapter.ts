@@ -4,7 +4,7 @@
 
 import { ColaEmail, EstadoEmail } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
-import { listRecords, updateRecord, createRecord, AirtableRecord } from './AirtableClient';
+import { listRecords, updateRecord, createRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
 import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
 
 interface AirtableColaEmailFields {
@@ -34,8 +34,8 @@ function mapToColaEmail(record: AirtableRecord<AirtableColaEmailFields>): ColaEm
 
 export async function fetchColaEmails(filters?: { estado?: EstadoEmail; tipo?: string }): Promise<ColaEmail[]> {
   const formulas: string[] = [];
-  if (filters?.estado) formulas.push(`{Estado} = '${filters.estado}'`);
-  if (filters?.tipo) formulas.push(`{Tipo} = '${filters.tipo}'`);
+  if (filters?.estado) formulas.push(`{Estado} = '${sanitizeForFormula(filters.estado)}'`);
+  if (filters?.tipo) formulas.push(`{Tipo} = '${sanitizeForFormula(filters.tipo)}'`);
 
   const filterByFormula = formulas.length > 1
     ? `AND(${formulas.join(', ')})`

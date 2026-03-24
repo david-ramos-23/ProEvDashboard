@@ -4,7 +4,7 @@
 
 import { Pago, EstadoPago, PagoStats } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
-import { listRecords, AirtableRecord } from './AirtableClient';
+import { listRecords, AirtableRecord, sanitizeForFormula } from './AirtableClient';
 import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
 
 interface AirtablePagoFields {
@@ -64,10 +64,10 @@ export async function fetchPagos(filters?: {
     // 'Pagado' se almacena como 'Completado' en Airtable; buscamos ambos por compatibilidad
     const estadoQuery = filters.estado === 'Pagado'
       ? `OR({Estado de Pago} = 'Pagado', {Estado de Pago} = 'Completado')`
-      : `{Estado de Pago} = '${filters.estado}'`;
+      : `{Estado de Pago} = '${sanitizeForFormula(filters.estado)}'`;
     formulas.push(estadoQuery);
   }
-  if (filters?.alumnoId) formulas.push(`FIND('${filters.alumnoId}', ARRAYJOIN({Alumno}))`);
+  if (filters?.alumnoId) formulas.push(`FIND('${sanitizeForFormula(filters.alumnoId)}', ARRAYJOIN({Alumno}))`);
 
   const filterByFormula = formulas.length > 0
     ? (formulas.length === 1 ? formulas[0] : `AND(${formulas.join(', ')})`)

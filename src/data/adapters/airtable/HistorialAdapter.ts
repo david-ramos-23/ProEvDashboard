@@ -4,7 +4,7 @@
 
 import { Historial } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
-import { listRecords, AirtableRecord } from './AirtableClient';
+import { listRecords, AirtableRecord, sanitizeForFormula } from './AirtableClient';
 import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
 
 interface AirtableHistorialFields {
@@ -42,7 +42,7 @@ export async function fetchHistorial(options?: {
   maxRecords?: number;
 }): Promise<Historial[]> {
   const formulas: string[] = [];
-  if (options?.alumnoId) formulas.push(`FIND('${options.alumnoId}', ARRAYJOIN({Alumno}))`);
+  if (options?.alumnoId) formulas.push(`FIND('${sanitizeForFormula(options.alumnoId)}', ARRAYJOIN({Alumno}))`);
 
   const records = await listRecords<AirtableHistorialFields>(AIRTABLE_TABLES.HISTORIAL, {
     filterByFormula: formulas.length > 0 ? formulas[0] : undefined,

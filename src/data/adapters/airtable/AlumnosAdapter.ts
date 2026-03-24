@@ -7,7 +7,7 @@
 
 import { Alumno, EstadoGeneral, DashboardStats } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
-import { listRecords, getRecord, updateRecord, AirtableRecord } from './AirtableClient';
+import { listRecords, getRecord, updateRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
 
 /** Campos de Airtable tal como vienen del API (con nombres originales) */
 interface AirtableAlumnoFields {
@@ -97,16 +97,16 @@ export async function fetchAlumnos(filters?: {
   const formulas: string[] = [];
 
   if (filters?.estado) {
-    formulas.push(`{Estado General} = '${filters.estado}'`);
+    formulas.push(`{Estado General} = '${sanitizeForFormula(filters.estado)}'`);
   }
   if (filters?.edicionId) {
-    formulas.push(`FIND('${filters.edicionId}', ARRAYJOIN({Edicion}))`);
+    formulas.push(`FIND('${sanitizeForFormula(filters.edicionId)}', ARRAYJOIN({Edicion}))`);
   }
   if (filters?.modulo) {
-    formulas.push(`{Modulo Solicitado} = '${filters.modulo}'`);
+    formulas.push(`{Modulo Solicitado} = '${sanitizeForFormula(filters.modulo)}'`);
   }
   if (filters?.search) {
-    const s = filters.search.replace(/'/g, "\\'");
+    const s = sanitizeForFormula(filters.search);
     formulas.push(
       `OR(FIND(LOWER('${s}'), LOWER({Nombre})), FIND(LOWER('${s}'), LOWER({Email})))`
     );
@@ -193,7 +193,7 @@ export async function fetchAlumnoNombresByIds(ids: string[]): Promise<Map<string
 /** Calcula estadísticas del dashboard — solo descarga los campos necesarios */
 export async function fetchDashboardStats(options?: { edicionId?: string }): Promise<DashboardStats> {
   const filterByFormula = options?.edicionId
-    ? `FIND('${options.edicionId}', ARRAYJOIN({Edicion}))`
+    ? `FIND('${sanitizeForFormula(options.edicionId)}', ARRAYJOIN({Edicion}))`
     : undefined;
   const records = await listRecords<Pick<AirtableAlumnoFields, 'Estado General' | 'Importe Total Pagado' | 'Engagement Score'>>(TABLE, {
     fields: ['Estado General', 'Importe Total Pagado', 'Engagement Score'],

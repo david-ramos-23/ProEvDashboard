@@ -4,7 +4,7 @@
 
 import { InboxEmail } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
-import { listRecords, updateRecord, AirtableRecord } from './AirtableClient';
+import { listRecords, updateRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
 
 interface AirtableInboxFields {
   'messageId'?: string;
@@ -61,10 +61,10 @@ export async function fetchInbox(filters?: {
   maxRecords?: number;
 }): Promise<InboxEmail[]> {
   const formulas: string[] = [];
-  if (filters?.estado) formulas.push(`{Estado} = '${filters.estado}'`);
-  if (filters?.direccion) formulas.push(`{Direccion} = '${filters.direccion}'`);
+  if (filters?.estado) formulas.push(`{Estado} = '${sanitizeForFormula(filters.estado)}'`);
+  if (filters?.direccion) formulas.push(`{Direccion} = '${sanitizeForFormula(filters.direccion)}'`);
   if (filters?.requiereAtencion) formulas.push(`{Requiere Atencion} = TRUE()`);
-  if (filters?.alumnoId) formulas.push(`FIND('${filters.alumnoId}', ARRAYJOIN({Alumno}))`);
+  if (filters?.alumnoId) formulas.push(`FIND('${sanitizeForFormula(filters.alumnoId)}', ARRAYJOIN({Alumno}))`);
 
   const filterByFormula = formulas.length > 0
     ? (formulas.length === 1 ? formulas[0] : `AND(${formulas.join(', ')})`)

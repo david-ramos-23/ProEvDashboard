@@ -4,7 +4,7 @@
 
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
-import { listRecords, getRecord, updateRecord, AirtableRecord } from './AirtableClient';
+import { listRecords, getRecord, updateRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
 import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
 
 interface AirtableRevisionFields {
@@ -59,8 +59,8 @@ export async function fetchRevisiones(filters?: {
   alumnoId?: string;
 }): Promise<RevisionVideo[]> {
   const formulas: string[] = [];
-  if (filters?.estado) formulas.push(`{Estado de Revisión} = '${filters.estado}'`);
-  if (filters?.alumnoId) formulas.push(`FIND('${filters.alumnoId}', ARRAYJOIN({Alumno}))`);
+  if (filters?.estado) formulas.push(`{Estado de Revisión} = '${sanitizeForFormula(filters.estado)}'`);
+  if (filters?.alumnoId) formulas.push(`FIND('${sanitizeForFormula(filters.alumnoId)}', ARRAYJOIN({Alumno}))`);
 
   const filterByFormula = formulas.length > 0
     ? (formulas.length === 1 ? formulas[0] : `AND(${formulas.join(', ')})`)

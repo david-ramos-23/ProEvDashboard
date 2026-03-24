@@ -26,6 +26,11 @@ export interface AirtableRecord<T> {
   fields: T;
 }
 
+/** Escapes single quotes in dynamic values embedded in Airtable formula strings */
+export function sanitizeForFormula(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 /** Opciones para listar registros */
 export interface ListOptions {
   filterByFormula?: string;
