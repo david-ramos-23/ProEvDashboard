@@ -28,7 +28,7 @@
 
 .card {
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   background: rgba(0, 0, 0, 0.35);
   border: none;
   border-radius: var(--radius-xl);
@@ -272,11 +272,9 @@
 /* Force all GSI-rendered elements to stretch to full card width */
 .googleBtn > div,
 .googleBtn div[role="button"],
-.googleBtn iframe,
-.googleBtn > div > div {
+.googleBtn iframe {
   width: 100% !important;
   max-width: 100% !important;
-  min-width: 100% !important;
 }
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
