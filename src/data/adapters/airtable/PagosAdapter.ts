@@ -8,40 +8,46 @@ import { listRecords, AirtableRecord } from './AirtableClient';
 
 interface AirtablePagoFields {
   'Alumno'?: string[];
-  'Nombre del Alumno'?: string[];
   'Link Pago Stripe'?: string;
   'Importe'?: number;
   'Moneda'?: string;
-  'Estado de Pago'?: EstadoPago;
+  'Estado de Pago'?: string;
   'Fecha de Pago'?: string;
   'ID Sesión Stripe'?: string;
   'Link Recibo'?: string;
   'Notas Internas'?: string;
   'Días desde Pago'?: number;
   'Mes de Pago'?: string;
-  'Resumen Inteligente del Pago'?: any;
-  'Análisis de Riesgo de Pago'?: any;
+  'Resumen Inteligente del Pago'?: string | { state: string; value: string | null };
+  'Análisis de Riesgo de Pago'?: string | { state: string; value: string | null };
+}
+
+/** Airtable almacena el estado como 'Completado'; lo normalizamos a 'Pagado' internamente */
+function normalizeEstadoPago(raw: string | undefined): EstadoPago {
+  if (raw === 'Completado') return 'Pagado';
+  return (raw as EstadoPago) || 'Pendiente';
 }
 
 function mapToPago(record: AirtableRecord<AirtablePagoFields>): Pago {
   const f = record.fields;
+  const resumen = f['Resumen Inteligente del Pago'];
+  const analisis = f['Análisis de Riesgo de Pago'];
   return {
     id: record.id,
     createdTime: record.createdTime,
     alumnoId: f['Alumno']?.[0] || '',
-    alumnoNombre: f['Nombre del Alumno']?.[0],
     linkPagoStripe: f['Link Pago Stripe'],
     importe: f['Importe'] || 0,
     moneda: (f['Moneda'] as Pago['moneda']) || 'EUR',
-    estadoPago: f['Estado de Pago'] || 'Pendiente',
+    estadoPago: normalizeEstadoPago(f['Estado de Pago']),
     fechaPago: f['Fecha de Pago'],
     idSesionStripe: f['ID Sesión Stripe'],
     linkRecibo: f['Link Recibo'],
     notasInternas: f['Notas Internas'],
     diasDesdePago: f['Días desde Pago'],
     mesPago: f['Mes de Pago'],
-    resumenInteligente: typeof f['Resumen Inteligente del Pago'] === 'string' ? f['Resumen Inteligente del Pago'] : undefined,
-    analisisRiesgo: typeof f['Análisis de Riesgo de Pago'] === 'string' ? f['Análisis de Riesgo de Pago'] : undefined,
+    resumenInteligente: typeof resumen === 'string' ? resumen : undefined,
+    analisisRiesgo: typeof analisis === 'string' ? analisis : undefined,
   };
 }
 
@@ -53,7 +59,13 @@ export async function fetchPagos(filters?: {
   alumnoId?: string;
 }): Promise<Pago[]> {
   const formulas: string[] = [];
-  if (filters?.estado) formulas.push(`{Estado de Pago} = '${filters.estado}'`);
+  if (filters?.estado) {
+    // 'Pagado' se almacena como 'Completado' en Airtable; buscamos ambos por compatibilidad
+    const estadoQuery = filters.estado === 'Pagado'
+      ? `OR({Estado de Pago} = 'Pagado', {Estado de Pago} = 'Completado')`
+      : `{Estado de Pago} = '${filters.estado}'`;
+    formulas.push(estadoQuery);
+  }
   if (filters?.alumnoId) formulas.push(`FIND('${filters.alumnoId}', ARRAYJOIN({Alumno}))`);
 
   const filterByFormula = formulas.length > 0
