@@ -191,6 +191,41 @@
   text-decoration: underline;
 }
 
+.messageAssistant .bubble strong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.messageAssistant .bubble code {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.85em;
+  font-family: monospace;
+}
+
+.messageAssistant .bubble pre {
+  background: rgba(0, 0, 0, 0.15);
+  padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin: var(--space-xs) 0;
+}
+
+.messageAssistant .bubble pre code {
+  background: none;
+  padding: 0;
+}
+
+.messageAssistant .bubble ul,
+.messageAssistant .bubble ol {
+  margin: var(--space-xs) 0;
+  padding-left: var(--space-lg);
+}
+
+.messageAssistant .bubble li {
+  margin-bottom: 2px;
+}
+
 /* Typing indicator */
 .typing {
   align-self: flex-start;
@@ -232,19 +267,19 @@
 
 .input {
   flex: 1;
-  padding: var(--space-sm) var(--space-md);
+  padding: 8px 12px;
   background: var(--color-bg-input);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
   color: var(--color-text-primary);
   font-family: var(--font-family);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   resize: none;
   outline: none;
   transition: all var(--transition-fast);
-  min-height: 40px;
+  min-height: 36px;
   max-height: 120px;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
 .input:focus {

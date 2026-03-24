@@ -6,9 +6,33 @@
  * can shift its margin accordingly.
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import styles from './AIAssistant.module.css';
+
+/** Lightweight markdown-to-HTML for assistant responses */
+function renderMarkdown(text: string): string {
+  return text
+    // code blocks
+    .replace(/```[\s\S]*?```/g, (m) => {
+      const code = m.slice(3, -3).replace(/^\w*\n/, '');
+      return `<pre><code>${code.replace(/</g, '&lt;')}</code></pre>`;
+    })
+    // inline code
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    // bold
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // italic
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // unordered lists
+    .replace(/^[•\-\*] (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    // numbered lists
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    // line breaks (double newline = paragraph break)
+    .replace(/\n\n/g, '<br/><br/>')
+    .replace(/\n/g, '<br/>');
+}
 
 interface Message {
   id: string;
@@ -22,7 +46,7 @@ interface AIAssistantProps {
 }
 
 const AI_CHAT_URL = import.meta.env.DEV
-  ? (import.meta.env.VITE_AI_CHAT_URL || 'https://dashboard-eight-jade-69.vercel.app/api/ai-chat')
+  ? (import.meta.env.VITE_AI_CHAT_URL || 'https://proev-dashboard.dravaautomations.com/api/ai-chat')
   : '/api/ai-chat';
 
 const SUGGESTIONS = [
@@ -153,7 +177,11 @@ export default function AIAssistant({ isOpen, onToggle }: AIAssistantProps) {
               key={msg.id}
               className={`${styles.message} ${msg.role === 'user' ? styles.messageUser : styles.messageAssistant}`}
             >
-              <div className={styles.bubble}>{msg.content}</div>
+              {msg.role === 'assistant' ? (
+                <div className={styles.bubble} dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+              ) : (
+                <div className={styles.bubble}>{msg.content}</div>
+              )}
             </div>
           ))
         )}
