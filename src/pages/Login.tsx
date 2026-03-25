@@ -104,7 +104,8 @@ export default function LoginPage({
       });
 
       if (googleBtnRef.current) {
-        const btnWidth = googleBtnRef.current.offsetWidth || 352;
+        // GSI adds ~20px internal padding; compensate so the visible button fills the container
+        const btnWidth = (googleBtnRef.current.offsetWidth || 352) + 20;
         window.google.accounts.id.renderButton(googleBtnRef.current, {
           theme: 'outline',
           size: 'large',
