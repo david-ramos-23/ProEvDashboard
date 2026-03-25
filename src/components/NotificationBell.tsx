@@ -164,15 +164,15 @@ export default function NotificationBell() {
           {/* Header */}
           <div className={styles.dropdownHeader}>
             <span className={styles.dropdownTitle}>{t('notifications.title')}</span>
-            {unreadCount > 0 && (
-              <button
-                type="button"
-                className={styles.markAllBtn}
-                onClick={handleMarkAllRead}
-              >
-                {t('notifications.markAllRead')}
-              </button>
-            )}
+            <button
+              type="button"
+              className={styles.markAllBtn}
+              onClick={handleMarkAllRead}
+              disabled={unreadCount === 0}
+              style={unreadCount === 0 ? { opacity: 0.4, cursor: 'default' } : undefined}
+            >
+              {t('notifications.markAllRead')}
+            </button>
           </div>
 
           {/* Notification list */}
