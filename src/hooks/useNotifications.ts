@@ -152,8 +152,8 @@ export function useNotifications() {
         });
       }
 
-      // Merge: new notifications first, keep at most 20 total
-      const merged = [...newNotifications, ...existingNotifications].slice(0, 20);
+      // Merge: new notifications first, keep at most 10 total
+      const merged = [...newNotifications, ...existingNotifications].slice(0, 10);
 
       const nextStored: StoredNotifications = {
         snapshot: {
@@ -206,5 +206,17 @@ export function useNotifications() {
     queryClient.setQueryData(['notifications-poll'], updated);
   }, [queryClient]);
 
-  return { notifications, unreadCount, markAllRead, markOneRead };
+  const clearAll = useCallback(() => {
+    const stored = loadStored();
+    if (!stored) return;
+
+    const updated: StoredNotifications = {
+      ...stored,
+      notifications: [],
+    };
+    saveStored(updated);
+    queryClient.setQueryData(['notifications-poll'], updated);
+  }, [queryClient]);
+
+  return { notifications, unreadCount, markAllRead, markOneRead, clearAll };
 }

@@ -141,6 +141,7 @@
   "notifications": {
     "title": "Notifications",
     "markAllRead": "Mark all read",
+    "clearAll": "Clear",
     "empty": "No notifications",
     "newReviews": "videos pending review",
     "newEmails": "emails pending approval",

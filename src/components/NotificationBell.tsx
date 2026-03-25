@@ -77,7 +77,7 @@ function resolveMessage(message: string, t: (key: string) => string): string {
 export default function NotificationBell() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { notifications, unreadCount, markAllRead, markOneRead } = useNotifications();
+  const { notifications, unreadCount, markAllRead, markOneRead, clearAll } = useNotifications();
 
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -118,6 +118,11 @@ export default function NotificationBell() {
   function handleMarkAllRead(e: React.MouseEvent) {
     e.stopPropagation();
     markAllRead();
+  }
+
+  function handleClearAll(e: React.MouseEvent) {
+    e.stopPropagation();
+    clearAll();
   }
 
   return (
@@ -164,15 +169,27 @@ export default function NotificationBell() {
           {/* Header */}
           <div className={styles.dropdownHeader}>
             <span className={styles.dropdownTitle}>{t('notifications.title')}</span>
-            <button
-              type="button"
-              className={styles.markAllBtn}
-              onClick={handleMarkAllRead}
-              disabled={unreadCount === 0}
-              style={unreadCount === 0 ? { opacity: 0.4, cursor: 'default' } : undefined}
-            >
-              {t('notifications.markAllRead')}
-            </button>
+            <div className={styles.headerActions}>
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  className={styles.markAllBtn}
+                  onClick={handleMarkAllRead}
+                >
+                  {t('notifications.markAllRead')}
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button
+                  type="button"
+                  className={styles.clearAllBtn}
+                  onClick={handleClearAll}
+                  aria-label="Clear all notifications"
+                >
+                  {t('notifications.clearAll')}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Notification list */}
