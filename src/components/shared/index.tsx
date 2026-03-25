@@ -306,7 +306,7 @@ export function DataTable<T extends { id: string }>({
     return loadTablePrefs(tableId).colWidths ?? {};
   });
   const [colMenuOpen, setColMenuOpen] = useState(false);
-  const colMenuRef = useRef<HTMLDivElement>(null);
+  const colMenuBtnRef = useRef<HTMLButtonElement>(null);
   const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const didResizeRef = useRef(false);
@@ -320,15 +320,7 @@ export function DataTable<T extends { id: string }>({
     });
   }, [tableId, hiddenCols, colWidths]);
 
-  // Close column menu on outside click
-  useEffect(() => {
-    if (!colMenuOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (colMenuRef.current && !colMenuRef.current.contains(e.target as Node)) setColMenuOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [colMenuOpen]);
+  // Outside click handled by DropdownMenu component
 
   function handleSort(key: string) {
     if (didResizeRef.current) { didResizeRef.current = false; return; }
@@ -482,8 +474,9 @@ export function DataTable<T extends { id: string }>({
           )}
           {actions}
           {!isMobile && hasHideableColumns && (
-            <div ref={colMenuRef} style={{ position: 'relative' }}>
+            <>
               <button
+                ref={colMenuBtnRef}
                 type="button"
                 className={`${styles.colMenuBtn} ${colMenuOpen ? styles.colMenuBtnActive : ''}`}
                 onClick={() => setColMenuOpen(p => !p)}
@@ -495,32 +488,30 @@ export function DataTable<T extends { id: string }>({
                 </svg>
                 <span style={{ fontSize: '0.7rem' }}>Columnas</span>
               </button>
-              {colMenuOpen && (
-                <div className={styles.colMenuDropdown}>
-                  <div className={styles.colMenuHeader}>
-                    <span>Columnas visibles</span>
-                    {hiddenCols.size > 0 && (
-                      <button
-                        className={styles.colMenuReset}
-                        onClick={() => { setHiddenCols(new Set()); setColWidths({}); }}
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </div>
-                  {columns.filter(c => c.header && c.hideable !== false).map(c => (
-                    <label key={c.key} className={styles.colMenuItem}>
-                      <input
-                        type="checkbox"
-                        checked={!hiddenCols.has(c.key)}
-                        onChange={() => toggleCol(c.key)}
-                      />
-                      <span>{c.header}</span>
-                    </label>
-                  ))}
+              <DropdownMenu open={colMenuOpen} onClose={() => setColMenuOpen(false)} triggerRef={colMenuBtnRef} width={180}>
+                <div className={styles.colMenuHeader}>
+                  <span>Columnas visibles</span>
+                  {hiddenCols.size > 0 && (
+                    <button
+                      className={styles.colMenuReset}
+                      onClick={() => { setHiddenCols(new Set()); setColWidths({}); }}
+                    >
+                      Reset
+                    </button>
+                  )}
                 </div>
-              )}
-            </div>
+                {columns.filter(c => c.header && c.hideable !== false).map(c => (
+                  <label key={c.key} className={styles.colMenuItem}>
+                    <input
+                      type="checkbox"
+                      checked={!hiddenCols.has(c.key)}
+                      onChange={() => toggleCol(c.key)}
+                    />
+                    <span>{c.header}</span>
+                  </label>
+                ))}
+              </DropdownMenu>
+            </>
           )}
         </div>
       </div>
