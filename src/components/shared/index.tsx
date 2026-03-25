@@ -642,23 +642,27 @@ interface DropdownMenuProps {
   triggerRef: React.RefObject<HTMLElement | null>;
   children: ReactNode;
   width?: number;
+  matchTriggerWidth?: boolean;
 }
 
-export function DropdownMenu({ open, onClose, triggerRef, children, width = 240 }: DropdownMenuProps) {
+export function DropdownMenu({ open, onClose, triggerRef, children, width = 240, matchTriggerWidth = false }: DropdownMenuProps) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [resolvedWidth, setResolvedWidth] = useState(width);
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    // Align right edge of dropdown with right edge of trigger
-    let left = rect.right - width;
+    const w = matchTriggerWidth ? Math.max(rect.width, 120) : width;
+    setResolvedWidth(w);
+    // Align left edge of dropdown with left edge of trigger
+    let left = rect.left;
+    // If it goes off the right edge, push left
+    if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
     // If it goes off the left edge, push right
     if (left < 8) left = 8;
-    // If it goes off the right edge, push left
-    if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
     setPos({ top: rect.bottom + 6 + window.scrollY, left });
-  }, [open, triggerRef, width]);
+  }, [open, triggerRef, width, matchTriggerWidth]);
 
   useEffect(() => {
     if (!open) return;
@@ -681,7 +685,7 @@ export function DropdownMenu({ open, onClose, triggerRef, children, width = 240 
   if (!open) return null;
 
   return createPortal(
-    <div ref={dropRef} className={styles.dropdownPortal} style={{ top: pos.top, left: pos.left, width }}>
+    <div ref={dropRef} className={styles.dropdownPortal} style={{ top: pos.top, left: pos.left, width: resolvedWidth }}>
       {children}
     </div>,
     document.body

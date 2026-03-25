@@ -1,6 +1,7 @@
 .sidebar {
   width: var(--sidebar-width);
-  min-height: 100vh;
+  height: 100vh;
+  height: 100dvh;
   background: var(--color-bg-secondary);
   border-right: 1px solid var(--color-border);
   display: flex;
@@ -147,6 +148,7 @@
   display: flex;
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .main {
@@ -154,6 +156,7 @@
   min-width: 0;
   margin-left: var(--sidebar-width);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* Flex spacer — occupies 360px in the flex row when AI panel is open,
@@ -307,28 +310,29 @@
   border-color: var(--color-border-hover);
 }
 
-.langGroup {
-  display: flex;
-  gap: 4px;
-}
-
-.langBtn {
-  padding: 4px 10px;
-  font-size: 0.75rem;
-  font-weight: 400;
+.langToggleBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
   background: transparent;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.03em;
+  transition: all var(--transition-fast);
   font-family: var(--font-family);
+  padding: 0;
 }
 
-.langBtnActive {
-  font-weight: 600;
-  background: var(--color-accent-primary-glow);
-  border-color: rgba(12, 90, 69, 0.3);
-  color: var(--color-accent-primary);
+.langToggleBtn:hover {
+  background: var(--color-bg-card-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-hover);
 }
 
 .aiToggleBtn {
@@ -348,44 +352,32 @@
 
 .sidebarFooterControls {
   display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-lg);
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-sm);
   border-top: 1px solid var(--color-border);
 }
 
-.sidebarControlBtn {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-  cursor: pointer;
+.sidebarFooterBtn {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  padding: 0;
-}
-
-.sidebarLangBtn {
-  padding: 6px 12px;
-  font-size: 0.75rem;
-  font-weight: 400;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
   background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-muted);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
   cursor: pointer;
   font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+  min-height: var(--touch-target-min);
 }
 
-.sidebarLangBtnActive {
-  font-weight: 600;
-  background: var(--color-accent-primary-glow);
-  border-color: rgba(12, 90, 69, 0.3);
-  color: var(--color-accent-primary);
+.sidebarFooterBtn:active {
+  background: var(--color-bg-card-hover);
 }
 
 /* ============================
@@ -401,7 +393,7 @@
 }
 
 .mobileEdicionSelect {
-  flex: 1;
+  width: auto;
   height: 36px;
 }
 
@@ -486,6 +478,11 @@
   }
 
   .headerIconBtn {
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+  }
+
+  .langToggleBtn {
     width: var(--touch-target-min);
     height: var(--touch-target-min);
   }

@@ -112,20 +112,24 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
           <div className={styles.sidebarFooterControls}>
             <button
               onClick={toggleTheme}
-              className={styles.sidebarControlBtn}
+              className={styles.sidebarFooterBtn}
               title={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
             >
               {theme === 'light' ? '🌙' : '☀️'}
+              <span>{theme === 'light' ? 'Modo oscuro' : 'Modo claro'}</span>
             </button>
-            {(['es', 'en'] as Locale[]).map(l => (
-              <button
-                key={l}
-                onClick={() => setLocale(l)}
-                className={`${styles.sidebarLangBtn} ${locale === l ? styles.sidebarLangBtnActive : ''}`}
-              >
-                {l.toUpperCase()}
-              </button>
-            ))}
+            <button
+              onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}
+              className={styles.sidebarFooterBtn}
+              title={locale === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+              <span>{locale === 'es' ? 'English' : 'Español'}</span>
+            </button>
           </div>
         )}
 
@@ -178,7 +182,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
                 >
                   {selectedNombre}{ediciones.find(e => e.nombre === selectedNombre)?.esEdicionActiva ? ' ★' : ''}
                 </button>
-                <DropdownMenu open={edicionOpen} onClose={() => setEdicionOpen(false)} triggerRef={edicionBtnRef} width={180}>
+                <DropdownMenu open={edicionOpen} onClose={() => setEdicionOpen(false)} triggerRef={edicionBtnRef} matchTriggerWidth>
                   {ediciones.map(ed => (
                     <button
                       key={ed.id}
@@ -194,7 +198,8 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
             )}
           </div>
           <div className={styles.headerRight}>
-            {/* Theme + language only visible on desktop */}
+            <NotificationBell />
+            {/* Theme + Language — desktop only (mobile has them in sidebar) */}
             {!isMobile && (
               <>
                 <button
@@ -204,20 +209,15 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
                 >
                   {theme === 'light' ? '🌙' : '☀️'}
                 </button>
-                <div className={styles.langGroup}>
-                  {(['es', 'en'] as Locale[]).map(l => (
-                    <button
-                      key={l}
-                      onClick={() => setLocale(l)}
-                      className={`${styles.langBtn} ${locale === l ? styles.langBtnActive : ''}`}
-                    >
-                      {l.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
+                <button
+                  onClick={() => setLocale(locale === 'es' ? 'en' : 'es')}
+                  className={styles.langToggleBtn}
+                  title={locale === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+                >
+                  {locale.toUpperCase()}
+                </button>
               </>
             )}
-            <NotificationBell />
             {/* AI Assistant toggle */}
             <button
               onClick={() => setAiOpen(o => !o)}
