@@ -99,7 +99,7 @@ export default function LoginPage({
             setState('idle');
           }
         },
-        auto_select: false,
+        auto_select: true,
         use_fedcm_for_prompt: true,
       });
 
@@ -112,8 +112,10 @@ export default function LoginPage({
           text: 'continue_with',
           shape: 'pill',
         });
-
       }
+
+      // Trigger One Tap prompt for automatic sign-in
+      window.google.accounts.id.prompt();
     };
 
     if (window.google?.accounts?.id) {
