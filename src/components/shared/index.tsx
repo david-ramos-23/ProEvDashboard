@@ -655,12 +655,12 @@ export function DropdownMenu({ open, onClose, triggerRef, children, width = 240,
     const rect = triggerRef.current.getBoundingClientRect();
     const w = matchTriggerWidth ? Math.max(rect.width, 120) : width;
     setResolvedWidth(w);
-    // Align left edge of dropdown with left edge of trigger
-    let left = rect.left;
-    // If it goes off the right edge, push left
-    if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+    // Align right edge of dropdown with right edge of trigger (grows left)
+    let left = rect.right - w;
     // If it goes off the left edge, push right
     if (left < 8) left = 8;
+    // If it goes off the right edge, push left
+    if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
     setPos({ top: rect.bottom + 6 + window.scrollY, left });
   }, [open, triggerRef, width, matchTriggerWidth]);
 
