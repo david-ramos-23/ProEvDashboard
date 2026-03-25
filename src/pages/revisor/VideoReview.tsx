@@ -12,6 +12,7 @@ import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adap
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { formatDate, renderStars, timeAgo } from '@/utils/formatters';
 import { useIsMobile } from '@/hooks/useMediaQuery';
+import { useHighlightRow } from '@/hooks/useHighlightRow';
 import styles from './VideoReview.module.css';
 import { useTranslation } from '@/i18n';
 
@@ -84,6 +85,7 @@ export default function VideoReviewPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const isMobile = useIsMobile();
+  useHighlightRow();
   const [selected, setSelected] = useState<RevisionVideo | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

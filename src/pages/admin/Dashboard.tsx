@@ -17,6 +17,7 @@ import { formatCurrency, formatNumber, timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
 import { useEdicion } from '@/context/EdicionContext';
 import { ESTADO, ESTADO_EMAIL } from '@/utils/constants';
+import { useHighlightRow } from '@/hooks/useHighlightRow';
 
 /** Colores hex reales para los gráficos (Recharts no soporta CSS vars) */
 const CHART_COLORS: Record<string, string> = {
@@ -36,6 +37,7 @@ const CHART_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  useHighlightRow();
 
   const { selectedNombre } = useEdicion();
 

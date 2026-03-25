@@ -10,10 +10,12 @@ import { ColaEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
 import { ESTADO_EMAIL } from '@/utils/constants';
+import { useHighlightRow } from '@/hooks/useHighlightRow';
 
 export default function EmailApprovalPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  useHighlightRow();
   const [selected, setSelected] = useState<ColaEmail | null>(null);
   const [isApproving, setIsApproving] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);

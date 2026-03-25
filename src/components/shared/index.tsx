@@ -438,6 +438,7 @@ export function DataTable<T extends { id: string }>({
         sortedData.map((item, idx) => (
           <div
             key={item.id}
+            data-row-id={item.id}
             className={`${styles.mobileCard} ${onRowClick ? styles.mobileCardClickable : ''} ${styles.rowEnter}`}
             style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
             onClick={() => onRowClick?.(item)}
@@ -566,6 +567,7 @@ export function DataTable<T extends { id: string }>({
                 sortedData.map((item, idx) => (
                   <tr
                     key={item.id}
+                    data-row-id={item.id}
                     className={`${onRowClick ? styles.clickableRow : ''} ${styles.rowEnter}`}
                     style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
                     onClick={() => onRowClick?.(item)}

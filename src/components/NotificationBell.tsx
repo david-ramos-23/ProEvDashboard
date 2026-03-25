@@ -110,7 +110,9 @@ export default function NotificationBell() {
   function handleNotificationClick(n: Notification) {
     if (!n.read) markOneRead(n.id);
     setOpen(false);
-    navigate(routeForNotification(n));
+    const route = routeForNotification(n);
+    const url = n.targetId ? `${route}?highlight=${n.targetId}` : route;
+    navigate(url);
   }
 
   function handleMarkAllRead(e: React.MouseEvent) {

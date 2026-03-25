@@ -22,6 +22,8 @@ export interface Notification {
   message: string;
   timestamp: string;
   read: boolean;
+  /** Airtable record ID to scroll-to and highlight on the target page */
+  targetId?: string;
 }
 
 interface NotificationSnapshot {
@@ -146,6 +148,7 @@ export function useNotifications() {
           message: current.historialDescription || '__notifications.newActivity__',
           timestamp: now,
           read: false,
+          targetId: current.latestHistorialId,
         });
       }
 
