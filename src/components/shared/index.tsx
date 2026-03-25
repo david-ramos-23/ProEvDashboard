@@ -307,6 +307,7 @@ export function DataTable<T extends { id: string }>({
   });
   const [colMenuOpen, setColMenuOpen] = useState(false);
   const colMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
   const resizingRef = useRef<{ key: string; startX: number; startW: number } | null>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const didResizeRef = useRef(false);
@@ -460,7 +461,7 @@ export function DataTable<T extends { id: string }>({
   );
 
   return (
-    <div className={styles.tableWrapper}>
+    <div ref={tableWrapperRef} className={styles.tableWrapper}>
       <div className={styles.tableHeader}>
         {title && <h3 className={styles.tableTitle}>{title}</h3>}
         <div className={styles.tableActions}>
@@ -489,7 +490,7 @@ export function DataTable<T extends { id: string }>({
                 </svg>
                 <span style={{ fontSize: '0.7rem' }}>Columnas</span>
               </button>
-              <DropdownMenu open={colMenuOpen} onClose={() => setColMenuOpen(false)} triggerRef={colMenuBtnRef} width={180}>
+              <DropdownMenu open={colMenuOpen} onClose={() => setColMenuOpen(false)} triggerRef={colMenuBtnRef} alignRef={tableWrapperRef} width={180}>
                 <div className={styles.colMenuHeader}>
                   <span>Columnas visibles</span>
                   {hiddenCols.size > 0 && (
@@ -635,23 +636,27 @@ interface DropdownMenuProps {
   triggerRef: React.RefObject<HTMLElement | null>;
   children: ReactNode;
   width?: number;
+  /** Optional ref to align dropdown's right edge with (instead of trigger) */
+  alignRef?: React.RefObject<HTMLElement | null>;
 }
 
-export function DropdownMenu({ open, onClose, triggerRef, children, width = 240 }: DropdownMenuProps) {
+export function DropdownMenu({ open, onClose, triggerRef, children, width = 240, alignRef }: DropdownMenuProps) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open || !triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    // Align right edge of dropdown with right edge of trigger
-    let left = rect.right - width;
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const alignRect = alignRef?.current?.getBoundingClientRect();
+    // Align right edge of dropdown with right edge of alignRef (or trigger)
+    const rightEdge = alignRect ? alignRect.right : triggerRect.right;
+    let left = rightEdge - width;
     // If it goes off the left edge, push right
     if (left < 8) left = 8;
     // If it goes off the right edge, push left
     if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
-    setPos({ top: rect.bottom + 6 + window.scrollY, left });
-  }, [open, triggerRef, width]);
+    setPos({ top: triggerRect.bottom + 6 + window.scrollY, left });
+  }, [open, triggerRef, width, alignRef]);
 
   useEffect(() => {
     if (!open) return;
