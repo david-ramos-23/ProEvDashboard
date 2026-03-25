@@ -104,8 +104,7 @@ export default function LoginPage({
       });
 
       if (googleBtnRef.current) {
-        // GSI adds ~20px internal padding; compensate so the visible button fills the container
-        const btnWidth = (googleBtnRef.current.offsetWidth || 352) + 20;
+        const btnWidth = googleBtnRef.current.offsetWidth || 352;
         window.google.accounts.id.renderButton(googleBtnRef.current, {
           theme: 'outline',
           size: 'large',
@@ -114,15 +113,6 @@ export default function LoginPage({
           shape: 'pill',
         });
 
-        // GSI re-applies inline styles after render — observe and fix margins
-        const observer = new MutationObserver(() => {
-          googleBtnRef.current?.querySelectorAll<HTMLElement>('iframe, div').forEach(el => {
-            if (el.style.margin && el.style.margin !== '0px') {
-              el.style.margin = '0px';
-            }
-          });
-        });
-        observer.observe(googleBtnRef.current, { subtree: true, attributes: true, attributeFilter: ['style'] });
       }
     };
 
