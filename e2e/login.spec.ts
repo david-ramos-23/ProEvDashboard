@@ -32,7 +32,7 @@ test.describe('Login Page', () => {
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('button[type="submit"]')).toBeVisible();
     // Google sign-in button
-    await expect(page.locator('text=Continuar con Google')).toBeVisible();
+    await expect(page.locator('[class*="googleBtn"]')).toBeVisible();
   });
 
   test('botón de submit deshabilitado con campo vacío', async ({ page }) => {
@@ -47,14 +47,20 @@ test.describe('Login Page', () => {
     await expect(page.locator('h1')).toContainText('Dashboard');
   });
 
-  test('login con email no autorizado muestra error', async ({ page }) => {
+  test('login con email no autorizado no accede al dashboard', async ({ page }) => {
     await page.goto('/');
 
     await page.fill('input[type="email"]', INVALID_EMAIL);
     await page.click('button[type="submit"]');
 
-    await expect(page.locator('text=no autorizado')).toBeVisible({ timeout: 5000 });
-    await expect(page).not.toHaveURL('**/admin/**');
+    // Dev fallback returns success to prevent enumeration, shows "sent" state
+    const devBtn = page.locator('button:has-text("[DEV]")');
+    await devBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await devBtn.click();
+
+    // Should NOT navigate to dashboard — stays on login or shows error
+    await page.waitForTimeout(2000);
+    await expect(page).not.toHaveURL(/\/admin\//);
   });
 
   test('sesión persiste tras recarga', async ({ page }) => {

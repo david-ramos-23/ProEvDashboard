@@ -61,8 +61,11 @@ test.describe('Ediciones', () => {
   });
 
   test('columna Estado muestra chips con colores', async ({ page }) => {
-    await page.waitForTimeout(4000);
-    // At minimum one status badge should be visible in the table
-    await expect(page.locator('[class*="badge"], [class*="Badge"]').first()).toBeVisible({ timeout: 10000 });
+    // Wait for the table to fully render with data
+    await page.waitForSelector('table tbody tr', { timeout: 15000 });
+    // StatusBadge uses CSS modules so class names are mangled (e.g., Shared_badge_xxxxx)
+    // Look for the badge span inside table cells — it has inline styles with color-mix
+    const statusCell = page.locator('table tbody tr td span').filter({ hasText: /Abierta|Planificada|Prelanzamiento|Finalizada/ });
+    await expect(statusCell.first()).toBeVisible({ timeout: 10000 });
   });
 });

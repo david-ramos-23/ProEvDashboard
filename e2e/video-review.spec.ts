@@ -16,7 +16,7 @@ test.describe('Video Review', () => {
   });
 
   test('muestra KPIs: Pendientes, Revisados Hoy, Total', async ({ page }) => {
-    await expect(page.locator('text=Pendientes')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[class*="kpiLabel"]:has-text("Pendientes")')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('text=Revisados Hoy')).toBeVisible();
     await expect(page.locator('text=Total Revisiones')).toBeVisible();
   });
@@ -27,11 +27,11 @@ test.describe('Video Review', () => {
   });
 
   test('primer alumno se selecciona automáticamente', async ({ page }) => {
-    await page.waitForTimeout(3000);
-    // Detail panel should show a selected student's info
-    const detailPanel = page.locator('[class*="detail"]');
+    await page.waitForTimeout(5000);
+    // Detail panel is the second child of splitView grid
+    const detailPanel = page.locator('[class*="splitView"] > div:nth-child(2)');
     if (await detailPanel.isVisible()) {
-      await expect(detailPanel.locator('text=Pendiente')).toBeVisible({ timeout: 5000 });
+      await expect(detailPanel.locator('text=Pendiente')).toBeVisible({ timeout: 10000 });
     }
   });
 

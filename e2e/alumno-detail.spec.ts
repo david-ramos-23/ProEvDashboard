@@ -31,11 +31,12 @@ test.describe('AlumnoDetail', () => {
 
   test('muestra avatar con inicial del nombre', async ({ page }) => {
     await page.waitForTimeout(2000);
-    const avatar = page.locator('[class*="avatar"]');
+    // Scope to the detail page header (not sidebar avatar)
+    const avatar = page.locator('[class*="headerInfo"] [class*="avatar"]');
     await expect(avatar).toBeVisible({ timeout: 10000 });
-    // Avatar should contain a single uppercase letter
+    // Avatar should contain a single uppercase letter or initials
     const text = await avatar.textContent();
-    expect(text?.trim()).toMatch(/^[A-Z]$/);
+    expect(text?.trim()).toMatch(/^[A-Z]{1,2}$/);
   });
 
   test('muestra quick stats (módulo, idioma, engagement)', async ({ page }) => {
@@ -50,7 +51,7 @@ test.describe('AlumnoDetail', () => {
 
   test('tab Revisiones carga sin crash', async ({ page }) => {
     await page.waitForTimeout(2000);
-    const revTab = page.locator('button:has-text("Revisiones")');
+    const revTab = page.locator('[class*="tabs"] button:has-text("Revisiones")');
     if (await revTab.isVisible()) {
       await revTab.click();
       await page.waitForTimeout(3000);
@@ -61,7 +62,7 @@ test.describe('AlumnoDetail', () => {
 
   test('tab Pagos carga sin crash', async ({ page }) => {
     await page.waitForTimeout(2000);
-    const pagosTab = page.locator('button:has-text("Pagos")');
+    const pagosTab = page.locator('[class*="tabs"] button:has-text("Pagos")');
     if (await pagosTab.isVisible()) {
       await pagosTab.click();
       await page.waitForTimeout(3000);
@@ -72,7 +73,7 @@ test.describe('AlumnoDetail', () => {
 
   test('tab Historial carga sin crash', async ({ page }) => {
     await page.waitForTimeout(2000);
-    const histTab = page.locator('button:has-text("Historial")');
+    const histTab = page.locator('[class*="tabs"] button:has-text("Historial")');
     if (await histTab.isVisible()) {
       await histTab.click();
       await page.waitForTimeout(3000);
@@ -82,7 +83,7 @@ test.describe('AlumnoDetail', () => {
 
   test('tab IA Insights carga sin crash', async ({ page }) => {
     await page.waitForTimeout(2000);
-    const iaTab = page.locator('button:has-text("IA")');
+    const iaTab = page.locator('[class*="tabs"] button:has-text("IA Insights")');
     if (await iaTab.isVisible()) {
       await iaTab.click();
       await page.waitForTimeout(2000);

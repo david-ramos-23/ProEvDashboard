@@ -30,7 +30,7 @@ test.describe('Email Approval', () => {
 
   test('lista de emails pendientes es visible', async ({ page }) => {
     await page.waitForTimeout(3000);
-    await expect(page.locator('text=Emails Pendientes')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[class*="card"] >> text=Emails Pendientes')).toBeVisible({ timeout: 10000 });
   });
 
   test('primer email se selecciona automáticamente y muestra contenido', async ({ page }) => {

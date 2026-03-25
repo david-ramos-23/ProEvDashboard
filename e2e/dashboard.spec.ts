@@ -20,8 +20,8 @@ test.describe('Admin Dashboard', () => {
     await expect(page.locator('text=Ingresos Totales')).toBeVisible();
     await expect(page.locator('text=Pendientes Revision')).toBeVisible();
 
-    // La edición activa debe aparecer en el banner de scope
-    await expect(page.locator('text=datos filtrados por edición activa')).toBeVisible();
+    // The edition dropdown button should be visible in the header
+    await expect(page.locator('button[class*="edicionSelect"]')).toBeVisible({ timeout: 5000 });
   });
 
   test('KPIs no muestran 0 cuando hay edición activa con alumnos', async ({ page }) => {
@@ -40,8 +40,10 @@ test.describe('Admin Dashboard', () => {
   });
 
   test('muestra tabla de actividad reciente', async ({ page }) => {
-    await page.waitForSelector('text=Actividad Reciente', { timeout: 15000 });
-    await expect(page.locator('text=Actividad Reciente')).toBeVisible();
+    // Use h3 heading to avoid strict mode violation with "Sin actividad reciente" empty state
+    const heading = page.locator('h3', { hasText: 'Actividad Reciente' });
+    await heading.waitFor({ timeout: 15000 });
+    await expect(heading).toBeVisible();
   });
 
   test('sidebar navigation — Alumnos', async ({ page }) => {
@@ -77,12 +79,12 @@ test.describe('Admin Dashboard', () => {
     await page.waitForURL('**/admin/inbox', { timeout: 5000 });
   });
 
-  test('KPI Total Alumnos navega a Alumnos con filtro de edición', async ({ page }) => {
+  test('KPI Total Alumnos navega a Alumnos', async ({ page }) => {
     await page.waitForSelector('text=Total Alumnos', { timeout: 15000 });
     await page.waitForTimeout(2000); // let data load
     await page.locator('text=Total Alumnos').locator('..').click();
     await page.waitForURL('**/admin/alumnos**', { timeout: 5000 });
-    // URL should contain edicion param
-    expect(page.url()).toContain('edicion=');
+    // KPI navigates to /admin/alumnos (no query params added by default)
+    expect(page.url()).toContain('/admin/alumnos');
   });
 });

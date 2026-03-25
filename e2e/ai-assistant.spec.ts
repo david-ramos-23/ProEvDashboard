@@ -29,10 +29,12 @@ test.describe('AI Assistant', () => {
 
   test('botón de cerrar cierra el panel', async ({ page }) => {
     await page.locator('button[aria-label="Abrir asistente IA"]').click();
-    await expect(page.locator('text=Asistente ProEv')).toBeVisible({ timeout: 5000 });
-    // Close via toggle button again
-    await page.locator('button[aria-label="Abrir asistente IA"]').click();
-    await expect(page.locator('text=Asistente ProEv')).not.toBeVisible({ timeout: 3000 });
+    const panel = page.locator('[role="complementary"]');
+    await expect(panel).toHaveClass(/panelOpen/, { timeout: 5000 });
+    // Close by clicking the backdrop
+    await page.locator('[class*="backdropOpen"]').click();
+    // Panel should lose the panelOpen class (slide-out animation)
+    await expect(panel).not.toHaveClass(/panelOpen/, { timeout: 5000 });
   });
 
   test('escribir en el input habilita el botón de enviar', async ({ page }) => {
