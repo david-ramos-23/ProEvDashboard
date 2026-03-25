@@ -5,23 +5,13 @@
  */
 
 import { test, expect } from '@playwright/test';
-
-const TEST_ADMIN_EMAIL = 'andara14+test-dashboard-admin@gmail.com';
-
-async function loginAndGo(page: Parameters<typeof test>[1]) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.fill('input[type="email"]', TEST_ADMIN_EMAIL);
-  await page.click('button[type="submit"]');
-  await page.waitForURL('**/admin/dashboard', { timeout: 10000 });
-  await page.goto('/revisor/emails');
-  await page.waitForSelector('text=Aprobacion de Emails', { timeout: 15000 });
-}
+import { loginAsAdmin } from './helpers/login';
 
 test.describe('Email Approval', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAndGo(page);
+    await loginAsAdmin(page);
+    await page.goto('/revisor/emails');
+    await page.waitForSelector('text=Aprobacion de Emails', { timeout: 15000 });
   });
 
   test('página carga sin errores', async ({ page }) => {

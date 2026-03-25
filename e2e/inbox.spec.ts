@@ -7,22 +7,12 @@
  */
 
 import { test, expect } from '@playwright/test';
-
-const TEST_EMAIL = 'andara14+test-dashboard-admin@gmail.com';
-
-async function loginAndGo(page: Parameters<typeof test>[1], path: string) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.fill('input[type="email"]', TEST_EMAIL);
-  await page.click('button[type="submit"]');
-  await page.waitForURL('**/admin/dashboard', { timeout: 10000 });
-  await page.goto(path);
-}
+import { loginAsAdmin } from './helpers/login';
 
 test.describe('Emails / Inbox', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAndGo(page, '/admin/inbox');
+    await loginAsAdmin(page);
+    await page.goto('/admin/inbox');
   });
 
   test('renderiza el section switcher con Bandeja y Cola', async ({ page }) => {

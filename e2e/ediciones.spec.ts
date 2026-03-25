@@ -3,17 +3,11 @@
  */
 
 import { test, expect } from '@playwright/test';
-
-const TEST_EMAIL = 'andara14+test-dashboard-admin@gmail.com';
+import { loginAsAdmin } from './helpers/login';
 
 test.describe('Ediciones', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
-    await page.fill('input[type="email"]', TEST_EMAIL);
-    await page.click('button[type="submit"]');
-    await page.waitForURL('**/admin/dashboard', { timeout: 10000 });
+    await loginAsAdmin(page);
     await page.click('nav >> text=Ediciones');
     await page.waitForURL('**/admin/ediciones');
   });

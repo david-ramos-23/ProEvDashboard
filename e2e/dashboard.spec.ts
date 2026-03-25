@@ -6,17 +6,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-
-const TEST_ADMIN_EMAIL = 'andara14+test-dashboard-admin@gmail.com';
-
-async function loginAsAdmin(page: Parameters<typeof test>[1]) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.fill('input[type="email"]', TEST_ADMIN_EMAIL);
-  await page.click('button[type="submit"]');
-  await page.waitForURL('**/admin/dashboard', { timeout: 10000 });
-}
+import { loginAsAdmin } from './helpers/login';
 
 test.describe('Admin Dashboard', () => {
   test.beforeEach(async ({ page }) => {

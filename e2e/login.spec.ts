@@ -6,8 +6,8 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { loginAsAdmin, TEST_ADMIN_EMAIL } from './helpers/login';
 
-const TEST_ADMIN_EMAIL = 'andara14+test-dashboard-admin@gmail.com';
 const INVALID_EMAIL = 'noautorizado@example.com';
 
 test.describe('Login Page', () => {
@@ -43,12 +43,7 @@ test.describe('Login Page', () => {
   });
 
   test('login con email admin de test redirige al dashboard', async ({ page }) => {
-    await page.goto('/');
-
-    await page.fill('input[type="email"]', TEST_ADMIN_EMAIL);
-    await page.click('button[type="submit"]');
-
-    await page.waitForURL('**/admin/dashboard', { timeout: 10000 });
+    await loginAsAdmin(page);
     await expect(page.locator('h1')).toContainText('Dashboard');
   });
 
@@ -63,12 +58,7 @@ test.describe('Login Page', () => {
   });
 
   test('sesión persiste tras recarga', async ({ page }) => {
-    await page.goto('/');
-
-    await page.fill('input[type="email"]', TEST_ADMIN_EMAIL);
-    await page.click('button[type="submit"]');
-    await page.waitForURL('**/admin/dashboard', { timeout: 10000 });
-
+    await loginAsAdmin(page);
     await page.reload();
 
     await expect(page).toHaveURL(/admin\/dashboard/);
