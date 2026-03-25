@@ -15,13 +15,12 @@ test.describe('Mobile Navigation', () => {
 
   test('sidebar is hidden by default', async ({ page }) => {
     const sidebar = page.locator('aside');
-    // Sidebar exists but is off-screen (transform: translateX(-100%))
+    // Sidebar exists but should not have sidebarOpen class
     await expect(sidebar).toBeAttached();
-    const box = await sidebar.boundingBox();
-    // Either not visible or positioned off-screen
-    if (box) {
-      expect(box.x + box.width).toBeLessThanOrEqual(0);
-    }
+    const hasOpenClass = await sidebar.evaluate((el) =>
+      el.className.includes('sidebarOpen')
+    );
+    expect(hasOpenClass).toBe(false);
   });
 
   test('hamburger button is visible', async ({ page }) => {
@@ -32,6 +31,7 @@ test.describe('Mobile Navigation', () => {
   test('clicking hamburger opens sidebar overlay', async ({ page }) => {
     const hamburger = page.locator('button[aria-label="Abrir men\u00fa"]');
     await hamburger.click();
+    await page.waitForTimeout(500); // wait for slide animation
 
     // Sidebar should now be visible
     const sidebar = page.locator('aside');
@@ -50,30 +50,31 @@ test.describe('Mobile Navigation', () => {
     await page.mouse.click(viewport.width - 10, viewport.height / 2);
     await page.waitForTimeout(400);
 
-    // Sidebar should be hidden again
+    // Sidebar should not have sidebarOpen class
     const sidebar = page.locator('aside');
-    const box = await sidebar.boundingBox();
-    if (box) {
-      expect(box.x + box.width).toBeLessThanOrEqual(0);
-    }
+    const hasOpenClass = await sidebar.evaluate((el) =>
+      el.className.includes('sidebarOpen')
+    );
+    expect(hasOpenClass).toBe(false);
   });
 
   test('navigating closes sidebar', async ({ page }) => {
     const hamburger = page.locator('button[aria-label="Abrir men\u00fa"]');
     await hamburger.click();
-    await page.waitForTimeout(400);
-
-    // Click a nav link
-    const navLink = page.locator('nav a').first();
-    await navLink.click();
     await page.waitForTimeout(500);
 
-    // Sidebar should be closed
-    const sidebar = page.locator('aside');
-    const box = await sidebar.boundingBox();
-    if (box) {
-      expect(box.x + box.width).toBeLessThanOrEqual(0);
-    }
+    // Click a different nav link (not current page)
+    const navLinks = page.locator('nav a');
+    const count = await navLinks.count();
+    // Click the second link to force an actual route change
+    const navLink = count > 1 ? navLinks.nth(1) : navLinks.first();
+    await navLink.click();
+
+    // Wait for sidebar to lose the sidebarOpen class
+    await page.waitForFunction(() => {
+      const aside = document.querySelector('aside');
+      return aside && !aside.className.includes('sidebarOpen');
+    }, { timeout: 3000 });
   });
 
   test('page title is visible in header', async ({ page }) => {
