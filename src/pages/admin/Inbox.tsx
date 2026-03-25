@@ -1,24 +1,23 @@
 /**
- * Emails — Bandeja de entrada + Cola de emails del sistema ProEv.
+ * Emails — Gmail-like split-panel inbox + Cola de emails.
  *
- * Two sections:
- *  - Bandeja: Gmail inbox (task-queue card list with inline expansion)
- *  - Cola:    Automated email queue (approve / track status)
+ * Bandeja: master-detail layout (email list left, detail right)
+ * Cola: DataTable with approval flow (unchanged)
  */
 
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StatusBadge, SkeletonBlock, DataTable, Column, ConfirmDialog } from '@/components/shared';
-import { fetchInbox, updateInboxEmail } from '@/data/adapters/airtable/InboxAdapter';
-import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/ColaEmailsAdapter';
+import { fetchInbox, updateInboxEmail } from '@/data/adapters';
+import { fetchColaEmails, aprobarEmail } from '@/data/adapters';
 import { InboxEmail, ColaEmail, EstadoEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { ESTADO_EMAIL } from '@/utils/constants';
 import styles from './Inbox.module.css';
 
 type SectionType = 'bandeja' | 'cola';
-
 type FilterType = 'all' | 'atencion' | 'sinResponder' | 'Recibido' | 'Enviado';
 type EstadoFilter = '' | 'Nuevo' | 'Leido' | 'Respondido' | 'Archivado';
 
@@ -31,174 +30,185 @@ function buildQueryFilters(filter: FilterType) {
 
 function sortEmails(emails: InboxEmail[]): InboxEmail[] {
   return [...emails].sort((a, b) => {
-    // 1. requiereAtencion first
     if (a.requiereAtencion && !b.requiereAtencion) return -1;
     if (!a.requiereAtencion && b.requiereAtencion) return 1;
-    // 2. Nuevo (unread) before others
     const aNew = a.estado === 'Nuevo';
     const bNew = b.estado === 'Nuevo';
     if (aNew && !bNew) return -1;
     if (!aNew && bNew) return 1;
-    // 3. Date descending
     const aDate = a.fecha || a.createdTime;
     const bDate = b.fecha || b.createdTime;
     return new Date(bDate).getTime() - new Date(aDate).getTime();
   });
 }
 
-interface EmailCardProps {
-  email: InboxEmail;
-  isExpanded: boolean;
-  onToggle: () => void;
+// ── Email Detail Panel ───────────────────────────────────────────────────────
+
+interface DetailPanelProps {
+  email: InboxEmail | null;
   onUpdate: (id: string, updates: { estado?: string; respuestaFinal?: string }) => void;
   isPending: boolean;
+  onBack?: () => void;
 }
 
-function EmailCard({ email, isExpanded, onToggle, onUpdate, isPending }: EmailCardProps) {
+function DetailPanel({ email, onUpdate, isPending, onBack }: DetailPanelProps) {
   const { t } = useTranslation();
-  const [respuesta, setRespuesta] = useState(email.respuestaFinal || '');
+  const [respuesta, setRespuesta] = useState('');
   const [copied, setCopied] = useState(false);
 
+  // Sync respuesta when email changes
+  const emailId = email?.id;
+  useState(() => { setRespuesta(email?.respuestaFinal || ''); });
+  // Reset on email change
+  if (email && respuesta === '' && email.respuestaFinal) {
+    // handled by memo below
+  }
+
+  useMemo(() => {
+    setRespuesta(email?.respuestaFinal || '');
+  }, [emailId]);
+
   async function handleCopy() {
-    if (!email.respuestaSugerida) return;
+    if (!email?.respuestaSugerida) return;
     await navigator.clipboard.writeText(email.respuestaSugerida);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const isUnread = email.estado === 'Nuevo';
+  function handleUseSuggestion() {
+    if (!email?.respuestaSugerida) return;
+    setRespuesta(email.respuestaSugerida);
+  }
+
+  if (!email) {
+    return (
+      <div className={styles.detailEmpty}>
+        <span>📧</span>
+        <p>{t('inbox.seleccionaEmail') || 'Selecciona un email para ver su contenido'}</p>
+      </div>
+    );
+  }
 
   return (
-    <div className={`${styles.emailCard} ${isExpanded ? styles.emailCardExpanded : ''} ${email.requiereAtencion ? styles.emailCardAlert : ''}`}>
-      {/* Card header — always visible, click to expand */}
-      <button className={styles.emailCardHeader} onClick={onToggle}>
-        <div className={styles.cardLeft}>
-          <div className={styles.cardIconRow}>
-            <span className={styles.dirIcon} title={email.direccion}>
-              {email.direccion === 'Recibido' ? '📥' : '📤'}
-            </span>
-            {isUnread && <span className={styles.unreadDot} />}
-            {email.requiereAtencion && <span className={styles.alertDot} title="Requiere atención">!</span>}
-          </div>
+    <div className={styles.detail}>
+      {/* Mobile back button */}
+      {onBack && (
+        <button className={styles.backBtn} onClick={onBack}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          {t('inbox.todos')}
+        </button>
+      )}
+
+      {/* Email header */}
+      <div className={styles.detailHeader}>
+        <div className={styles.detailHeaderTop}>
+          <h2 className={styles.detailSubject}>{email.asunto || '(sin asunto)'}</h2>
+          <StatusBadge status={email.estado} />
         </div>
-        <div className={styles.cardBody}>
-          <div className={styles.cardTopRow}>
-            <span className={`${styles.cardSubject} ${isUnread ? styles.cardSubjectUnread : ''}`}>
-              {email.asunto || '(sin asunto)'}
-            </span>
-            <span className={styles.cardTime}>{timeAgo(email.fecha || email.createdTime)}</span>
-          </div>
-          <div className={styles.cardMetaRow}>
-            <span className={styles.cardContact}>
-              {email.direccion === 'Recibido' ? email.de : email.para}
-            </span>
-            <StatusBadge status={email.estado} />
-          </div>
-          {email.resumenIA && !isExpanded && (
-            <div className={styles.cardSnippet}>{email.resumenIA}</div>
-          )}
+        <div className={styles.detailMeta}>
+          <span><strong>De:</strong> {email.de}</span>
+          <span><strong>Para:</strong> {email.para}</span>
+          <span className={styles.detailDate}>{timeAgo(email.fecha || email.createdTime)}</span>
         </div>
-        <span className={`${styles.expandIcon} ${isExpanded ? styles.expandIconOpen : ''}`}>›</span>
-      </button>
+      </div>
 
-      {/* Expanded content */}
-      {isExpanded && (
-        <div className={styles.expandedBody}>
-          {email.requiereAtencion && (
-            <div className={styles.alertBanner}>
-              <span>⚠️</span> {t('inbox.requiereAtencion')}
-            </div>
-          )}
+      {/* Attention banner */}
+      {email.requiereAtencion && (
+        <div className={styles.alertBanner}>
+          <span>⚠️</span> {t('inbox.requiereAtencion')}
+        </div>
+      )}
 
-          {/* Email body */}
-          <div className={styles.emailBodySection}>
-            <div className={styles.emailMeta}>
-              <span><strong>De:</strong> {email.de}</span>
-              <span><strong>Para:</strong> {email.para}</span>
-            </div>
-            {email.contenidoHtml ? (
-              <div
-                className={styles.emailBodyText}
-                dangerouslySetInnerHTML={{ __html: email.contenidoHtml }}
-              />
-            ) : (
-              <pre className={styles.emailBodyText}>{email.contenido || '(sin contenido)'}</pre>
-            )}
-          </div>
+      {/* Email body */}
+      <div className={styles.detailBody}>
+        {email.contenidoHtml ? (
+          <div
+            className={styles.emailBodyText}
+            dangerouslySetInnerHTML={{ __html: email.contenidoHtml }}
+          />
+        ) : (
+          <pre className={styles.emailBodyText}>{email.contenido || '(sin contenido)'}</pre>
+        )}
+      </div>
 
-          {/* AI summary */}
-          {email.resumenIA && (
-            <div className={styles.aiCard}>
-              <div className={styles.aiCardTitle}>🤖 {t('inbox.resumenIA')}</div>
-              <p className={styles.aiCardText}>{email.resumenIA}</p>
-            </div>
-          )}
+      {/* AI Summary */}
+      {email.resumenIA && (
+        <div className={styles.aiCard}>
+          <div className={styles.aiCardTitle}>🤖 {t('inbox.resumenIA')}</div>
+          <p className={styles.aiCardText}>{email.resumenIA}</p>
+        </div>
+      )}
 
-          {/* Suggested reply */}
-          {email.respuestaSugerida && (
-            <div className={styles.sugeridaCard}>
-              <div className={styles.sugeridaHeader}>
-                <span className={styles.aiCardTitle}>💡 {t('inbox.respuestaSugerida')}</span>
-                <button className="btn-ghost btn-sm" onClick={handleCopy}>
-                  {copied ? '✅ Copiado' : '📋 Copiar'}
-                </button>
-              </div>
-              <p className={styles.aiCardText}>{email.respuestaSugerida}</p>
-            </div>
-          )}
-
-          {/* Response area */}
-          <div className={styles.responseSection}>
-            <label className={styles.responseLabel}>{t('inbox.respuestaFinal')}</label>
-            <textarea
-              className={styles.responseTextarea}
-              value={respuesta}
-              onChange={(e) => setRespuesta(e.target.value)}
-              placeholder={t('inbox.respuestaFinal')}
-              rows={4}
-            />
-            <div className={styles.responseActions}>
-              <button
-                className="btn-primary btn-sm"
-                onClick={() => onUpdate(email.id, { respuestaFinal: respuesta })}
-                disabled={isPending}
-              >
-                {isPending ? t('common.saving') : t('inbox.guardarRespuesta')}
+      {/* AI Suggested Reply */}
+      {email.respuestaSugerida && (
+        <div className={styles.sugeridaCard}>
+          <div className={styles.sugeridaHeader}>
+            <span className={styles.aiCardTitle}>💡 {t('inbox.respuestaSugerida')}</span>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button className="btn-ghost btn-sm" onClick={handleCopy}>
+                {copied ? '✅ Copiado' : '📋 Copiar'}
+              </button>
+              <button className="btn-ghost btn-sm" onClick={handleUseSuggestion}>
+                ✏️ Usar
               </button>
             </div>
           </div>
-
-          {/* Quick actions */}
-          <div className={styles.quickActions}>
-            <button
-              className="btn-ghost btn-sm"
-              onClick={() => onUpdate(email.id, { estado: 'Leido' })}
-              disabled={isPending || email.estado === 'Leido'}
-            >
-              👁 {t('inbox.marcarLeido')}
-            </button>
-            <button
-              className="btn-ghost btn-sm"
-              onClick={() => onUpdate(email.id, { estado: 'Respondido' })}
-              disabled={isPending || email.estado === 'Respondido'}
-            >
-              ✅ {t('inbox.marcarRespondido')}
-            </button>
-            <button
-              className="btn-ghost btn-sm"
-              onClick={() => onUpdate(email.id, { estado: 'Archivado' })}
-              disabled={isPending || email.estado === 'Archivado'}
-            >
-              📁 Archivar
-            </button>
-          </div>
+          <p className={styles.aiCardText}>{email.respuestaSugerida}</p>
         </div>
       )}
+
+      {/* Response area */}
+      <div className={styles.responseSection}>
+        <label className={styles.responseLabel}>{t('inbox.respuestaFinal')}</label>
+        <textarea
+          className={styles.responseTextarea}
+          value={respuesta}
+          onChange={(e) => setRespuesta(e.target.value)}
+          placeholder={t('inbox.respuestaFinal')}
+          rows={4}
+        />
+      </div>
+
+      {/* Actions */}
+      <div className={styles.detailActions}>
+        <button
+          className="btn-primary btn-sm"
+          onClick={() => onUpdate(email.id, { respuestaFinal: respuesta })}
+          disabled={isPending}
+        >
+          {isPending ? t('common.saving') : t('inbox.guardarRespuesta')}
+        </button>
+        <div className={styles.quickActions}>
+          <button
+            className="btn-ghost btn-sm"
+            onClick={() => onUpdate(email.id, { estado: 'Leido' })}
+            disabled={isPending || email.estado === 'Leido'}
+          >
+            👁 {t('inbox.marcarLeido')}
+          </button>
+          <button
+            className="btn-ghost btn-sm"
+            onClick={() => onUpdate(email.id, { estado: 'Respondido' })}
+            disabled={isPending || email.estado === 'Respondido'}
+          >
+            ✅ {t('inbox.marcarRespondido')}
+          </button>
+          <button
+            className="btn-ghost btn-sm"
+            onClick={() => onUpdate(email.id, { estado: 'Archivado' })}
+            disabled={isPending || email.estado === 'Archivado'}
+          >
+            📁 Archivar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ── Cola de Emails section ─────────────────────────────────────────────────
+// ── Cola de Emails section (unchanged) ───────────────────────────────────────
 
 type ColaTab = 'pendientes' | 'cola' | 'enviados' | 'errores';
 const COLA_TABS: { key: ColaTab; label: string; icon: string; estado: EstadoEmail }[] = [
@@ -276,7 +286,6 @@ function ColaSection() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-      {/* Sub-tabs */}
       <div style={{ display: 'flex', gap: 'var(--space-xs)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-xs)' }}>
         {COLA_TABS.map(tab => (
           <button
@@ -295,7 +304,6 @@ function ColaSection() {
         ))}
       </div>
 
-      {/* Tipo filter */}
       <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
         <button className={`btn-sm ${!filtroTipo ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroTipo('')}>Todos</button>
         {TIPOS_EMAIL.map(tipo => (
@@ -338,11 +346,13 @@ function ColaSection() {
 export default function InboxPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
 
   const [section, setSection] = useState<SectionType>('bandeja');
   const [filter, setFilter] = useState<FilterType>('all');
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
   const [search, setSearch] = useState('');
 
   const queryFilters = buildQueryFilters(filter);
@@ -377,6 +387,13 @@ export default function InboxPage() {
     return sortEmails(list);
   }, [emails, filter, estadoFilter, search]);
 
+  const selectedEmail = sorted.find(e => e.id === selectedId) || null;
+
+  function selectEmail(email: InboxEmail) {
+    setSelectedId(email.id);
+    if (isMobile) setShowDetail(true);
+  }
+
   const filters: { key: FilterType; label: string; icon: string }[] = [
     { key: 'all', label: t('inbox.todos'), icon: '📬' },
     { key: 'atencion', label: t('inbox.requiereAtencion'), icon: '⚠️' },
@@ -406,97 +423,117 @@ export default function InboxPage() {
       {/* Cola section */}
       {section === 'cola' && <ColaSection />}
 
-      {/* Bandeja section */}
+      {/* Bandeja section — split panel */}
       {section === 'bandeja' && (
-        <>
-          {/* Filter bar + search */}
-          <div className={styles.toolbar}>
-            <div className={styles.filterRow}>
-              {filters.map(f => (
-                <button
-                  key={f.key}
-                  className={`${styles.filterBtn} ${filter === f.key ? styles.filterBtnActive : ''}`}
-                  onClick={() => setFilter(f.key)}
-                >
-                  <span>{f.icon}</span>
-                  {f.label}
-                </button>
-              ))}
-            </div>
-            <div className={styles.searchWrap}>
-              <span className={styles.searchIcon}>🔍</span>
-              <input
-                type="text"
-                className={styles.searchInput}
-                placeholder={t('common.search')}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* Estado filter chips */}
-          <div className={styles.filterRow}>
-            {([
-              { key: '' as EstadoFilter, label: 'Todos los estados' },
-              { key: 'Nuevo' as EstadoFilter, label: '🔵 Nuevo' },
-              { key: 'Leido' as EstadoFilter, label: '👁 Leído' },
-              { key: 'Respondido' as EstadoFilter, label: '✅ Respondido' },
-              { key: 'Archivado' as EstadoFilter, label: '📁 Archivado' },
-            ]).map(opt => (
-              <button
-                key={opt.key}
-                className={`${styles.filterBtn} ${estadoFilter === opt.key ? styles.filterBtnActive : ''}`}
-                onClick={() => setEstadoFilter(opt.key)}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Count */}
-          {!isLoading && (
-            <div className={styles.resultCount}>
-              {sorted.length} {sorted.length === 1 ? 'mensaje' : 'mensajes'}
-            </div>
-          )}
-
-          {/* Card list */}
-          <div className={styles.cardList}>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className={styles.emailCard}>
-                  <div className={styles.emailCardHeader} style={{ pointerEvents: 'none' }}>
-                    <div className={styles.cardLeft}>
-                      <SkeletonBlock width="20px" height="20px" borderRadius="4px" />
-                    </div>
-                    <div className={styles.cardBody} style={{ gap: '8px', display: 'flex', flexDirection: 'column' }}>
-                      <SkeletonBlock width={`${55 + (i % 3) * 15}%`} height="14px" />
-                      <SkeletonBlock width="40%" height="12px" />
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : sorted.length === 0 ? (
-              <div className={styles.emptyState}>
-                <span className={styles.emptyIcon}>📭</span>
-                <p>{t('inbox.sinEmails')}</p>
+        <div className={styles.splitView}>
+          {/* Left: email list */}
+          <div className={`${styles.listPanel} ${isMobile && showDetail ? styles.mobileHidden : ''}`}>
+            {/* Filters */}
+            <div className={styles.listFilters}>
+              <div className={styles.filterRow}>
+                {filters.map(f => (
+                  <button
+                    key={f.key}
+                    className={`${styles.filterBtn} ${filter === f.key ? styles.filterBtnActive : ''}`}
+                    onClick={() => setFilter(f.key)}
+                  >
+                    <span>{f.icon}</span>
+                    {f.label}
+                  </button>
+                ))}
               </div>
-            ) : (
-              sorted.map((email, idx) => (
-                <div key={email.id} className={styles.cardEnter} style={{ animationDelay: `${Math.min(idx * 40, 400)}ms` }}>
-                <EmailCard
-                  email={email}
-                  isExpanded={expandedId === email.id}
-                  onToggle={() => setExpandedId(expandedId === email.id ? null : email.id)}
-                  onUpdate={(id, updates) => updateMutation.mutate({ id, updates })}
-                  isPending={updateMutation.isPending}
-                  />
+              <div className={styles.filterRow}>
+                {([
+                  { key: '' as EstadoFilter, label: 'Todos' },
+                  { key: 'Nuevo' as EstadoFilter, label: '🔵 Nuevo' },
+                  { key: 'Leido' as EstadoFilter, label: '👁 Leído' },
+                  { key: 'Respondido' as EstadoFilter, label: '✅ Respondido' },
+                  { key: 'Archivado' as EstadoFilter, label: '📁 Archivado' },
+                ]).map(opt => (
+                  <button
+                    key={opt.key}
+                    className={`${styles.filterBtn} ${estadoFilter === opt.key ? styles.filterBtnActive : ''}`}
+                    onClick={() => setEstadoFilter(opt.key)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <div className={styles.searchWrap}>
+                <span className={styles.searchIcon}>🔍</span>
+                <input
+                  type="text"
+                  className={styles.searchInput}
+                  placeholder={t('common.search')}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </div>
+              {!isLoading && (
+                <div className={styles.resultCount}>
+                  {sorted.length} {sorted.length === 1 ? 'mensaje' : 'mensajes'}
                 </div>
-              ))
-            )}
+              )}
+            </div>
+
+            {/* Email list */}
+            <div className={styles.listItems}>
+              {isLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className={styles.listItem} style={{ pointerEvents: 'none' }}>
+                    <SkeletonBlock width={`${55 + (i % 3) * 15}%`} height="14px" />
+                    <SkeletonBlock width="70%" height="12px" />
+                    <SkeletonBlock width="40%" height="11px" />
+                  </div>
+                ))
+              ) : sorted.length === 0 ? (
+                <div className={styles.emptyState}>
+                  <span className={styles.emptyIcon}>📭</span>
+                  <p>{t('inbox.sinEmails')}</p>
+                </div>
+              ) : (
+                sorted.map((email, idx) => {
+                  const isUnread = email.estado === 'Nuevo';
+                  const isSelected = selectedId === email.id;
+                  return (
+                    <button
+                      key={email.id}
+                      className={`${styles.listItem} ${isSelected ? styles.listItemActive : ''} ${isUnread ? styles.listItemUnread : ''} ${email.requiereAtencion ? styles.listItemAlert : ''}`}
+                      style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
+                      onClick={() => selectEmail(email)}
+                    >
+                      <div className={styles.listItemTop}>
+                        <span className={`${styles.listItemSubject} ${isUnread ? styles.listItemSubjectUnread : ''}`}>
+                          {email.asunto || '(sin asunto)'}
+                        </span>
+                        <span className={styles.listItemTime}>{timeAgo(email.fecha || email.createdTime)}</span>
+                      </div>
+                      <div className={styles.listItemBottom}>
+                        <span className={styles.listItemContact}>
+                          {email.direccion === 'Recibido' ? email.de : email.para}
+                        </span>
+                        <StatusBadge status={email.estado} />
+                      </div>
+                      {email.resumenIA && (
+                        <div className={styles.listItemSnippet}>{email.resumenIA}</div>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
           </div>
-        </>
+
+          {/* Right: detail panel */}
+          <div className={`${styles.detailPanel} ${isMobile && !showDetail ? styles.mobileHidden : ''}`}>
+            <DetailPanel
+              email={selectedEmail}
+              onUpdate={(id, updates) => updateMutation.mutate({ id, updates })}
+              isPending={updateMutation.isPending}
+              onBack={isMobile ? () => setShowDetail(false) : undefined}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

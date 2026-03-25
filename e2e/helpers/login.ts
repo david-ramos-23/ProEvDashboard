@@ -6,6 +6,9 @@ import { Page } from '@playwright/test';
 export const TEST_ADMIN_EMAIL = 'andara14+test-dashboard-admin@gmail.com';
 
 export async function loginAsAdmin(page: Page) {
+  // Block Google GSI script — it hangs in headless Chromium (FedCM not supported)
+  await page.route('**/accounts.google.com/gsi/**', (route) => route.abort());
+
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
   await page.reload();

@@ -115,7 +115,10 @@ export default function LoginPage({
       }
 
       // Trigger One Tap prompt for automatic sign-in
-      window.google.accounts.id.prompt();
+      // Skip in automated/headless environments where FedCM is unavailable
+      if (!navigator.webdriver) {
+        try { window.google.accounts.id.prompt(); } catch { /* FedCM not available */ }
+      }
     };
 
     if (window.google?.accounts?.id) {
