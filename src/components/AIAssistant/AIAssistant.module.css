@@ -316,8 +316,40 @@
   cursor: not-allowed;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .panel {
     width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    border-left: none;
+    border-radius: 0;
+  }
+
+  .panelHeader {
+    padding-top: calc(var(--space-md) + var(--safe-area-top));
+  }
+
+  .inputArea {
+    padding-bottom: calc(var(--space-md) + var(--safe-area-bottom));
+  }
+
+  .iconBtn {
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+    padding: 0;
+  }
+
+  .suggestionBtn {
+    min-height: var(--touch-target-min);
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .sendBtn {
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+  }
+
+  .backdropOpen {
+    background: rgba(0, 0, 0, 0.5);
   }
 }

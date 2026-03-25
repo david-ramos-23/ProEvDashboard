@@ -581,3 +581,109 @@
   transition: all var(--transition-fast);
   font-family: var(--font-family);
 }
+
+/* ============================
+   Mobile card layout for DataTable
+   ============================ */
+
+.mobileCardList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.mobileCard {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: rowFadeIn 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.mobileCardClickable {
+  cursor: pointer;
+}
+
+.mobileCardClickable:active {
+  background: var(--color-bg-card-hover);
+  transform: scale(0.98);
+}
+
+.mobileCardField {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mobileCardField:last-child {
+  border-bottom: none;
+}
+
+.mobileCardLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+
+.mobileCardValue {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  text-align: right;
+  min-width: 0;
+}
+
+@keyframes rowFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================
+   Mobile responsive overrides
+   ============================ */
+
+@media (max-width: 767px) {
+  .searchInput {
+    width: 100% !important;
+  }
+
+  .tableHeader {
+    flex-direction: column;
+    gap: var(--space-sm);
+    align-items: stretch;
+  }
+
+  .tableActions {
+    width: 100%;
+  }
+
+  .confirmPanel {
+    min-width: auto;
+    max-width: calc(100vw - 32px);
+    margin: var(--space-md);
+  }
+
+  .confirmActions {
+    flex-direction: column;
+  }
+
+  .confirmCancel,
+  .confirmOk {
+    width: 100%;
+    justify-content: center;
+    min-height: var(--touch-target-min);
+  }
+
+  .scrollTop {
+    right: var(--space-md) !important;
+    bottom: calc(20px + var(--safe-area-bottom));
+  }
+}

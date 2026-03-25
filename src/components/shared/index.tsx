@@ -7,6 +7,7 @@ import { ReactNode, memo, useState, useEffect, useRef, useMemo, useCallback } fr
 import { createPortal } from 'react-dom';
 import { ESTADO_COLORS, ESTADO_ICONS, REVISION_COLORS, PAGO_COLORS, EMAIL_COLORS } from '@/utils/constants';
 import { EstadoGeneral, EstadoRevision, EstadoPago, EstadoEmail } from '@/types';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import styles from './Shared.module.css';
 
 // ============================================================
@@ -420,6 +421,50 @@ export function DataTable<T extends { id: string }>({
   }, [data, sortKey, sortDir]);
 
   const hasHideableColumns = columns.some(c => c.hideable !== false && c.header);
+  const isMobile = useIsMobile();
+
+  // Mobile card rendering
+  const renderMobileCards = () => (
+    <div className={styles.mobileCardList}>
+      {isLoading ? (
+        Array.from({ length: 3 }).map((_, i) => (
+          <div key={`skeleton-${i}`} className={styles.mobileCard}>
+            {visibleColumns.slice(0, 3).map((col) => (
+              <div key={col.key} className={styles.mobileCardField}>
+                <div className={styles.skeletonCell} style={{ width: '30%', height: '12px' }} />
+                <div className={styles.skeletonCell} style={{ width: '50%', height: '14px' }} />
+              </div>
+            ))}
+          </div>
+        ))
+      ) : sortedData.length === 0 ? (
+        <div className={styles.emptyState}>
+          <div className={styles.emptyIcon}>{emptyIcon}</div>
+          <div className={styles.emptyText}>{emptyMessage}</div>
+        </div>
+      ) : (
+        sortedData.map((item, idx) => (
+          <div
+            key={item.id}
+            className={`${styles.mobileCard} ${onRowClick ? styles.mobileCardClickable : ''} ${styles.rowEnter}`}
+            style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
+            onClick={() => onRowClick?.(item)}
+          >
+            {visibleColumns.map((col) => (
+              <div key={col.key} className={styles.mobileCardField}>
+                <span className={styles.mobileCardLabel}>{col.header}</span>
+                <span className={styles.mobileCardValue}>
+                  {col.render
+                    ? col.render(item)
+                    : String((item as Record<string, unknown>)[col.key] ?? '—')}
+                </span>
+              </div>
+            ))}
+          </div>
+        ))
+      )}
+    </div>
+  );
 
   return (
     <div className={styles.tableWrapper}>
@@ -436,7 +481,7 @@ export function DataTable<T extends { id: string }>({
             />
           )}
           {actions}
-          {hasHideableColumns && (
+          {!isMobile && hasHideableColumns && (
             <div ref={colMenuRef} style={{ position: 'relative' }}>
               <button
                 type="button"
@@ -480,72 +525,74 @@ export function DataTable<T extends { id: string }>({
         </div>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table ref={tableRef} className={styles.table} style={{ tableLayout: Object.keys(colWidths).length > 0 ? 'fixed' : undefined }}>
-          <thead>
-            <tr>
-              {visibleColumns.map((col) => (
-                <th
-                  key={col.key}
-                  style={{ width: colWidths[col.key] ? `${colWidths[col.key]}px` : col.width, position: 'relative', minWidth: col.minWidth ?? 60 }}
-                  className={col.sortable ? styles.sortableHeader : undefined}
-                  onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                >
-                  {col.header}
-                  {col.sortable && (
-                    <span className={styles.sortIcon}>
-                      {sortKey === col.key ? (sortDir === 'asc' ? ' \u2191' : ' \u2193') : ' \u2195'}
-                    </span>
-                  )}
-                  <span
-                    className={styles.resizeHandle}
-                    onMouseDown={(e) => handleResizeStart(col.key, e)}
-                  />
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading ? (
-              Array.from({ length: 5 }).map((_, i) => (
-                <tr key={`skeleton-${i}`}>
-                  {visibleColumns.map((col, j) => (
-                    <td key={col.key}>
-                      <div className={styles.skeletonCell} style={{ width: SKELETON_WIDTHS[(i * visibleColumns.length + j) % SKELETON_WIDTHS.length] }} />
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : sortedData.length === 0 ? (
+      {isMobile ? renderMobileCards() : (
+        <div style={{ overflowX: 'auto' }}>
+          <table ref={tableRef} className={styles.table} style={{ tableLayout: Object.keys(colWidths).length > 0 ? 'fixed' : undefined }}>
+            <thead>
               <tr>
-                <td colSpan={visibleColumns.length}>
-                  <div className={styles.emptyState}>
-                    <div className={styles.emptyIcon}>{emptyIcon}</div>
-                    <div className={styles.emptyText}>{emptyMessage}</div>
-                  </div>
-                </td>
+                {visibleColumns.map((col) => (
+                  <th
+                    key={col.key}
+                    style={{ width: colWidths[col.key] ? `${colWidths[col.key]}px` : col.width, position: 'relative', minWidth: col.minWidth ?? 60 }}
+                    className={col.sortable ? styles.sortableHeader : undefined}
+                    onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                  >
+                    {col.header}
+                    {col.sortable && (
+                      <span className={styles.sortIcon}>
+                        {sortKey === col.key ? (sortDir === 'asc' ? ' \u2191' : ' \u2193') : ' \u2195'}
+                      </span>
+                    )}
+                    <span
+                      className={styles.resizeHandle}
+                      onMouseDown={(e) => handleResizeStart(col.key, e)}
+                    />
+                  </th>
+                ))}
               </tr>
-            ) : (
-              sortedData.map((item, idx) => (
-                <tr
-                  key={item.id}
-                  className={`${onRowClick ? styles.clickableRow : ''} ${styles.rowEnter}`}
-                  style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
-                  onClick={() => onRowClick?.(item)}
-                >
-                  {visibleColumns.map((col) => (
-                    <td key={col.key}>
-                      {col.render
-                        ? col.render(item)
-                        : String((item as Record<string, unknown>)[col.key] ?? '—')}
-                    </td>
-                  ))}
+            </thead>
+            <tbody>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={`skeleton-${i}`}>
+                    {visibleColumns.map((col, j) => (
+                      <td key={col.key}>
+                        <div className={styles.skeletonCell} style={{ width: SKELETON_WIDTHS[(i * visibleColumns.length + j) % SKELETON_WIDTHS.length] }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              ) : sortedData.length === 0 ? (
+                <tr>
+                  <td colSpan={visibleColumns.length}>
+                    <div className={styles.emptyState}>
+                      <div className={styles.emptyIcon}>{emptyIcon}</div>
+                      <div className={styles.emptyText}>{emptyMessage}</div>
+                    </div>
+                  </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                sortedData.map((item, idx) => (
+                  <tr
+                    key={item.id}
+                    className={`${onRowClick ? styles.clickableRow : ''} ${styles.rowEnter}`}
+                    style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
+                    onClick={() => onRowClick?.(item)}
+                  >
+                    {visibleColumns.map((col) => (
+                      <td key={col.key}>
+                        {col.render
+                          ? col.render(item)
+                          : String((item as Record<string, unknown>)[col.key] ?? '—')}
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

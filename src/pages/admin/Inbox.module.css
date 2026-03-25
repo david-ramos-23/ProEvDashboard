@@ -448,3 +448,62 @@
   font-size: 3rem;
   opacity: 0.4;
 }
+
+/* ============================
+   Mobile
+   ============================ */
+
+@media (max-width: 767px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .searchInput {
+    width: 100% !important;
+  }
+
+  .filterRow {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .filterRow::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filterBtn {
+    flex-shrink: 0;
+    min-height: var(--touch-target-min);
+  }
+
+  .sectionBtn {
+    min-height: var(--touch-target-min);
+    padding: 8px 14px;
+  }
+
+  .emailCardHeader {
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  .expandedBody {
+    padding: var(--space-md);
+  }
+
+  .emailMeta {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .quickActions {
+    flex-direction: column;
+  }
+
+  .quickActions button {
+    width: 100%;
+    min-height: var(--touch-target-min);
+    justify-content: center;
+  }
+}

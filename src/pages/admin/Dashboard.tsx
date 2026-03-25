@@ -116,7 +116,7 @@ export default function DashboardPage() {
       )}
 
       {/* Gráficos */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-lg)' }}>
+      <div className="grid-2col">
         {/* Alumnos por Estado */}
         <div className="card">
           <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600, marginBottom: 'var(--space-md)' }}>

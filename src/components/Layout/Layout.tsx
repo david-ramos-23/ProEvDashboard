@@ -13,6 +13,7 @@ import { useTranslation, Locale } from '@/i18n';
 import NotificationBell from '@/components/NotificationBell';
 import { ScrollToTop, DropdownMenu } from '@/components/shared';
 import { useTheme } from '@/hooks/useTheme';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useEdicion } from '@/context/EdicionContext';
 import AIAssistant from '@/components/AIAssistant/AIAssistant';
 import styles from './Layout.module.css';
@@ -48,7 +49,9 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
   const location = useLocation();
   const { t, locale, setLocale } = useTranslation();
   const { theme, toggleTheme } = useTheme();
+  const isMobile = useIsMobile();
   const [aiOpen, setAiOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [edicionOpen, setEdicionOpen] = useState(false);
   const edicionBtnRef = useRef<HTMLButtonElement>(null);
   const { ediciones, selectedNombre, setSelectedNombre } = useEdicion();
@@ -61,10 +64,23 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [location.pathname, isMobile]);
+
   return (
     <div className={styles.layout}>
+      {/* Mobile sidebar backdrop */}
+      {isMobile && (
+        <div
+          className={`${styles.sidebarBackdrop} ${sidebarOpen ? styles.sidebarBackdropOpen : ''}`}
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className={styles.sidebar}>
+      <aside className={`${styles.sidebar} ${isMobile && sidebarOpen ? styles.sidebarOpen : ''}`}>
         {/* Logo */}
         <div className={styles.logo}>
           <img
@@ -91,6 +107,28 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
           ))}
         </nav>
 
+        {/* Mobile-only: theme + language in sidebar footer */}
+        {isMobile && (
+          <div className={styles.sidebarFooterControls}>
+            <button
+              onClick={toggleTheme}
+              className={styles.sidebarControlBtn}
+              title={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
+            >
+              {theme === 'light' ? '🌙' : '☀️'}
+            </button>
+            {(['es', 'en'] as Locale[]).map(l => (
+              <button
+                key={l}
+                onClick={() => setLocale(l)}
+                className={`${styles.sidebarLangBtn} ${locale === l ? styles.sidebarLangBtnActive : ''}`}
+              >
+                {l.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Usuario */}
         <div className={styles.userSection}>
           <div className={styles.avatar}>{getInitials(userName)}</div>
@@ -115,9 +153,23 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
       {/* Contenido principal */}
       <main className={styles.main}>
         <header className={styles.header}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+          <div className={styles.headerLeft}>
+            {/* Mobile hamburger */}
+            {isMobile && (
+              <button
+                className={styles.hamburger}
+                onClick={() => setSidebarOpen(o => !o)}
+                aria-label="Abrir menú"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+            )}
             <h1 className={styles.pageTitle}>{pageTitle}</h1>
-            {showEdicionFilter && ediciones.length > 0 && (
+            {!isMobile && showEdicionFilter && ediciones.length > 0 && (
               <>
                 <button
                   ref={edicionBtnRef}
@@ -141,64 +193,66 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
               </>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              onClick={toggleTheme}
-              title={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
-              style={{
-                width: 36, height: 36, borderRadius: 'var(--radius-md)',
-                background: 'transparent', border: '1px solid var(--color-border)',
-                color: 'var(--color-text-muted)', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1.1rem', transition: 'all var(--transition-fast)',
-                fontFamily: 'var(--font-family)',
-              }}
-            >
-              {theme === 'light' ? '🌙' : '☀️'}
-            </button>
+          <div className={styles.headerRight}>
+            {/* Theme + language only visible on desktop */}
+            {!isMobile && (
+              <>
+                <button
+                  onClick={toggleTheme}
+                  className={styles.headerIconBtn}
+                  title={theme === 'light' ? 'Cambiar a modo oscuro' : 'Cambiar a modo claro'}
+                >
+                  {theme === 'light' ? '🌙' : '☀️'}
+                </button>
+                <div className={styles.langGroup}>
+                  {(['es', 'en'] as Locale[]).map(l => (
+                    <button
+                      key={l}
+                      onClick={() => setLocale(l)}
+                      className={`${styles.langBtn} ${locale === l ? styles.langBtnActive : ''}`}
+                    >
+                      {l.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
             <NotificationBell />
-            <div style={{ display: 'flex', gap: '4px' }}>
-            {(['es', 'en'] as Locale[]).map(l => (
-              <button
-                key={l}
-                onClick={() => setLocale(l)}
-                style={{
-                  padding: '4px 10px',
-                  fontSize: '0.75rem',
-                  fontWeight: locale === l ? 600 : 400,
-                  background: locale === l ? 'var(--color-accent-primary-glow)' : 'transparent',
-                  border: locale === l ? '1px solid rgba(12, 90, 69, 0.3)' : '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-sm)',
-                  color: locale === l ? 'var(--color-accent-primary)' : 'var(--color-text-muted)',
-                  cursor: 'pointer',
-                  fontFamily: 'var(--font-family)',
-                }}
-              >
-                {l === 'es' ? 'ES' : 'EN'}
-              </button>
-            ))}
-            </div>
             {/* AI Assistant toggle */}
             <button
               onClick={() => setAiOpen(o => !o)}
+              className={`${styles.headerIconBtn} ${styles.aiToggleBtn} ${aiOpen ? styles.aiToggleBtnActive : ''}`}
               title={aiOpen ? 'Cerrar asistente IA' : 'Abrir asistente IA'}
               aria-label="Abrir asistente IA"
-              style={{
-                width: 36, height: 36, borderRadius: 'var(--radius-md)',
-                background: aiOpen ? 'var(--color-accent-primary)' : 'transparent',
-                border: aiOpen ? 'none' : '1px solid var(--color-border)',
-                color: aiOpen ? 'white' : 'var(--color-text-muted)',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '1rem', transition: 'all var(--transition-fast)',
-                fontFamily: 'var(--font-family)',
-                fontWeight: 600,
-              }}
             >
               ✦
             </button>
           </div>
         </header>
+        {/* Mobile edition filter sub-bar */}
+        {isMobile && showEdicionFilter && ediciones.length > 0 && (
+          <div className={styles.mobileEdicionBar}>
+            <button
+              ref={edicionBtnRef}
+              className={`${styles.edicionSelect} ${styles.mobileEdicionSelect} ${edicionOpen ? styles.edicionSelectActive : ''}`}
+              onClick={() => setEdicionOpen(p => !p)}
+            >
+              {selectedNombre}{ediciones.find(e => e.nombre === selectedNombre)?.esEdicionActiva ? ' ★' : ''}
+            </button>
+            <DropdownMenu open={edicionOpen} onClose={() => setEdicionOpen(false)} triggerRef={edicionBtnRef} width={180}>
+              {ediciones.map(ed => (
+                <button
+                  key={ed.id}
+                  className={styles.edicionOption}
+                  style={ed.nombre === selectedNombre ? { background: 'var(--color-accent-primary-glow)', color: 'var(--color-accent-primary)' } : undefined}
+                  onClick={() => { setSelectedNombre(ed.nombre); setEdicionOpen(false); }}
+                >
+                  {ed.nombre}{ed.esEdicionActiva ? ' ★' : ''}
+                </button>
+              ))}
+            </DropdownMenu>
+          </div>
+        )}
         <div className={styles.content} key={location.pathname}>
           <Outlet />
         </div>

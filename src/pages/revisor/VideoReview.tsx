@@ -11,6 +11,7 @@ import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge, ConfirmD
 import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adapters/airtable/RevisionesAdapter';
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { formatDate, renderStars, timeAgo } from '@/utils/formatters';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import styles from './VideoReview.module.css';
 import { useTranslation } from '@/i18n';
 
@@ -82,7 +83,9 @@ function VideoPlayer({ url }: { url: string }) {
 export default function VideoReviewPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const isMobile = useIsMobile();
   const [selected, setSelected] = useState<RevisionVideo | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // Campos editables del detalle
@@ -106,6 +109,7 @@ export default function VideoReviewPage() {
     setFeedback(rev.feedback || '');
     setPuntuacion(rev.puntuacion || 0);
     setNotas(rev.notasInternas || '');
+    if (isMobile) setShowDetail(true);
   }
 
   // Auto-select first revision when data loads
@@ -161,7 +165,7 @@ export default function VideoReviewPage() {
       {/* Split view */}
       <div className={styles.splitView}>
         {/* Lista de pendientes */}
-        <div className={styles.list}>
+        <div className={`${styles.list} ${isMobile && showDetail ? styles.mobileHidden : ''}`}>
           <div className={styles.listHeader}>
             <h3>{t('videoReview.colaRevision')}</h3>
             <span className={styles.count}>{revisiones.length}</span>
@@ -207,9 +211,21 @@ export default function VideoReviewPage() {
         </div>
 
         {/* Detalle de revisión */}
-        <div className={styles.detail}>
+        <div className={`${styles.detail} ${isMobile && !showDetail ? styles.mobileHidden : ''}`}>
           {selected ? (
             <>
+              {/* Mobile back button */}
+              {isMobile && (
+                <button
+                  className={styles.backToListBtn}
+                  onClick={() => setShowDetail(false)}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                  {t('videoReview.colaRevision')}
+                </button>
+              )}
               {/* Header */}
               <div className={styles.detailHeader}>
                 <div>

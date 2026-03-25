@@ -348,3 +348,73 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================
+   Mobile: list/detail toggle
+   ============================ */
+
+.backToListBtn {
+  display: none;
+}
+
+.mobileHidden {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .splitView {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    gap: 0;
+  }
+
+  .list {
+    max-height: none;
+  }
+
+  .detail {
+    padding: var(--space-md);
+  }
+
+  .backToListBtn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    min-height: var(--touch-target-min);
+    font-family: var(--font-family);
+    transition: all var(--transition-fast);
+  }
+
+  .backToListBtn:active {
+    background: var(--color-bg-card-hover);
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actionBtn {
+    width: 100%;
+    justify-content: center;
+    min-height: var(--touch-target-min);
+  }
+
+  .videoEmbed,
+  .videoEmbedDrive,
+  .videoEmbedVertical,
+  .videoEmbedAuto {
+    max-width: 100%;
+  }
+
+  .star {
+    font-size: 2rem;
+    padding: var(--space-xs);
+  }
+}

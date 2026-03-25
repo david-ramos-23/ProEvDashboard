@@ -63,6 +63,7 @@ export default function AIAssistant({ isOpen, onToggle }: AIAssistantProps) {
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const touchStartX = useRef(0);
 
   useEffect(() => {
     if (isOpen) {
@@ -125,6 +126,11 @@ export default function AIAssistant({ isOpen, onToggle }: AIAssistantProps) {
       className={`${styles.panel} ${isOpen ? styles.panelOpen : ''}`}
       role="complementary"
       aria-label="Asistente IA ProEv"
+      onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+      onTouchEnd={(e) => {
+        const dx = e.changedTouches[0].clientX - touchStartX.current;
+        if (dx > 80) onToggle(); // swipe right to close
+      }}
     >
       {/* Header */}
       <div className={styles.panelHeader}>
