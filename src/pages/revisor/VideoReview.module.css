@@ -362,6 +362,15 @@
 }
 
 @media (max-width: 767px) {
+  .compactKpis {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: var(--space-sm) !important;
+  }
+
+  .compactKpis > div {
+    padding: var(--space-md) !important;
+  }
+
   .splitView {
     grid-template-columns: 1fr;
     min-height: auto;

@@ -7,11 +7,11 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatCard, DataTable, Column } from '@/components/shared';
-import { fetchDashboardStats } from '@/data/adapters/airtable/AlumnosAdapter';
-import { fetchPagosPorMes } from '@/data/adapters/airtable/PagosAdapter';
-import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
-import { fetchColaEmails } from '@/data/adapters/airtable/ColaEmailsAdapter';
-import { fetchInbox } from '@/data/adapters/airtable/InboxAdapter';
+import { fetchDashboardStats } from '@/data/adapters';
+import { fetchPagosPorMes } from '@/data/adapters';
+import { fetchHistorial } from '@/data/adapters';
+import { fetchColaEmails } from '@/data/adapters';
+import { fetchInbox } from '@/data/adapters';
 import { Historial } from '@/types';
 import { formatCurrency, formatNumber, timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
@@ -103,7 +103,7 @@ export default function DashboardPage() {
 
       {/* Stats informativas (no navegables) */}
       {stats && (
-        <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
           <StatCard
             label={t('dashboard.conversion')}
             value={`${stats.totalAlumnos > 0 ? Math.round((stats.totalPagados / stats.totalAlumnos) * 100) : 0}% pagados`}

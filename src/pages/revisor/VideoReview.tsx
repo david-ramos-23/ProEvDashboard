@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge, ConfirmDialog } from '@/components/shared';
-import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adapters/airtable/RevisionesAdapter';
+import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adapters';
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { formatDate, renderStars, timeAgo } from '@/utils/formatters';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -106,18 +106,19 @@ export default function VideoReviewPage() {
     queryFn: fetchRevisionStats,
   });
 
-  function selectRevision(rev: RevisionVideo) {
+  function selectRevision(rev: RevisionVideo, autoSelect = false) {
     setSelected(rev);
     setFeedback(rev.feedback || '');
     setPuntuacion(rev.puntuacion || 0);
     setNotas(rev.notasInternas || '');
-    if (isMobile) setShowDetail(true);
+    // Don't switch to detail on auto-select (mobile should show list first)
+    if (isMobile && !autoSelect) setShowDetail(true);
   }
 
-  // Auto-select first revision when data loads
+  // Auto-select first revision when data loads (don't show detail on mobile)
   useEffect(() => {
     if (revisiones.length > 0 && !selected) {
-      selectRevision(revisiones[0]);
+      selectRevision(revisiones[0], true);
     }
   }, [revisiones]);
 
@@ -152,7 +153,7 @@ export default function VideoReviewPage() {
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
       {/* KPIs */}
-      <KPIGrid columns={3}>
+      <KPIGrid columns={3} className={isMobile ? styles.compactKpis : undefined}>
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => <KPICardSkeleton key={i} />)
         ) : (

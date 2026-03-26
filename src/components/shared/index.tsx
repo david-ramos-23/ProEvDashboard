@@ -162,10 +162,11 @@ export function StatCard({ label, value, icon }: { label: string; value: string;
 interface KPIGridProps {
   children: ReactNode;
   columns?: 2 | 3 | 4 | 5;
+  className?: string;
 }
 
 /** Grid responsive para KPIs */
-export function KPIGrid({ children, columns = 4 }: KPIGridProps) {
+export function KPIGrid({ children, columns = 4, className }: KPIGridProps) {
   const colsClass = {
     2: styles.cols2,
     3: styles.cols3,
@@ -173,7 +174,7 @@ export function KPIGrid({ children, columns = 4 }: KPIGridProps) {
     5: styles.cols5,
   }[columns];
 
-  return <div className={`${styles.grid} ${colsClass}`}>{children}</div>;
+  return <div className={`${styles.grid} ${colsClass} ${className || ''}`}>{children}</div>;
 }
 
 // ============================================================
