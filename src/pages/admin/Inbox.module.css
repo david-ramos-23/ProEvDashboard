@@ -72,6 +72,160 @@
   flex-shrink: 0;
 }
 
+/* Segmented tabs */
+.segmentedTabs {
+  display: flex;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 2px;
+}
+
+.segmentedTab {
+  flex: 1;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-family);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  text-align: center;
+}
+
+.segmentedTab:hover {
+  color: var(--color-text-primary);
+}
+
+.segmentedTabActive {
+  background: var(--color-bg-card);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* Filter controls row */
+.filterControls {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+/* Estado dropdown */
+.estadoDropdown {
+  position: relative;
+}
+
+.estadoBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-family);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.estadoBtn:hover {
+  background: var(--color-bg-card-hover);
+  border-color: var(--color-border-hover);
+}
+
+.estadoBtnActive {
+  background: var(--color-accent-primary-glow);
+  border-color: rgba(12, 90, 69, 0.3);
+  color: var(--color-accent-primary);
+}
+
+.estadoMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 140px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: var(--z-dropdown);
+  overflow: hidden;
+  animation: dropIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.estadoMenuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 14px;
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.estadoMenuItem:hover {
+  background: var(--color-bg-card-hover);
+}
+
+.estadoMenuItemActive {
+  color: var(--color-accent-primary);
+  background: var(--color-accent-primary-glow);
+}
+
+/* Filter meta row */
+.filterMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.atencionToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-family);
+  background: transparent;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  color: var(--color-accent-warning);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.atencionToggle:hover {
+  background: rgba(217, 119, 6, 0.08);
+}
+
+.atencionToggleActive {
+  background: rgba(217, 119, 6, 0.12);
+  border-color: rgba(217, 119, 6, 0.5);
+}
+
+/* Legacy filter classes kept for Cola section */
 .filterRow {
   display: flex;
   gap: var(--space-xs);
@@ -504,6 +658,26 @@
   .sectionBtn {
     min-height: var(--touch-target-min);
     padding: 8px 14px;
+  }
+
+  .segmentedTab {
+    min-height: 36px;
+    padding: 6px 8px;
+    font-size: var(--font-size-xs);
+  }
+
+  .filterControls {
+    flex-direction: column;
+  }
+
+  .estadoBtn {
+    min-height: var(--touch-target-min);
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .atencionToggle {
+    min-height: var(--touch-target-min);
   }
 
   .listItem {

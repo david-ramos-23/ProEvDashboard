@@ -5,7 +5,7 @@
  * Cola: DataTable with approval flow (unchanged)
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { StatusBadge, SkeletonBlock, DataTable, Column, ConfirmDialog } from '@/components/shared';
 import { fetchInbox, updateInboxEmail } from '@/data/adapters';
@@ -18,14 +18,15 @@ import { ESTADO_EMAIL } from '@/utils/constants';
 import styles from './Inbox.module.css';
 
 type SectionType = 'bandeja' | 'cola';
-type FilterType = 'all' | 'atencion' | 'sinResponder' | 'Recibido' | 'Enviado';
+type DirectionTab = 'Recibido' | 'Enviado' | 'sinResponder';
 type EstadoFilter = '' | 'Nuevo' | 'Leido' | 'Respondido' | 'Archivado';
 
-function buildQueryFilters(filter: FilterType) {
-  if (filter === 'Recibido') return { direccion: 'Recibido' };
-  if (filter === 'Enviado') return { direccion: 'Enviado' };
-  if (filter === 'atencion') return { requiereAtencion: true };
-  return {};
+function buildQueryFilters(tab: DirectionTab, atencionOnly: boolean) {
+  const filters: Record<string, unknown> = {};
+  if (tab === 'Recibido') filters.direccion = 'Recibido';
+  if (tab === 'Enviado') filters.direccion = 'Enviado';
+  if (atencionOnly) filters.requiereAtencion = true;
+  return filters;
 }
 
 function sortEmails(emails: InboxEmail[]): InboxEmail[] {
@@ -349,13 +350,26 @@ export default function InboxPage() {
   const isMobile = useIsMobile();
 
   const [section, setSection] = useState<SectionType>('bandeja');
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [dirTab, setDirTab] = useState<DirectionTab>('Recibido');
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>('');
+  const [atencionOnly, setAtencionOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [search, setSearch] = useState('');
+  const [estadoDropdownOpen, setEstadoDropdownOpen] = useState(false);
+  const estadoRef = useRef<HTMLDivElement>(null);
 
-  const queryFilters = buildQueryFilters(filter);
+  // Close estado dropdown on outside click
+  useEffect(() => {
+    if (!estadoDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (estadoRef.current && !estadoRef.current.contains(e.target as Node)) setEstadoDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [estadoDropdownOpen]);
+
+  const queryFilters = buildQueryFilters(dirTab, atencionOnly);
 
   const { data: emails = [], isLoading } = useQuery({
     queryKey: ['inbox', queryFilters],
@@ -372,7 +386,7 @@ export default function InboxPage() {
   });
 
   const sorted = useMemo(() => {
-    let list = filter === 'sinResponder'
+    let list = dirTab === 'sinResponder'
       ? emails.filter(e => e.estado !== 'Respondido' && e.estado !== 'Archivado')
       : emails;
     if (estadoFilter) list = list.filter(e => e.estado === estadoFilter);
@@ -385,7 +399,9 @@ export default function InboxPage() {
       );
     }
     return sortEmails(list);
-  }, [emails, filter, estadoFilter, search]);
+  }, [emails, dirTab, estadoFilter, search]);
+
+  const atencionCount = useMemo(() => emails.filter(e => e.requiereAtencion).length, [emails]);
 
   const selectedEmail = sorted.find(e => e.id === selectedId) || null;
 
@@ -394,12 +410,18 @@ export default function InboxPage() {
     if (isMobile) setShowDetail(true);
   }
 
-  const filters: { key: FilterType; label: string; icon: string }[] = [
-    { key: 'all', label: t('inbox.todos'), icon: '📬' },
-    { key: 'atencion', label: t('inbox.requiereAtencion'), icon: '⚠️' },
-    { key: 'sinResponder', label: 'Sin responder', icon: '💬' },
-    { key: 'Recibido', label: t('inbox.recibidos'), icon: '📥' },
-    { key: 'Enviado', label: t('inbox.enviados'), icon: '📤' },
+  const directionTabs: { key: DirectionTab; label: string }[] = [
+    { key: 'Recibido', label: t('inbox.recibidos') },
+    { key: 'Enviado', label: t('inbox.enviados') },
+    { key: 'sinResponder', label: 'Sin responder' },
+  ];
+
+  const estadoOptions: { key: EstadoFilter; label: string }[] = [
+    { key: '', label: 'Todos' },
+    { key: 'Nuevo', label: 'Nuevo' },
+    { key: 'Leido', label: 'Leído' },
+    { key: 'Respondido', label: 'Respondido' },
+    { key: 'Archivado', label: 'Archivado' },
   ];
 
   return (
@@ -430,50 +452,73 @@ export default function InboxPage() {
           <div className={`${styles.listPanel} ${isMobile && showDetail ? styles.mobileHidden : ''}`}>
             {/* Filters */}
             <div className={styles.listFilters}>
-              <div className={styles.filterRow}>
-                {filters.map(f => (
+              {/* Segmented tabs: Recibidos | Enviados | Sin responder */}
+              <div className={styles.segmentedTabs}>
+                {directionTabs.map(tab => (
                   <button
-                    key={f.key}
-                    className={`${styles.filterBtn} ${filter === f.key ? styles.filterBtnActive : ''}`}
-                    onClick={() => setFilter(f.key)}
+                    key={tab.key}
+                    className={`${styles.segmentedTab} ${dirTab === tab.key ? styles.segmentedTabActive : ''}`}
+                    onClick={() => setDirTab(tab.key)}
                   >
-                    <span>{f.icon}</span>
-                    {f.label}
+                    {tab.label}
                   </button>
                 ))}
               </div>
-              <div className={styles.filterRow}>
-                {([
-                  { key: '' as EstadoFilter, label: 'Todos' },
-                  { key: 'Nuevo' as EstadoFilter, label: '🔵 Nuevo' },
-                  { key: 'Leido' as EstadoFilter, label: '👁 Leído' },
-                  { key: 'Respondido' as EstadoFilter, label: '✅ Respondido' },
-                  { key: 'Archivado' as EstadoFilter, label: '📁 Archivado' },
-                ]).map(opt => (
+
+              {/* Estado dropdown + search row */}
+              <div className={styles.filterControls}>
+                <div ref={estadoRef} className={styles.estadoDropdown}>
                   <button
-                    key={opt.key}
-                    className={`${styles.filterBtn} ${estadoFilter === opt.key ? styles.filterBtnActive : ''}`}
-                    onClick={() => setEstadoFilter(opt.key)}
+                    className={`${styles.estadoBtn} ${estadoFilter ? styles.estadoBtnActive : ''}`}
+                    onClick={() => setEstadoDropdownOpen(o => !o)}
                   >
-                    {opt.label}
+                    {estadoFilter || 'Estado'}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
                   </button>
-                ))}
-              </div>
-              <div className={styles.searchWrap}>
-                <span className={styles.searchIcon}>🔍</span>
-                <input
-                  type="text"
-                  className={styles.searchInput}
-                  placeholder={t('common.search')}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </div>
-              {!isLoading && (
-                <div className={styles.resultCount}>
-                  {sorted.length} {sorted.length === 1 ? 'mensaje' : 'mensajes'}
+                  {estadoDropdownOpen && (
+                    <div className={styles.estadoMenu}>
+                      {estadoOptions.map(opt => (
+                        <button
+                          key={opt.key}
+                          className={`${styles.estadoMenuItem} ${estadoFilter === opt.key ? styles.estadoMenuItemActive : ''}`}
+                          onClick={() => { setEstadoFilter(opt.key); setEstadoDropdownOpen(false); }}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+                <div className={styles.searchWrap}>
+                  <span className={styles.searchIcon}>🔍</span>
+                  <input
+                    type="text"
+                    className={styles.searchInput}
+                    placeholder={t('common.search')}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Attention toggle + count */}
+              <div className={styles.filterMeta}>
+                {atencionCount > 0 && (
+                  <button
+                    className={`${styles.atencionToggle} ${atencionOnly ? styles.atencionToggleActive : ''}`}
+                    onClick={() => setAtencionOnly(o => !o)}
+                  >
+                    ⚠️ {atencionCount} {t('inbox.requiereAtencion')}
+                  </button>
+                )}
+                {!isLoading && (
+                  <span className={styles.resultCount}>
+                    {sorted.length} {sorted.length === 1 ? 'mensaje' : 'mensajes'}
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Email list */}
