@@ -18,7 +18,7 @@ import { ESTADO_EMAIL } from '@/utils/constants';
 import styles from './Inbox.module.css';
 
 type SectionType = 'bandeja' | 'cola';
-type DirectionTab = 'Recibido' | 'Enviado' | 'sinResponder';
+type DirectionTab = 'Recibido' | 'Enviado';
 type EstadoFilter = '' | 'Nuevo' | 'Leido' | 'Respondido' | 'Archivado';
 
 function buildQueryFilters(tab: DirectionTab, atencionOnly: boolean) {
@@ -386,9 +386,7 @@ export default function InboxPage() {
   });
 
   const sorted = useMemo(() => {
-    let list = dirTab === 'sinResponder'
-      ? emails.filter(e => e.estado !== 'Respondido' && e.estado !== 'Archivado')
-      : emails;
+    let list = emails;
     if (estadoFilter) list = list.filter(e => e.estado === estadoFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -413,7 +411,6 @@ export default function InboxPage() {
   const directionTabs: { key: DirectionTab; label: string }[] = [
     { key: 'Recibido', label: t('inbox.recibidos') },
     { key: 'Enviado', label: t('inbox.enviados') },
-    { key: 'sinResponder', label: 'Sin responder' },
   ];
 
   const estadoOptions: { key: EstadoFilter; label: string }[] = [
