@@ -386,7 +386,8 @@ export default function InboxPage() {
   });
 
   const sorted = useMemo(() => {
-    let list = emails;
+    // Always exclude deleted emails
+    let list = emails.filter(e => e.estado !== 'Eliminado');
     if (estadoFilter) list = list.filter(e => e.estado === estadoFilter);
     if (search.trim()) {
       const q = search.toLowerCase();
