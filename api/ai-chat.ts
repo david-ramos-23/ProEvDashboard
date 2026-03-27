@@ -14,6 +14,29 @@ const AIRTABLE_PAT = process.env.AIRTABLE_PAT;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const AIRTABLE_BASE_URL = 'https://api.airtable.com/v0';
 
+// ── Auth helpers ──────────────────────────────────────────────────────────
+
+const AUTHORIZED_USERS: Record<string, { role: string }> = {
+  'andara14@gmail.com': { role: 'admin' },
+  'david@dravaautomations.com': { role: 'admin' },
+  'proevolutioncourse@gmail.com': { role: 'admin' },
+  'alonsoynoelia17@gmail.com': { role: 'revisor' },
+};
+const TEST_USER_PATTERN = /^andara14\+test-.*@gmail\.com$/i;
+const ADMIN_ALIAS_PATTERN = /^andara14\+admin@gmail\.com$/i;
+const REVISOR_ALIAS_PATTERN = /^andara14\+revisor@gmail\.com$/i;
+
+function isAuthorizedSession(email: string | undefined): boolean {
+  if (!email) return false;
+  const e = email.toLowerCase().trim();
+  return !!AUTHORIZED_USERS[e] || TEST_USER_PATTERN.test(e) || ADMIN_ALIAS_PATTERN.test(e) || REVISOR_ALIAS_PATTERN.test(e);
+}
+
+/** Sanitize a value for safe interpolation into Airtable formulas */
+function sanitizeForFormula(value: unknown): string {
+  return String(value ?? '').replace(/'/g, "\\'").replace(/[\\{}()\[\]]/g, '');
+}
+
 const TABLES = {
   ALUMNOS: 'tblmfv5beVBGOZ2sb',
   REVISIONES: 'tbluWapTseCcfcfXc',
@@ -173,9 +196,9 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
     switch (name) {
       case 'search_alumnos': {
         const formulas: string[] = [];
-        if (input.estado) formulas.push(`{Estado General} = '${input.estado}'`);
+        if (input.estado) formulas.push(`{Estado General} = '${sanitizeForFormula(input.estado)}'`);
         if (input.search) {
-          const s = String(input.search).replace(/'/g, "\\'");
+          const s = sanitizeForFormula(input.search);
           formulas.push(`OR(FIND(LOWER('${s}'), LOWER({Nombre})), FIND(LOWER('${s}'), LOWER({Email})))`);
         }
         const filterByFormula = formulas.length > 1
@@ -214,7 +237,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
 
       case 'list_inbox': {
         const formulas: string[] = [];
-        if (input.direccion) formulas.push(`{Direccion} = '${input.direccion}'`);
+        if (input.direccion) formulas.push(`{Direccion} = '${sanitizeForFormula(input.direccion)}'`);
         if (input.requiereAtencion) formulas.push(`{Requiere Atencion} = TRUE()`);
         const url = new URL(`${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${TABLES.INBOX}`);
         url.searchParams.set('maxRecords', String(Number(input.limit) || 10));
@@ -229,8 +252,8 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
 
       case 'list_revisiones': {
         const formulas: string[] = [];
-        if (input.alumnoId) formulas.push(`FIND('${input.alumnoId}', ARRAYJOIN({Alumno}))`);
-        if (input.estado) formulas.push(`{Estado de Revisión} = '${input.estado}'`);
+        if (input.alumnoId) formulas.push(`FIND('${sanitizeForFormula(input.alumnoId)}', ARRAYJOIN({Alumno}))`);
+        if (input.estado) formulas.push(`{Estado de Revisión} = '${sanitizeForFormula(input.estado)}'`);
         const url = new URL(`${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${TABLES.REVISIONES}`);
         url.searchParams.set('maxRecords', String(Number(input.limit) || 10));
         if (formulas.length > 0) url.searchParams.set('filterByFormula', formulas.length === 1 ? formulas[0] : `AND(${formulas.join(', ')})`);
@@ -242,7 +265,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       case 'list_pagos': {
         const url = new URL(`${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${TABLES.PAGOS}`);
         url.searchParams.set('maxRecords', String(Number(input.limit) || 10));
-        if (input.alumnoId) url.searchParams.set('filterByFormula', `FIND('${input.alumnoId}', ARRAYJOIN({Alumno}))`);
+        if (input.alumnoId) url.searchParams.set('filterByFormula', `FIND('${sanitizeForFormula(input.alumnoId)}', ARRAYJOIN({Alumno}))`);
         const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${AIRTABLE_PAT}` } });
         const data = await res.json();
         return JSON.stringify((data.records || []).map((r: Record<string, unknown>) => ({ id: r.id, ...(r.fields as object) })));
@@ -251,7 +274,7 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       case 'list_cola_emails': {
         const url = new URL(`${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${TABLES.COLA_EMAILS}`);
         url.searchParams.set('maxRecords', String(Number(input.limit) || 10));
-        if (input.estado) url.searchParams.set('filterByFormula', `{Estado} = '${input.estado}'`);
+        if (input.estado) url.searchParams.set('filterByFormula', `{Estado} = '${sanitizeForFormula(input.estado)}'`);
         const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${AIRTABLE_PAT}` } });
         const data = await res.json();
         return JSON.stringify((data.records || []).map((r: Record<string, unknown>) => ({ id: r.id, ...(r.fields as object) })));
@@ -281,6 +304,12 @@ type OAIMessage = { role: string; content: string | null; tool_calls?: unknown[]
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Authenticate: require valid session email in header
+  const sessionEmail = req.headers['x-proev-session'] as string | undefined;
+  if (!isAuthorizedSession(sessionEmail)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 
   if (!OPENROUTER_API_KEY || !AIRTABLE_PAT || !AIRTABLE_BASE_ID) {
     return res.status(500).json({ error: 'Server misconfigured: missing API credentials' });

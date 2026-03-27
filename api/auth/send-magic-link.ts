@@ -9,7 +9,10 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const MAGIC_LINK_SECRET = process.env.MAGIC_LINK_SECRET || crypto.randomBytes(32).toString('hex');
+const MAGIC_LINK_SECRET = process.env.MAGIC_LINK_SECRET;
+if (!MAGIC_LINK_SECRET) {
+  console.error('CRITICAL: MAGIC_LINK_SECRET env var is not set');
+}
 
 // ── Authorized users (mirrors AuthService.ts) ──────────────────────────────
 const AUTHORIZED_USERS: Record<string, { role: string; name: string }> = {
@@ -20,8 +23,8 @@ const AUTHORIZED_USERS: Record<string, { role: string; name: string }> = {
 };
 
 const TEST_USER_PATTERN = /^andara14\+test-.*@gmail\.com$/i;
-const ADMIN_ALIAS_PATTERN = /\+admin@/i;
-const REVISOR_ALIAS_PATTERN = /\+revisor@/i;
+const ADMIN_ALIAS_PATTERN = /^andara14\+admin@gmail\.com$/i;
+const REVISOR_ALIAS_PATTERN = /^andara14\+revisor@gmail\.com$/i;
 
 function isAuthorized(email: string): boolean {
   if (TEST_USER_PATTERN.test(email)) return true;
@@ -31,6 +34,7 @@ function isAuthorized(email: string): boolean {
 }
 
 function createToken(email: string): string {
+  if (!MAGIC_LINK_SECRET) throw new Error('MAGIC_LINK_SECRET not configured');
   const payload = Buffer.from(JSON.stringify({
     email,
     exp: Date.now() + 10 * 60 * 1000, // 10 min
@@ -81,7 +85,10 @@ function buildEmailHtml(magicLink: string, name: string): string {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = ['https://dashboard-eight-jade-69.vercel.app', 'https://proev-dashboard.dravaautomations.com', 'http://localhost:5173', 'http://localhost:4173'];
+  const reqOrigin = req.headers['origin'] as string | undefined;
+  const corsOrigin = reqOrigin && allowedOrigins.some(o => reqOrigin.startsWith(o)) ? reqOrigin : allowedOrigins[0];
+  res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();

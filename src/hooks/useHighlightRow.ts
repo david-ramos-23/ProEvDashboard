@@ -12,7 +12,7 @@ export function useHighlightRow() {
 
   useEffect(() => {
     const highlightId = searchParams.get('highlight');
-    if (!highlightId) return;
+    if (!highlightId || !/^rec[a-zA-Z0-9]+$/.test(highlightId)) return;
 
     // Give the page time to render data
     const timer = setTimeout(() => {

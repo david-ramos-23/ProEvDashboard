@@ -7,6 +7,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import DOMPurify from 'dompurify';
 import { StatusBadge, SkeletonBlock, DataTable, Column, ConfirmDialog } from '@/components/shared';
 import { fetchInbox, updateInboxEmail } from '@/data/adapters';
 import { fetchColaEmails, aprobarEmail } from '@/data/adapters';
@@ -59,13 +60,7 @@ function DetailPanel({ email, onUpdate, isPending, onBack }: DetailPanelProps) {
 
   // Sync respuesta when email changes
   const emailId = email?.id;
-  useState(() => { setRespuesta(email?.respuestaFinal || ''); });
-  // Reset on email change
-  if (email && respuesta === '' && email.respuestaFinal) {
-    // handled by memo below
-  }
-
-  useMemo(() => {
+  useEffect(() => {
     setRespuesta(email?.respuestaFinal || '');
   }, [emailId]);
 
@@ -127,7 +122,7 @@ function DetailPanel({ email, onUpdate, isPending, onBack }: DetailPanelProps) {
         {email.contenidoHtml ? (
           <div
             className={styles.emailBodyText}
-            dangerouslySetInnerHTML={{ __html: email.contenidoHtml }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(email.contenidoHtml) }}
           />
         ) : (
           <pre className={styles.emailBodyText}>{email.contenido || '(sin contenido)'}</pre>
@@ -283,7 +278,7 @@ function ColaSection() {
       });
     }
     return cols;
-  }, [colaTab, approving]);
+  }, [colaTab, approving, t]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>

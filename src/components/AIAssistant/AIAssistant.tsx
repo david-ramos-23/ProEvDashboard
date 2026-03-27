@@ -8,16 +8,28 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import DOMPurify from 'dompurify';
 import styles from './AIAssistant.module.css';
+
+/** Escape HTML entities to prevent XSS before markdown conversion */
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 /** Lightweight markdown-to-HTML for assistant responses */
 function renderMarkdown(text: string): string {
-  return text
-    // code blocks
-    .replace(/```[\s\S]*?```/g, (m) => {
-      const code = m.slice(3, -3).replace(/^\w*\n/, '');
-      return `<pre><code>${code.replace(/</g, '&lt;')}</code></pre>`;
-    })
+  // Extract code blocks first (preserve their content raw)
+  const codeBlocks: string[] = [];
+  let safe = text.replace(/```[\s\S]*?```/g, (m) => {
+    const code = m.slice(3, -3).replace(/^\w*\n/, '');
+    codeBlocks.push(`<pre><code>${escapeHtml(code)}</code></pre>`);
+    return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+  });
+
+  // Escape remaining HTML entities
+  safe = escapeHtml(safe);
+
+  safe = safe
     // inline code
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     // bold
@@ -32,6 +44,13 @@ function renderMarkdown(text: string): string {
     // line breaks (double newline = paragraph break)
     .replace(/\n\n/g, '<br/><br/>')
     .replace(/\n/g, '<br/>');
+
+  // Restore code blocks
+  codeBlocks.forEach((block, i) => {
+    safe = safe.replace(`__CODE_BLOCK_${i}__`, block);
+  });
+
+  return DOMPurify.sanitize(safe);
 }
 
 interface Message {
@@ -85,9 +104,13 @@ export default function AIAssistant({ isOpen, onToggle }: AIAssistantProps) {
     setLoading(true);
 
     try {
+      const session = localStorage.getItem('proev_session');
+      const sessionToken = session ? JSON.parse(session)?.email : undefined;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (sessionToken) headers['X-ProEv-Session'] = sessionToken;
       const res = await fetch(AI_CHAT_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
           pageContext: location.pathname,

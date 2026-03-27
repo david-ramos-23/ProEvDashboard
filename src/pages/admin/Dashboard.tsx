@@ -2,7 +2,7 @@
  * Dashboard Admin — Vista principal con KPIs, gráficos y actividad reciente.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useCallback, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -18,6 +18,23 @@ import { useTranslation } from '@/i18n';
 import { useEdicion } from '@/context/EdicionContext';
 import { ESTADO, ESTADO_EMAIL } from '@/utils/constants';
 import { useHighlightRow } from '@/hooks/useHighlightRow';
+
+/** Hook to get theme-aware Recharts colors */
+function useChartTheme() {
+  const subscribe = useCallback((cb: () => void) => {
+    const obs = new MutationObserver(cb);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
+  const isDark = useSyncExternalStore(subscribe, () => document.documentElement.getAttribute('data-theme') === 'dark');
+  return {
+    tickFill: isDark ? '#A0A0A0' : '#4A4A4A',
+    gridStroke: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    tooltipBg: isDark ? '#2A2A2A' : '#FFFFFF',
+    tooltipBorder: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(169,169,169,0.4)',
+    tooltipLabel: isDark ? '#F0F0F0' : '#1A1A1A',
+  };
+}
 
 /** Colores hex reales para los gráficos (Recharts no soporta CSS vars) */
 const CHART_COLORS: Record<string, string> = {
@@ -37,6 +54,7 @@ const CHART_COLORS: Record<string, string> = {
 export default function DashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const chartTheme = useChartTheme();
   useHighlightRow();
 
   const { selectedNombre } = useEdicion();
@@ -73,7 +91,7 @@ export default function DashboardPage() {
     { key: 'createdTime', header: 'Hace', width: '100px', sortable: true, minWidth: 70,
       render: (h) => <span style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem' }}>{timeAgo(h.createdTime)}</span>
     },
-  ], []);
+  ], [t]);
 
   // Datos para el gráfico de barras
   const estadosChartData = stats
@@ -129,10 +147,10 @@ export default function DashboardPage() {
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={estadosChartData} layout="vertical" margin={{ left: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                <XAxis type="number" tick={{ fill: '#4A4A4A', fontSize: 12 }} />
-                <YAxis dataKey="name" type="category" width={130} tick={{ fill: '#4A4A4A', fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid rgba(169,169,169,0.4)', borderRadius: 8 }} labelStyle={{ color: '#1A1A1A' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} />
+                <XAxis type="number" tick={{ fill: chartTheme.tickFill, fontSize: 12 }} />
+                <YAxis dataKey="name" type="category" width={130} tick={{ fill: chartTheme.tickFill, fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: chartTheme.tooltipBg, border: chartTheme.tooltipBorder, borderRadius: 8 }} labelStyle={{ color: chartTheme.tooltipLabel }} />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                   {estadosChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -153,10 +171,10 @@ export default function DashboardPage() {
           ) : pagosMes.length > 0 ? (
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={pagosMes}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-                <XAxis dataKey="mes" tick={{ fill: '#4A4A4A', fontSize: 12 }} />
-                <YAxis tick={{ fill: '#4A4A4A', fontSize: 12 }} />
-                <Tooltip contentStyle={{ background: '#FFFFFF', border: '1px solid rgba(169,169,169,0.4)', borderRadius: 8 }} formatter={(value: number) => [formatCurrency(Number(value)), 'Total']} />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} />
+                <XAxis dataKey="mes" tick={{ fill: chartTheme.tickFill, fontSize: 12 }} />
+                <YAxis tick={{ fill: chartTheme.tickFill, fontSize: 12 }} />
+                <Tooltip contentStyle={{ background: chartTheme.tooltipBg, border: chartTheme.tooltipBorder, borderRadius: 8 }} formatter={(value: number) => [formatCurrency(Number(value)), 'Total']} />
                 <Bar dataKey="total" fill="#0C5A45" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

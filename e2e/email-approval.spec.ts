@@ -39,10 +39,9 @@ test.describe('Email Approval', () => {
     await expect(page.locator('text=Mensaje')).toBeVisible({ timeout: 10000 });
   });
 
-  test('botones Aprobar y Rechazar están presentes', async ({ page }) => {
+  test('botón Aprobar está presente', async ({ page }) => {
     await page.waitForTimeout(3000);
     await expect(page.locator('button:has-text("Aprobar y Enviar")')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('button:has-text("Rechazar")')).toBeVisible();
   });
 
   test('seleccionar otro email de la lista actualiza el panel', async ({ page }) => {

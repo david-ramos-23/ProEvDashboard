@@ -6,7 +6,7 @@ import { useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DataTable, StatusBadge, Column, DropdownMenu } from '@/components/shared';
-import { fetchAlumnos } from '@/data/adapters/airtable/AlumnosAdapter';
+import { fetchAlumnos } from '@/data/adapters';
 import { Alumno, EstadoGeneral } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { ESTADO_ICONS, ESTADO } from '@/utils/constants';
@@ -162,7 +162,7 @@ export default function AlumnosPage() {
       key: 'ultimaModificacion', header: t('alumnos.lastActivity'), width: '120px', sortable: true, minWidth: 90,
       render: (a) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(a.ultimaModificacion)}</span>,
     },
-  ], []);
+  ], [t]);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>

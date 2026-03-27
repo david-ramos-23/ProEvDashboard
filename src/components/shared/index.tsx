@@ -649,15 +649,18 @@ export function DropdownMenu({ open, onClose, triggerRef, children, width = 240,
     if (!open || !triggerRef.current) return;
     const triggerRect = triggerRef.current.getBoundingClientRect();
     const alignRect = alignRef?.current?.getBoundingClientRect();
-    // Align right edge of dropdown with right edge of alignRef (or trigger)
     const rightEdge = alignRect ? alignRect.right : triggerRect.right;
     let left = rightEdge - width;
-    // If it goes off the left edge, push right
     if (left < 8) left = 8;
-    // If it goes off the right edge, push left
     if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
     setPos({ top: triggerRect.bottom + 6 + window.scrollY, left });
   }, [open, triggerRef, width, alignRef]);
+
+  // Set aria-expanded on trigger
+  useEffect(() => {
+    if (triggerRef.current) triggerRef.current.setAttribute('aria-expanded', String(open));
+    if (open && triggerRef.current) triggerRef.current.setAttribute('aria-haspopup', 'menu');
+  }, [open, triggerRef]);
 
   useEffect(() => {
     if (!open) return;
@@ -672,7 +675,21 @@ export function DropdownMenu({ open, onClose, triggerRef, children, width = 240,
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      // Arrow key navigation between menu items
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const items = dropRef.current?.querySelectorAll<HTMLElement>('button, [role="menuitem"], a');
+        if (!items?.length) return;
+        const active = document.activeElement as HTMLElement;
+        const idx = Array.from(items).indexOf(active);
+        const next = e.key === 'ArrowDown'
+          ? items[(idx + 1) % items.length]
+          : items[(idx - 1 + items.length) % items.length];
+        next?.focus();
+      }
+    };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
@@ -680,7 +697,7 @@ export function DropdownMenu({ open, onClose, triggerRef, children, width = 240,
   if (!open) return null;
 
   return createPortal(
-    <div ref={dropRef} className={styles.dropdownPortal} style={{ top: pos.top, left: pos.left, width }}>
+    <div ref={dropRef} className={styles.dropdownPortal} role="menu" style={{ top: pos.top, left: pos.left, width }}>
       {children}
     </div>,
     document.body
@@ -720,10 +737,27 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
+    // Focus the cancel button on open
+    const panel = dialogRef.current;
+    if (panel) {
+      const firstBtn = panel.querySelector<HTMLElement>('button');
+      firstBtn?.focus();
+    }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Escape') { onCancel(); return; }
+      // Trap focus within the dialog
+      if (e.key === 'Tab' && panel) {
+        const focusable = panel.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -734,9 +768,11 @@ export function ConfirmDialog({
   return (
     <div className={styles.confirmOverlay} onClick={onCancel}>
       <div
+        ref={dialogRef}
         className={styles.confirmPanel}
         onClick={(e) => e.stopPropagation()}
         role="alertdialog"
+        aria-modal="true"
         aria-labelledby="confirm-title"
         aria-describedby="confirm-message"
       >

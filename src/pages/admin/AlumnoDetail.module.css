@@ -105,11 +105,11 @@
 .tabActive {
   color: var(--color-accent-primary-hover);
   background: var(--color-accent-primary-glow);
-  border-color: rgba(99, 102, 241, 0.3);
+  border-color: rgba(12, 90, 69, 0.3);
 }
 
 .tabCount {
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(12, 90, 69, 0.2);
   color: var(--color-accent-primary);
   font-size: var(--font-size-xs);
   padding: 1px 6px;

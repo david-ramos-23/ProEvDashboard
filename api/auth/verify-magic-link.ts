@@ -8,7 +8,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 
-const MAGIC_LINK_SECRET = process.env.MAGIC_LINK_SECRET || crypto.randomBytes(32).toString('hex');
+const MAGIC_LINK_SECRET = process.env.MAGIC_LINK_SECRET;
+if (!MAGIC_LINK_SECRET) {
+  console.error('CRITICAL: MAGIC_LINK_SECRET env var is not set');
+}
 
 // ── Authorized users (mirrors AuthService.ts) ──────────────────────────────
 const AUTHORIZED_USERS: Record<string, { role: string; name: string }> = {
@@ -19,8 +22,8 @@ const AUTHORIZED_USERS: Record<string, { role: string; name: string }> = {
 };
 
 const TEST_USER_PATTERN = /^andara14\+test-.*@gmail\.com$/i;
-const ADMIN_ALIAS_PATTERN = /\+admin@/i;
-const REVISOR_ALIAS_PATTERN = /\+revisor@/i;
+const ADMIN_ALIAS_PATTERN = /^andara14\+admin@gmail\.com$/i;
+const REVISOR_ALIAS_PATTERN = /^andara14\+revisor@gmail\.com$/i;
 
 function resolveUser(email: string): { role: string; name: string } | null {
   if (TEST_USER_PATTERN.test(email)) return { role: 'admin', name: 'Test User' };
@@ -30,6 +33,7 @@ function resolveUser(email: string): { role: string; name: string } | null {
 }
 
 function verifyToken(token: string): { email: string } | null {
+  if (!MAGIC_LINK_SECRET) return null;
   const dotIdx = token.lastIndexOf('.');
   if (dotIdx === -1) return null;
 
@@ -37,7 +41,11 @@ function verifyToken(token: string): { email: string } | null {
   const sig = token.slice(dotIdx + 1);
 
   const expected = crypto.createHmac('sha256', MAGIC_LINK_SECRET).update(data).digest('base64url');
-  if (sig !== expected) return null;
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+  } catch {
+    return null; // different lengths
+  }
 
   try {
     const payload = JSON.parse(Buffer.from(data, 'base64url').toString());
@@ -51,7 +59,10 @@ function verifyToken(token: string): { email: string } | null {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = ['https://dashboard-eight-jade-69.vercel.app', 'https://proev-dashboard.dravaautomations.com', 'http://localhost:5173', 'http://localhost:4173'];
+  const reqOrigin = req.headers['origin'] as string | undefined;
+  const corsOrigin = reqOrigin && allowedOrigins.some(o => reqOrigin.startsWith(o)) ? reqOrigin : allowedOrigins[0];
+  res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();

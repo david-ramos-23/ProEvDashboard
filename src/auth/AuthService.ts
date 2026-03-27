@@ -65,12 +65,12 @@ const TEST_USER_PATTERN = /^andara14\+test-.*@gmail\.com$/i;
 /**
  * Patrón para detectar alias de admin con +admin
  */
-const ADMIN_ALIAS_PATTERN = /\+admin@/i;
+const ADMIN_ALIAS_PATTERN = /^andara14\+admin@gmail\.com$/i;
 
 /**
  * Patrón para detectar alias de revisor
  */
-const REVISOR_ALIAS_PATTERN = /\+revisor@/i;
+const REVISOR_ALIAS_PATTERN = /^andara14\+revisor@gmail\.com$/i;
 
 // ============================================================
 // API Pública

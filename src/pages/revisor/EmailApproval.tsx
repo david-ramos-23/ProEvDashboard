@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge, ConfirmDialog } from '@/components/shared';
-import { fetchColaEmails, aprobarEmail } from '@/data/adapters/airtable/ColaEmailsAdapter';
+import { fetchColaEmails, aprobarEmail } from '@/data/adapters';
 import { ColaEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
@@ -166,9 +166,7 @@ export default function EmailApprovalPage() {
                 <button className="btn-success btn-lg" onClick={() => setConfirmOpen(true)} disabled={isApproving}>
                   {isApproving ? t('emailApproval.aprobando') : `${t('emailApproval.aprobarEnviar')}`}
                 </button>
-                <button className="btn-danger" disabled={isApproving}>
-                  {t('common.reject')}
-                </button>
+                {/* Reject functionality not yet implemented — button hidden */}
               </div>
 
               <ConfirmDialog

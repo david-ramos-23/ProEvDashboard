@@ -5,7 +5,7 @@
  * Permite aprobar/rechazar videos con puntuación y feedback.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge, ConfirmDialog } from '@/components/shared';
 import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adapters';
@@ -116,8 +116,10 @@ export default function VideoReviewPage() {
   }
 
   // Auto-select first revision when data loads (don't show detail on mobile)
+  const hasAutoSelected = useRef(false);
   useEffect(() => {
-    if (revisiones.length > 0 && !selected) {
+    if (revisiones.length > 0 && !hasAutoSelected.current) {
+      hasAutoSelected.current = true;
       selectRevision(revisiones[0], true);
     }
   }, [revisiones]);

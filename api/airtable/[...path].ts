@@ -14,10 +14,27 @@ const AIRTABLE_BASE_URL = 'https://api.airtable.com/v0';
 // Allowed origins: production URL + local dev. Add ALLOWED_ORIGINS env var (comma-separated) to extend.
 const ALLOWED_ORIGINS = [
   'https://dashboard-eight-jade-69.vercel.app',
+  'https://proev-dashboard.dravaautomations.com',
   'http://localhost:5173',
   'http://localhost:4173',
   ...(process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean),
 ];
+
+// Authorized session emails
+const AUTHORIZED_USERS = [
+  'andara14@gmail.com',
+  'david@dravaautomations.com',
+  'proevolutioncourse@gmail.com',
+  'alonsoynoelia17@gmail.com',
+];
+const TEST_USER_PATTERN = /^andara14\+test-.*@gmail\.com$/i;
+const ALIAS_PATTERN = /^andara14\+(admin|revisor)@gmail\.com$/i;
+
+function isAuthorizedSession(email: string | undefined): boolean {
+  if (!email) return false;
+  const e = email.toLowerCase().trim();
+  return AUTHORIZED_USERS.includes(e) || TEST_USER_PATTERN.test(e) || ALIAS_PATTERN.test(e);
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!AIRTABLE_PAT || !AIRTABLE_BASE_ID) {
@@ -25,11 +42,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Reject requests from disallowed browser origins.
-  // Note: the Origin header is set by browsers for cross-origin requests; same-origin
-  // requests and server-side calls typically omit it, so we only block when it IS present.
   const origin = req.headers['origin'] as string | undefined;
   if (origin && !ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed))) {
     return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  // Require session authentication for write operations
+  if (req.method !== 'GET') {
+    const sessionEmail = req.headers['x-proev-session'] as string | undefined;
+    if (!isAuthorizedSession(sessionEmail)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
   }
 
   // Extract path + query from the raw URL after /api/airtable/

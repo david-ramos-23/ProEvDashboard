@@ -5,7 +5,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, Column } from '@/components/shared';
-import { fetchPagos, fetchPagoStats } from '@/data/adapters/airtable/PagosAdapter';
+import { fetchPagos, fetchPagoStats } from '@/data/adapters';
 import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
@@ -51,7 +51,7 @@ export default function PagosPage() {
         <a href={p.linkRecibo} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem' }}>Ver →</a>
       ) : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
     },
-  ], []);
+  ], [t]);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>

@@ -5,8 +5,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICardSkeleton, SkeletonBlock, DataTable, Column, StatusBadge } from '@/components/shared';
-import { fetchEdiciones, updateEdicion } from '@/data/adapters/airtable/EdicionesAdapter';
-import { fetchModulos } from '@/data/adapters/airtable/ModulosAdapter';
+import { fetchEdiciones, updateEdicion } from '@/data/adapters';
+import { fetchModulos } from '@/data/adapters';
 import { Edicion, Modulo } from '@/types';
 import { formatDate } from '@/utils/formatters';
 import { EDITION_ESTADO_COLORS } from '@/utils/constants';
@@ -160,16 +160,7 @@ export default function EdicionesPage() {
           boxShadow: '0 0 0 1px rgba(12, 90, 69, 0.1), 0 4px 24px rgba(12, 90, 69, 0.1)',
           animation: 'cardGlow 3s ease-in-out infinite',
         }}>
-          <style>{`
-            @keyframes cardGlow {
-              0%, 100% { box-shadow: 0 0 0 1px rgba(12, 90, 69, 0.1), 0 4px 24px rgba(12, 90, 69, 0.1); }
-              50% { box-shadow: 0 0 0 1px rgba(12, 90, 69, 0.2), 0 4px 32px rgba(12, 90, 69, 0.18); }
-            }
-            @keyframes badgePulse {
-              0%, 100% { box-shadow: 0 0 0 0 rgba(12, 90, 69, 0.4); transform: scale(1); }
-              50% { box-shadow: 0 0 0 8px rgba(12, 90, 69, 0); transform: scale(1.03); }
-            }
-          `}</style>
+          {/* cardGlow + badgePulse keyframes defined in global.css */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h3 style={{ fontSize: 'var(--font-size-lg)', color: 'var(--color-accent-primary)' }}>
