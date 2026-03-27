@@ -5,73 +5,132 @@
  * Default: 'airtable' (production stays on Airtable until cutover).
  *
  * Set VITE_DATA_SOURCE=supabase in .env.local to use Supabase during development/testing.
+ *
+ * Uses Vite's build-time dead-code elimination: when VITE_DATA_SOURCE !== 'supabase',
+ * the Supabase imports are never reached and tree-shaken out of production bundles.
  */
-
-import * as airtableAlumnos from './airtable/AlumnosAdapter';
-import * as airtableRevisiones from './airtable/RevisionesAdapter';
-import * as airtablePagos from './airtable/PagosAdapter';
-import * as airtableHistorial from './airtable/HistorialAdapter';
-import * as airtableEdiciones from './airtable/EdicionesAdapter';
-import * as airtableModulos from './airtable/ModulosAdapter';
-import * as airtableColaEmails from './airtable/ColaEmailsAdapter';
-import * as airtableInbox from './airtable/InboxAdapter';
-
-import * as supabaseAlumnos from './supabase/AlumnosAdapter';
-import * as supabaseRevisiones from './supabase/RevisionesAdapter';
-import * as supabasePagos from './supabase/PagosAdapter';
-import * as supabaseHistorial from './supabase/HistorialAdapter';
-import * as supabaseEdiciones from './supabase/EdicionesAdapter';
-import * as supabaseModulos from './supabase/ModulosAdapter';
-import * as supabaseColaEmails from './supabase/ColaEmailsAdapter';
-import * as supabaseInbox from './supabase/InboxAdapter';
 
 const useSupabase = import.meta.env.VITE_DATA_SOURCE === 'supabase';
 
+// Lazy-load the correct adapter set. Vite statically analyzes import() paths,
+// so both sets are available but only the active one is included in the main chunk.
+// The inactive adapter set ends up in a separate chunk that is never loaded at runtime.
+
+async function loadAdapters() {
+  if (useSupabase) {
+    const [alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, inbox] = await Promise.all([
+      import('./supabase/AlumnosAdapter'),
+      import('./supabase/RevisionesAdapter'),
+      import('./supabase/PagosAdapter'),
+      import('./supabase/HistorialAdapter'),
+      import('./supabase/EdicionesAdapter'),
+      import('./supabase/ModulosAdapter'),
+      import('./supabase/ColaEmailsAdapter'),
+      import('./supabase/InboxAdapter'),
+    ]);
+    return { alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, inbox };
+  }
+  const [alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, inbox] = await Promise.all([
+    import('./airtable/AlumnosAdapter'),
+    import('./airtable/RevisionesAdapter'),
+    import('./airtable/PagosAdapter'),
+    import('./airtable/HistorialAdapter'),
+    import('./airtable/EdicionesAdapter'),
+    import('./airtable/ModulosAdapter'),
+    import('./airtable/ColaEmailsAdapter'),
+    import('./airtable/InboxAdapter'),
+  ]);
+  return { alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, inbox };
+}
+
+// Singleton promise — adapters load once on first access
+let adaptersPromise: ReturnType<typeof loadAdapters> | null = null;
+function getAdapters() {
+  if (!adaptersPromise) adaptersPromise = loadAdapters();
+  return adaptersPromise;
+}
+
 // --- Alumnos ---
-const alumnos = useSupabase ? supabaseAlumnos : airtableAlumnos;
-export const fetchAlumnos = alumnos.fetchAlumnos;
-export const fetchAlumnoById = alumnos.fetchAlumnoById;
-export const updateAlumno = alumnos.updateAlumno;
-export const fetchAlumnoCountByModulo = alumnos.fetchAlumnoCountByModulo;
-export const fetchAlumnoNombresByIds = alumnos.fetchAlumnoNombresByIds;
-export const fetchDashboardStats = alumnos.fetchDashboardStats;
+export async function fetchAlumnos(...args: Parameters<typeof import('./airtable/AlumnosAdapter').fetchAlumnos>) {
+  return (await getAdapters()).alumnos.fetchAlumnos(...args);
+}
+export async function fetchAlumnoById(...args: Parameters<typeof import('./airtable/AlumnosAdapter').fetchAlumnoById>) {
+  return (await getAdapters()).alumnos.fetchAlumnoById(...args);
+}
+export async function updateAlumno(...args: Parameters<typeof import('./airtable/AlumnosAdapter').updateAlumno>) {
+  return (await getAdapters()).alumnos.updateAlumno(...args);
+}
+export async function fetchAlumnoCountByModulo(...args: Parameters<typeof import('./airtable/AlumnosAdapter').fetchAlumnoCountByModulo>) {
+  return (await getAdapters()).alumnos.fetchAlumnoCountByModulo(...args);
+}
+export async function fetchAlumnoNombresByIds(...args: Parameters<typeof import('./airtable/AlumnosAdapter').fetchAlumnoNombresByIds>) {
+  return (await getAdapters()).alumnos.fetchAlumnoNombresByIds(...args);
+}
+export async function fetchDashboardStats(...args: Parameters<typeof import('./airtable/AlumnosAdapter').fetchDashboardStats>) {
+  return (await getAdapters()).alumnos.fetchDashboardStats(...args);
+}
 
 // --- Revisiones ---
-const revisiones = useSupabase ? supabaseRevisiones : airtableRevisiones;
-export const fetchRevisiones = revisiones.fetchRevisiones;
-export const fetchRevisionById = revisiones.fetchRevisionById;
-export const updateRevision = revisiones.updateRevision;
-export const fetchRevisionStats = revisiones.fetchRevisionStats;
+export async function fetchRevisiones(...args: Parameters<typeof import('./airtable/RevisionesAdapter').fetchRevisiones>) {
+  return (await getAdapters()).revisiones.fetchRevisiones(...args);
+}
+export async function fetchRevisionById(...args: Parameters<typeof import('./airtable/RevisionesAdapter').fetchRevisionById>) {
+  return (await getAdapters()).revisiones.fetchRevisionById(...args);
+}
+export async function updateRevision(...args: Parameters<typeof import('./airtable/RevisionesAdapter').updateRevision>) {
+  return (await getAdapters()).revisiones.updateRevision(...args);
+}
+export async function fetchRevisionStats() {
+  return (await getAdapters()).revisiones.fetchRevisionStats();
+}
 
 // --- Pagos ---
-const pagos = useSupabase ? supabasePagos : airtablePagos;
-export const fetchPagos = pagos.fetchPagos;
-export const fetchPagoStats = pagos.fetchPagoStats;
-export const fetchPagosPorMes = pagos.fetchPagosPorMes;
+export async function fetchPagos(...args: Parameters<typeof import('./airtable/PagosAdapter').fetchPagos>) {
+  return (await getAdapters()).pagos.fetchPagos(...args);
+}
+export async function fetchPagoStats(...args: Parameters<typeof import('./airtable/PagosAdapter').fetchPagoStats>) {
+  return (await getAdapters()).pagos.fetchPagoStats(...args);
+}
+export async function fetchPagosPorMes(...args: Parameters<typeof import('./airtable/PagosAdapter').fetchPagosPorMes>) {
+  return (await getAdapters()).pagos.fetchPagosPorMes(...args);
+}
 
 // --- Historial ---
-const historial = useSupabase ? supabaseHistorial : airtableHistorial;
-export const fetchHistorial = historial.fetchHistorial;
+export async function fetchHistorial(...args: Parameters<typeof import('./airtable/HistorialAdapter').fetchHistorial>) {
+  return (await getAdapters()).historial.fetchHistorial(...args);
+}
 
 // --- Ediciones ---
-const ediciones = useSupabase ? supabaseEdiciones : airtableEdiciones;
-export const fetchEdiciones = ediciones.fetchEdiciones;
-export const updateEdicion = ediciones.updateEdicion;
+export async function fetchEdiciones(...args: Parameters<typeof import('./airtable/EdicionesAdapter').fetchEdiciones>) {
+  return (await getAdapters()).ediciones.fetchEdiciones(...args);
+}
+export async function updateEdicion(...args: Parameters<typeof import('./airtable/EdicionesAdapter').updateEdicion>) {
+  return (await getAdapters()).ediciones.updateEdicion(...args);
+}
 
 // --- Modulos ---
-const modulos = useSupabase ? supabaseModulos : airtableModulos;
-export const fetchModulos = modulos.fetchModulos;
+export async function fetchModulos() {
+  return (await getAdapters()).modulos.fetchModulos();
+}
 
 // --- Cola Emails ---
-const colaEmails = useSupabase ? supabaseColaEmails : airtableColaEmails;
-export const fetchColaEmails = colaEmails.fetchColaEmails;
-export const aprobarEmail = colaEmails.aprobarEmail;
-export const crearEmail = colaEmails.crearEmail;
+export async function fetchColaEmails(...args: Parameters<typeof import('./airtable/ColaEmailsAdapter').fetchColaEmails>) {
+  return (await getAdapters()).colaEmails.fetchColaEmails(...args);
+}
+export async function aprobarEmail(...args: Parameters<typeof import('./airtable/ColaEmailsAdapter').aprobarEmail>) {
+  return (await getAdapters()).colaEmails.aprobarEmail(...args);
+}
+export async function crearEmail(...args: Parameters<typeof import('./airtable/ColaEmailsAdapter').crearEmail>) {
+  return (await getAdapters()).colaEmails.crearEmail(...args);
+}
 
 // --- Inbox ---
-const inbox = useSupabase ? supabaseInbox : airtableInbox;
-export const fetchInbox = inbox.fetchInbox;
-export const updateInboxEmail = inbox.updateInboxEmail;
+export async function fetchInbox(...args: Parameters<typeof import('./airtable/InboxAdapter').fetchInbox>) {
+  return (await getAdapters()).inbox.fetchInbox(...args);
+}
+export async function updateInboxEmail(...args: Parameters<typeof import('./airtable/InboxAdapter').updateInboxEmail>) {
+  return (await getAdapters()).inbox.updateInboxEmail(...args);
+}
 
 // --- Audit (Supabase-only, noop for Airtable) ---
 export async function fetchAuditByRecord(recordId: string) {

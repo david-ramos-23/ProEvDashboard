@@ -41,17 +41,34 @@ export interface ListOptions {
   fields?: string[];
 }
 
-/** Cola simple para respetar rate limits (5 req/s) */
-let lastRequestTime = 0;
+/**
+ * FIFO rate-limit queue — enforces 210ms spacing between requests
+ * without serializing concurrent callers. Each caller reserves a slot
+ * and waits only for its turn, not for all prior requests to complete.
+ */
 const MIN_INTERVAL_MS = 210; // ~5 req/s con margen
 
-async function throttle(): Promise<void> {
-  const now = Date.now();
-  const elapsed = now - lastRequestTime;
-  if (elapsed < MIN_INTERVAL_MS) {
-    await new Promise(resolve => setTimeout(resolve, MIN_INTERVAL_MS - elapsed));
+const requestQueue: Array<() => void> = [];
+let processing = false;
+
+async function processQueue() {
+  if (processing) return;
+  processing = true;
+  while (requestQueue.length > 0) {
+    const next = requestQueue.shift()!;
+    next(); // resolve the caller's promise
+    if (requestQueue.length > 0) {
+      await new Promise(r => setTimeout(r, MIN_INTERVAL_MS));
+    }
   }
-  lastRequestTime = Date.now();
+  processing = false;
+}
+
+function throttle(): Promise<void> {
+  return new Promise(resolve => {
+    requestQueue.push(resolve);
+    processQueue();
+  });
 }
 
 /**
