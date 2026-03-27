@@ -393,7 +393,7 @@ export default function InboxPage() {
       );
     }
     return sortEmails(list);
-  }, [emails, dirTab, estadoFilter, search]);
+  }, [emails, estadoFilter, search]);
 
   const atencionCount = useMemo(() => emails.filter(e => e.requiereAtencion).length, [emails]);
 

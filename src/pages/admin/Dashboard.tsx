@@ -94,12 +94,13 @@ export default function DashboardPage() {
   ], [t]);
 
   // Datos para el gráfico de barras
-  const estadosChartData = stats
+  const estadosChartData = useMemo(() => stats
     ? Object.entries(stats.alumnosPorEstado)
         .filter(([, count]) => count > 0)
         .map(([estado, count]) => ({ name: estado, value: count, fill: CHART_COLORS[estado] || '#6366f1' }))
         .sort((a, b) => b.value - a.value)
-    : [];
+    : []
+  , [stats]);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>

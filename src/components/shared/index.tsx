@@ -817,7 +817,7 @@ export function LoadingSpinner({ text = 'Cargando...' }: { text?: string }) {
         borderRadius: '50%',
         animation: 'spin 0.8s linear infinite',
       }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      {/* @keyframes spin defined in global.css */}
       <span>{text}</span>
     </div>
   );

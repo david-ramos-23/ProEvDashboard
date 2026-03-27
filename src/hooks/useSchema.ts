@@ -11,6 +11,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import { ESTADO, ESTADO_REVISION, ESTADO_PAGO, ESTADO_EMAIL } from '@/utils/constants';
 
 type SchemaData = Record<string, Record<string, string[]>>;
@@ -60,11 +61,11 @@ export function useSchema() {
    * @param fieldName - Field name (e.g. 'Estado General')
    * @returns Array of option strings, or fallback if not found
    */
-  function getOptions(tableName: string, fieldName: string): string[] {
+  const getOptions = useCallback((tableName: string, fieldName: string): string[] => {
     return schema[tableName]?.[fieldName]
       ?? FALLBACK_SCHEMA[tableName]?.[fieldName]
       ?? [];
-  }
+  }, [schema]);
 
   return { schema, getOptions };
 }

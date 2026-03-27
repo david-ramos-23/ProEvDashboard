@@ -322,6 +322,11 @@ button {
    Mobile responsiveness
    ============================ */
 
+/* Spinner animation (used by LoadingSpinner) */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Ediciones card animations */
 @keyframes cardGlow {
   0%, 100% { box-shadow: 0 0 0 1px rgba(12, 90, 69, 0.1), 0 4px 24px rgba(12, 90, 69, 0.1); }
