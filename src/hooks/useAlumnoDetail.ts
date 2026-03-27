@@ -8,10 +8,10 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchAlumnoById, updateAlumno } from '@/data/adapters/airtable/AlumnosAdapter';
-import { fetchRevisiones } from '@/data/adapters/airtable/RevisionesAdapter';
-import { fetchPagos } from '@/data/adapters/airtable/PagosAdapter';
-import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
+import { fetchAlumnoById, updateAlumno } from '@/data/adapters';
+import { fetchRevisiones } from '@/data/adapters';
+import { fetchPagos } from '@/data/adapters';
+import { fetchHistorial } from '@/data/adapters';
 import { EstadoGeneral } from '@/types';
 
 export type AlumnoDetailTab = 'info' | 'revisiones' | 'pagos' | 'historial' | 'ia';

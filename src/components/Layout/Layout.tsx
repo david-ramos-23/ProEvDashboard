@@ -38,12 +38,13 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
   '/admin/pagos': 'pagos.title',
   '/admin/inbox': 'inbox.title',
   '/admin/ediciones': 'ediciones.title',
+  '/admin/audit': 'audit.title',
   '/revisor/videos': 'videoReview.title',
   '/revisor/emails': 'emailApproval.title',
 };
 
 /** Pages where edition filter doesn't apply */
-const NO_EDITION_FILTER_PAGES = new Set(['/admin/ediciones', '/admin/inbox', '/revisor/emails']);
+const NO_EDITION_FILTER_PAGES = new Set(['/admin/ediciones', '/admin/inbox', '/admin/audit', '/revisor/emails']);
 
 export default function Layout({ role, userName, userEmail, onLogout }: LayoutProps) {
   const location = useLocation();

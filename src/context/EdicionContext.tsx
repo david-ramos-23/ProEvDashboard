@@ -7,7 +7,7 @@
 
 import { createContext, useContext, useState, useEffect, useMemo, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchEdiciones } from '@/data/adapters/airtable/EdicionesAdapter';
+import { fetchEdiciones } from '@/data/adapters';
 import type { Edicion } from '@/types';
 
 interface EdicionContextValue {

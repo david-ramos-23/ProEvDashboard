@@ -7,10 +7,10 @@
 
 import { useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchRevisionStats } from '@/data/adapters/airtable/RevisionesAdapter';
-import { fetchColaEmails } from '@/data/adapters/airtable/ColaEmailsAdapter';
+import { fetchRevisionStats } from '@/data/adapters';
+import { fetchColaEmails } from '@/data/adapters';
 import { ESTADO_EMAIL } from '@/utils/constants';
-import { fetchHistorial } from '@/data/adapters/airtable/HistorialAdapter';
+import { fetchHistorial } from '@/data/adapters';
 
 // ---------------------------------------------------------------------------
 // Types

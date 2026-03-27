@@ -180,5 +180,10 @@
     "seleccionaEmail": "Select an email to view details",
     "alumno": "Student",
     "sinSeleccion": "Select an email from the list"
+  },
+  "audit": {
+    "title": "Audit Trail",
+    "sinRegistros": "No audit records",
+    "onlySupabase": "Audit Trail is only available with Supabase as data source."
   }
 }

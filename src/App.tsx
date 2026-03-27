@@ -18,6 +18,7 @@ const EdicionesPage = lazy(() => import('@/pages/admin/Ediciones'));
 const VideoReviewPage = lazy(() => import('@/pages/revisor/VideoReview'));
 const EmailApprovalPage = lazy(() => import('@/pages/revisor/EmailApproval'));
 const InboxPage = lazy(() => import('@/pages/admin/Inbox'));
+const AuditTrailPage = lazy(() => import('@/pages/admin/AuditTrail'));
 
 export default function App() {
   const [session, setSession] = useState<AuthUser | null>(getSession);
@@ -100,6 +101,7 @@ export default function App() {
               {/* Redirect legacy Comunicaciones URL */}
               <Route path="/admin/comunicaciones" element={<Navigate to="/admin/inbox" replace />} />
               <Route path="/admin/ediciones" element={<EdicionesPage />} />
+              <Route path="/admin/audit" element={<AuditTrailPage />} />
               {/* Admin accede a vistas del revisor */}
               <Route path="/revisor/videos" element={<VideoReviewPage />} />
               <Route path="/revisor/emails" element={<EmailApprovalPage />} />

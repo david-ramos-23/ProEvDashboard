@@ -163,6 +163,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: 'Emails', path: '/admin/inbox', icon: '📬' },
   { label: 'Ediciones', path: '/admin/ediciones', icon: '📅' },
   { label: 'Revisión Videos', path: '/revisor/videos', icon: '🎬' },
+  { label: 'Audit Trail', path: '/admin/audit', icon: '📋' },
 ];
 
 export const REVISOR_NAV: NavItem[] = [
