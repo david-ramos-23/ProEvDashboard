@@ -20,6 +20,7 @@ const AUTHORIZED_USERS: Record<string, { role: string; name: string }> = {
   'david@dravaautomations.com': { role: 'admin', name: 'David Ramos' },
   'proevolutioncourse@gmail.com': { role: 'admin', name: 'Pro Evolution Course' },
   'alonsoynoelia17@gmail.com': { role: 'revisor', name: 'Alonso y Noelia' },
+  'alonkickboxer@gmail.com': { role: 'revisor', name: 'Alonkickboxer' },
 };
 
 const TEST_USER_PATTERN = /^andara14\+test-.*@gmail\.com$/i;

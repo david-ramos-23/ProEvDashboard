@@ -54,6 +54,7 @@ const AUTHORIZED_USERS: Record<string, { role: UserRole; name: string }> = {
   'david@dravaautomations.com': { role: 'admin', name: 'David Ramos' },
   'proevolutioncourse@gmail.com': { role: 'admin', name: 'Pro Evolution Course' },
   'alonsoynoelia17@gmail.com': { role: 'revisor', name: 'Alonso y Noelia' },
+  'alonkickboxer@gmail.com': { role: 'revisor', name: 'Alonkickboxer' },
 };
 
 /**
