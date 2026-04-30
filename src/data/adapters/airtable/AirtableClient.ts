@@ -74,6 +74,17 @@ function throttle(): Promise<void> {
 /**
  * Realiza una petición autenticada a la API de Airtable.
  */
+function getSessionEmail(): string | undefined {
+  try {
+    const raw = localStorage.getItem('proev_session');
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw) as { email?: string } | null;
+    return parsed?.email;
+  } catch {
+    return undefined;
+  }
+}
+
 async function airtableFetch<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -91,6 +102,11 @@ async function airtableFetch<T>(
   };
   if (!USE_PROXY && PAT) {
     headers['Authorization'] = `Bearer ${PAT}`;
+  }
+  // Proxy requires X-ProEv-Session for non-GET writes (PATCH/POST/DELETE).
+  if (USE_PROXY && options.method && options.method !== 'GET') {
+    const email = getSessionEmail();
+    if (email) headers['X-ProEv-Session'] = email;
   }
 
   const response = await fetch(url, {

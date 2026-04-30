@@ -1,8 +1,8 @@
 /**
- * Vercel Serverless Proxy for Airtable API.
+ * Shared helpers for Airtable proxy routes.
  *
- * Keeps the Airtable PAT server-side. The client calls /api/airtable/TABLE_ID
- * and this function proxies to https://api.airtable.com/v0/BASE_ID/TABLE_ID.
+ * Centralizes env loading, origin allowlist, session auth, and the
+ * actual forwarding to api.airtable.com so each route file stays small.
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -11,7 +11,6 @@ const AIRTABLE_PAT = process.env.AIRTABLE_PAT;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const AIRTABLE_BASE_URL = 'https://api.airtable.com/v0';
 
-// Allowed origins: production URL + local dev. Add ALLOWED_ORIGINS env var (comma-separated) to extend.
 const ALLOWED_ORIGINS = [
   'https://dashboard-eight-jade-69.vercel.app',
   'https://proev-dashboard.dravaautomations.com',
@@ -20,7 +19,6 @@ const ALLOWED_ORIGINS = [
   ...(process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean),
 ];
 
-// Authorized session emails
 const AUTHORIZED_USERS = [
   'andara14@gmail.com',
   'david@dravaautomations.com',
@@ -36,38 +34,52 @@ function isAuthorizedSession(email: string | undefined): boolean {
   return AUTHORIZED_USERS.includes(e) || TEST_USER_PATTERN.test(e) || ALIAS_PATTERN.test(e);
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+/**
+ * Validate request basics (env + origin + session) before forwarding.
+ * Returns `null` if valid, otherwise sends a response and returns the
+ * status that was sent so the caller can early-return.
+ */
+function validateRequest(req: VercelRequest, res: VercelResponse): number | null {
   if (!AIRTABLE_PAT || !AIRTABLE_BASE_ID) {
-    return res.status(500).json({ error: 'Server misconfigured: missing Airtable credentials' });
+    res.status(500).json({ error: 'Server misconfigured: missing Airtable credentials' });
+    return 500;
   }
 
-  // Reject requests from disallowed browser origins.
   const origin = req.headers['origin'] as string | undefined;
   if (origin && !ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed))) {
-    return res.status(403).json({ error: 'Forbidden' });
+    res.status(403).json({ error: 'Forbidden' });
+    return 403;
   }
 
-  // Require session authentication for write operations
   if (req.method !== 'GET') {
     const sessionEmail = req.headers['x-proev-session'] as string | undefined;
     if (!isAuthorizedSession(sessionEmail)) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'Unauthorized' });
+      return 401;
     }
   }
 
-  // Extract path + query from the raw URL after /api/airtable/
-  const rawUrl = req.url || '';
-  const prefixIndex = rawUrl.indexOf('/api/airtable/');
-  if (prefixIndex === -1) {
-    return res.status(400).json({ error: 'Missing table path' });
-  }
-  const remainder = rawUrl.slice(prefixIndex + '/api/airtable/'.length);
-  if (!remainder || remainder === '') {
-    return res.status(400).json({ error: 'Missing table path' });
-  }
+  return null;
+}
 
-  // Build Airtable URL preserving the original query string
-  const url = `${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${remainder}`;
+/**
+ * Forward the request to Airtable preserving method, body, and query string.
+ * `pathSegments` is appended after the base id, e.g. ['tblXXX', 'recYYY']
+ * yields `https://api.airtable.com/v0/{BASE_ID}/tblXXX/recYYY?<query>`.
+ */
+async function forwardToAirtable(
+  req: VercelRequest,
+  res: VercelResponse,
+  pathSegments: string[],
+): Promise<void> {
+  const path = pathSegments.map(encodeURIComponent).join('/');
+
+  // Preserve original query string (filterByFormula, sort[], etc.)
+  const rawUrl = req.url || '';
+  const queryIndex = rawUrl.indexOf('?');
+  const query = queryIndex >= 0 ? rawUrl.slice(queryIndex) : '';
+
+  const url = `${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${path}${query}`;
 
   try {
     const airtableRes = await fetch(url, {
@@ -80,10 +92,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const data = await airtableRes.json();
-
-    // Forward Airtable status code
-    return res.status(airtableRes.status).json(data);
-  } catch (err) {
-    return res.status(502).json({ error: 'Failed to proxy request to Airtable' });
+    res.status(airtableRes.status).json(data);
+  } catch {
+    res.status(502).json({ error: 'Failed to proxy request to Airtable' });
   }
 }
+
+export { validateRequest, forwardToAirtable };

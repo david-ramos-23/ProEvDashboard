@@ -96,6 +96,7 @@ export default function VideoReviewPage() {
   const [hoverStar, setHoverStar] = useState(0);
   const [notas, setNotas] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ estado: EstadoRevision; label: string; icon: string; variant: 'success' | 'danger' | 'warning' } | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const { data: revisiones = [], isLoading } = useQuery({
     queryKey: ['revisiones', { estado: 'Pendiente' }],
@@ -127,6 +128,7 @@ export default function VideoReviewPage() {
   async function handleSave(estado: EstadoRevision) {
     if (!selected) return;
     setIsSaving(true);
+    setSaveError(null);
     try {
       await updateRevision(selected.id, {
         estadoRevision: estado,
@@ -147,6 +149,8 @@ export default function VideoReviewPage() {
       await queryClient.invalidateQueries({ queryKey: ['revision-stats'] });
     } catch (err) {
       console.error('Error guardando revision:', err);
+      const message = err instanceof Error ? err.message : 'Error desconocido al guardar la revisión';
+      setSaveError(message);
     } finally {
       setIsSaving(false);
     }
@@ -154,6 +158,32 @@ export default function VideoReviewPage() {
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+      {saveError && (
+        <div
+          role="alert"
+          style={{
+            padding: 'var(--space-md)',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--color-bg-danger, #fee)',
+            color: 'var(--color-accent-danger, #c00)',
+            border: '1px solid var(--color-accent-danger, #c00)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 'var(--space-md)',
+          }}
+        >
+          <span>⚠️ No se pudo guardar la revisión: {saveError}</span>
+          <button
+            type="button"
+            onClick={() => setSaveError(null)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', fontSize: '1.25rem' }}
+            aria-label="Cerrar aviso"
+          >
+            ×
+          </button>
+        </div>
+      )}
       {/* KPIs */}
       <KPIGrid columns={3} className={isMobile ? styles.compactKpis : undefined}>
         {isLoading ? (
