@@ -147,7 +147,7 @@ export default function AlumnosPage() {
       render: (a) => <span style={{ color: 'var(--color-text-secondary)' }}>{a.moduloSolicitado || '—'}</span>,
     },
     {
-      key: 'idioma', header: t('alumnos.idioma'), width: '80px', minWidth: 60,
+      key: 'idioma', header: t('alumnos.idioma'), width: '80px', minWidth: 60, defaultHidden: true,
       render: (a) => <span>{a.idioma === 'Ingles' ? '🇬🇧' : '🇪🇸'}</span>,
     },
     {
@@ -161,6 +161,34 @@ export default function AlumnosPage() {
     {
       key: 'ultimaModificacion', header: t('alumnos.lastActivity'), width: '120px', sortable: true, minWidth: 90,
       render: (a) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(a.ultimaModificacion)}</span>,
+    },
+    {
+      key: 'edicion', header: 'Edición', width: '140px', sortable: true, minWidth: 100, defaultHidden: true,
+      render: (a) => <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{a.edicion || '—'}</span>,
+    },
+    {
+      key: 'telefono', header: 'Teléfono', width: '130px', minWidth: 90, defaultHidden: true,
+      render: (a) => <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{a.telefono || '—'}</span>,
+    },
+    {
+      key: 'fechaPlazo', header: t('alumnos.fechaPlazo'), width: '120px', sortable: true, minWidth: 90, defaultHidden: true,
+      render: (a) => <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>{a.fechaPlazo || '—'}</span>,
+    },
+    {
+      key: 'totalRevisiones', header: 'Revisiones', width: '100px', sortable: true, minWidth: 70, defaultHidden: true,
+      render: (a) => <span style={{ color: 'var(--color-text-secondary)' }}>{a.totalRevisiones ?? '—'}</span>,
+    },
+    {
+      key: 'importeTotalPagado', header: 'Pagado', width: '100px', sortable: true, minWidth: 70, defaultHidden: true,
+      render: (a) => <span style={{ color: 'var(--color-text-secondary)' }}>{a.importeTotalPagado != null ? `€${a.importeTotalPagado}` : '—'}</span>,
+    },
+    {
+      key: 'parejaAsignada', header: 'Pareja', width: '140px', sortable: true, minWidth: 90, defaultHidden: true,
+      render: (a) => <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{a.parejaAsignada || '—'}</span>,
+    },
+    {
+      key: 'fechaPreinscripcion', header: t('alumnos.preinscripcion'), width: '130px', sortable: true, minWidth: 90, defaultHidden: true,
+      render: (a) => <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>{a.fechaPreinscripcion || '—'}</span>,
     },
   ], [t]);
 

@@ -11,6 +11,7 @@ export interface Column<T> {
   minWidth?: number;
   sortable?: boolean;
   hideable?: boolean;
+  defaultHidden?: boolean;
 }
 
 interface DataTableProps<T> {
@@ -79,8 +80,11 @@ export function DataTable<T extends { id: string }>({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
-    if (!tableId) return new Set();
-    return new Set(loadTablePrefs(tableId).hiddenCols ?? []);
+    if (!tableId) return new Set(columns.filter(c => c.defaultHidden).map(c => c.key));
+    const prefs = loadTablePrefs(tableId);
+    if (prefs.hiddenCols) return new Set(prefs.hiddenCols);
+    // First visit: seed from defaultHidden
+    return new Set(columns.filter(c => c.defaultHidden).map(c => c.key));
   });
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
     if (!tableId) return {};

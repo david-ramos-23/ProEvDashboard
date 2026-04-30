@@ -252,7 +252,6 @@
 
 .content {
   padding: var(--space-xl);
-  max-width: var(--content-max-width);
   animation: pageEnter 500ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 

@@ -203,7 +203,6 @@ export async function fetchAlumnoNombresByIds(ids: string[]): Promise<Map<string
 export async function fetchAlumnoIdsByEdicion(edicionNombre: string): Promise<Set<string>> {
   const records = await listRecords<{ 'Edicion'?: string[] }>(TABLE, {
     filterByFormula: `FIND('${sanitizeForFormula(edicionNombre)}', ARRAYJOIN({Edicion}))`,
-    fields: [],
   });
   return new Set(records.map(r => r.id));
 }
