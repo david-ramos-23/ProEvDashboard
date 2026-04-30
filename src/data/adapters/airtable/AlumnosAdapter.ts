@@ -42,7 +42,7 @@ interface AirtableAlumnoFields {
   'Total Pagos Fallidos'?: number;
   'Dias en Estado Actual'?: number;
   'Dias desde Ultimo Evento'?: number;
-  'Tipo de Alumno'?: string;
+  'Rol'?: string[];
   'Pareja Asignada'?: string;
 }
 
@@ -81,6 +81,7 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
     adminResponsable: f['Admin Responsable'],
     ultimaModificacion: f['Ultima Modificacion'],
     parejaAsignada: f['Pareja Asignada'] ?? undefined,
+    tipoAlumno: Array.isArray(f['Rol']) ? f['Rol']?.[0] : undefined,
   };
 }
 
@@ -233,7 +234,7 @@ export async function fetchAlumnoMetaByIds(ids: string[]): Promise<Map<string, A
       const f = r.fields;
       map.set(r.id, {
         nombre: (Array.isArray(f['Nombre']) ? f['Nombre'][0] : f['Nombre']) as string || '',
-        tipoAlumno: f['Tipo de Alumno'] ?? undefined,
+        tipoAlumno: Array.isArray(f['Rol']) ? f['Rol']?.[0] : undefined,
         moduloSolicitado: f['Modulo Solicitado'] ?? undefined,
         parejaAsignada: f['Pareja Asignada'] ?? undefined,
       });
