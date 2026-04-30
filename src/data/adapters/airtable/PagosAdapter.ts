@@ -5,7 +5,7 @@
 import { Pago, EstadoPago, PagoStats } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
 import { listRecords, AirtableRecord, sanitizeForFormula } from './AirtableClient';
-import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
+import { fetchAlumnoNombresByIds, fetchAlumnoIdsByEdicion } from './AlumnosAdapter';
 
 interface AirtablePagoFields {
   'Alumno'?: string[];
@@ -58,6 +58,7 @@ const TABLE = AIRTABLE_TABLES.PAGOS;
 export async function fetchPagos(filters?: {
   estado?: EstadoPago;
   alumnoId?: string;
+  edicionNombre?: string;
 }): Promise<Pago[]> {
   const formulas: string[] = [];
   if (filters?.estado) {
@@ -78,7 +79,7 @@ export async function fetchPagos(filters?: {
     sort: [{ field: 'Fecha de Pago', direction: 'desc' }],
   });
 
-  const pagos = records.map(mapToPago);
+  let pagos = records.map(mapToPago);
 
   // Enrich with alumno names
   const alumnoIds = [...new Set(pagos.map(p => p.alumnoId).filter((id): id is string => !!id))];
@@ -87,22 +88,35 @@ export async function fetchPagos(filters?: {
     pagos.forEach(p => { if (p.alumnoId) p.alumnoNombre = nombreMap.get(p.alumnoId); });
   }
 
+  if (filters?.edicionNombre) {
+    const idSet = await fetchAlumnoIdsByEdicion(filters.edicionNombre);
+    pagos = pagos.filter(p => !p.alumnoId || idSet.has(p.alumnoId));
+  }
+
   return pagos;
 }
 
-/** Calcula estadísticas de pagos */
 /** Calcula estadísticas de pagos — solo descarga los campos necesarios */
-export async function fetchPagoStats(): Promise<PagoStats> {
-  const records = await listRecords<Pick<AirtablePagoFields, 'Estado de Pago' | 'Importe'>>(TABLE, {
-    fields: ['Estado de Pago', 'Importe'],
+export async function fetchPagoStats(edicionNombre?: string): Promise<PagoStats> {
+  const records = await listRecords<Pick<AirtablePagoFields, 'Estado de Pago' | 'Importe' | 'Alumno'>>(TABLE, {
+    fields: ['Estado de Pago', 'Importe', 'Alumno'],
   });
+
+  let workingRecords = records;
+  if (edicionNombre) {
+    const idSet = await fetchAlumnoIdsByEdicion(edicionNombre);
+    workingRecords = records.filter(r => {
+      const alumnoId = r.fields['Alumno']?.[0];
+      return !alumnoId || idSet.has(alumnoId);
+    });
+  }
 
   let totalRecaudado = 0;
   let pagosCompletados = 0;
   let pagosFallidos = 0;
   let pagosReembolsados = 0;
 
-  records.forEach(r => {
+  workingRecords.forEach(r => {
     const estado = normalizeEstadoPago(r.fields['Estado de Pago']);
     const importe = r.fields['Importe'] || 0;
     if (estado === 'Pagado') { totalRecaudado += importe; pagosCompletados++; }
@@ -114,14 +128,23 @@ export async function fetchPagoStats(): Promise<PagoStats> {
 }
 
 /** Agrupa pagos por mes para gráficos — solo descarga los campos necesarios */
-export async function fetchPagosPorMes(): Promise<{ mes: string; total: number }[]> {
-  const records = await listRecords<Pick<AirtablePagoFields, 'Estado de Pago' | 'Importe' | 'Mes de Pago' | 'Fecha de Pago'>>(TABLE, {
+export async function fetchPagosPorMes(edicionNombre?: string): Promise<{ mes: string; total: number }[]> {
+  const records = await listRecords<Pick<AirtablePagoFields, 'Estado de Pago' | 'Importe' | 'Mes de Pago' | 'Fecha de Pago' | 'Alumno'>>(TABLE, {
     filterByFormula: `OR({Estado de Pago} = 'Pagado', {Estado de Pago} = 'Completado')`,
-    fields: ['Estado de Pago', 'Importe', 'Mes de Pago', 'Fecha de Pago'],
+    fields: ['Estado de Pago', 'Importe', 'Mes de Pago', 'Fecha de Pago', 'Alumno'],
   });
 
+  let workingRecords = records;
+  if (edicionNombre) {
+    const idSet = await fetchAlumnoIdsByEdicion(edicionNombre);
+    workingRecords = records.filter(r => {
+      const alumnoId = r.fields['Alumno']?.[0];
+      return !alumnoId || idSet.has(alumnoId);
+    });
+  }
+
   const porMes = new Map<string, number>();
-  records.forEach(r => {
+  workingRecords.forEach(r => {
     const f = r.fields;
     const mes = f['Mes de Pago'] || (f['Fecha de Pago'] ? new Date(f['Fecha de Pago']!).toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }) : 'Sin fecha');
     porMes.set(mes, (porMes.get(mes) || 0) + (f['Importe'] || 0));

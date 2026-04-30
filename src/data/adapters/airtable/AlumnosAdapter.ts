@@ -42,6 +42,8 @@ interface AirtableAlumnoFields {
   'Total Pagos Fallidos'?: number;
   'Dias en Estado Actual'?: number;
   'Dias desde Ultimo Evento'?: number;
+  'Tipo de Alumno'?: string;
+  'Pareja Asignada'?: string;
 }
 
 /** Convierte un registro Airtable → tipo Alumno */
@@ -78,6 +80,7 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
     notasInternas: f['Notas Internas'],
     adminResponsable: f['Admin Responsable'],
     ultimaModificacion: f['Ultima Modificacion'],
+    parejaAsignada: f['Pareja Asignada'] ?? undefined,
   };
 }
 
@@ -137,12 +140,14 @@ export async function updateAlumno(
     estadoGeneral: EstadoGeneral;
     notasInternas: string;
     fechaPlazo: string;
+    parejaAsignada: string;
   }>
 ): Promise<Alumno> {
   const fields: Partial<AirtableAlumnoFields> = {};
   if (updates.estadoGeneral) fields['Estado General'] = updates.estadoGeneral;
   if (updates.notasInternas !== undefined) fields['Notas Internas'] = updates.notasInternas;
   if (updates.fechaPlazo) fields['Fecha Plazo'] = updates.fechaPlazo;
+  if (updates.parejaAsignada !== undefined) fields['Pareja Asignada'] = updates.parejaAsignada;
 
   const record = await updateRecord<AirtableAlumnoFields>(TABLE, id, fields);
   return mapToAlumno(record);
@@ -188,6 +193,53 @@ export async function fetchAlumnoNombresByIds(ids: string[]): Promise<Map<string
     maxRecords: ids.length,
   });
   return new Map(records.map(r => [r.id, r.fields['Nombre'] || '']));
+}
+
+/**
+ * Returns the set of alumno record IDs that belong to a given edition.
+ * Used by other adapters to filter their records by edition client-side.
+ */
+export async function fetchAlumnoIdsByEdicion(edicionNombre: string): Promise<Set<string>> {
+  const records = await listRecords<{ 'Edicion'?: string[] }>(TABLE, {
+    filterByFormula: `FIND('${sanitizeForFormula(edicionNombre)}', ARRAYJOIN({Edicion}))`,
+    fields: [],
+  });
+  return new Set(records.map(r => r.id));
+}
+
+interface AlumnoMeta {
+  nombre: string;
+  tipoAlumno?: string;
+  moduloSolicitado?: string;
+  parejaAsignada?: string;
+}
+
+/**
+ * Fetches nombre + metadata fields for a set of alumno record IDs.
+ * Processes in chunks of 100 to stay within Airtable formula limits.
+ */
+export async function fetchAlumnoMetaByIds(ids: string[]): Promise<Map<string, AlumnoMeta>> {
+  if (ids.length === 0) return new Map();
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += 100) chunks.push(ids.slice(i, i + 100));
+
+  const map = new Map<string, AlumnoMeta>();
+  for (const chunk of chunks) {
+    const formula = chunk.length === 1
+      ? `RECORD_ID() = '${chunk[0]}'`
+      : `OR(${chunk.map(id => `RECORD_ID() = '${id}'`).join(', ')})`;
+    const records = await listRecords<AirtableAlumnoFields>(TABLE, { filterByFormula: formula });
+    records.forEach(r => {
+      const f = r.fields;
+      map.set(r.id, {
+        nombre: (Array.isArray(f['Nombre']) ? f['Nombre'][0] : f['Nombre']) as string || '',
+        tipoAlumno: f['Tipo de Alumno'] ?? undefined,
+        moduloSolicitado: f['Modulo Solicitado'] ?? undefined,
+        parejaAsignada: f['Pareja Asignada'] ?? undefined,
+      });
+    });
+  }
+  return map;
 }
 
 /** Calcula estadísticas del dashboard — solo descarga los campos necesarios */

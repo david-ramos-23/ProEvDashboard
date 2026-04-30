@@ -10,6 +10,7 @@ import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
 import { ESTADO_PAGO } from '@/utils/constants';
+import { useEdicion } from '@/context/EdicionContext';
 
 const ESTADOS_PAGO: EstadoPago[] = [
   ESTADO_PAGO.PENDIENTE, ESTADO_PAGO.PAGADO, ESTADO_PAGO.FALLIDO, ESTADO_PAGO.REEMBOLSADO,
@@ -17,15 +18,16 @@ const ESTADOS_PAGO: EstadoPago[] = [
 
 export default function PagosPage() {
   const { t } = useTranslation();
+  const { selectedNombre } = useEdicion();
   const [filtroEstado, setFiltroEstado] = useState<EstadoPago | ''>('');
 
   const { data: pagos = [], isLoading } = useQuery({
-    queryKey: ['pagos', { estado: filtroEstado || undefined }],
-    queryFn: () => fetchPagos({ estado: filtroEstado || undefined }),
+    queryKey: ['pagos', { estado: filtroEstado || undefined, edicion: selectedNombre }],
+    queryFn: () => fetchPagos({ estado: filtroEstado || undefined, edicionNombre: selectedNombre }),
   });
   const { data: stats } = useQuery({
-    queryKey: ['pago-stats'],
-    queryFn: fetchPagoStats,
+    queryKey: ['pago-stats', { edicion: selectedNombre }],
+    queryFn: () => fetchPagoStats(selectedNombre),
   });
 
   const columns = useMemo<Column<Pago>[]>(() => [

@@ -93,6 +93,7 @@ export interface Alumno extends BaseRecord {
   notasInternas?: string;
   adminResponsable?: string;
   ultimaModificacion?: string;
+  parejaAsignada?: string;
 }
 
 /** Revisión de Video */
@@ -114,6 +115,10 @@ export interface RevisionVideo extends BaseRecord {
   // Campos IA
   resumenInteligente?: string;
   clasificacionAutomatica?: string;
+  // Metadatos del alumno (enriquecidos desde Alumnos)
+  tipoAlumno?: string;
+  moduloSolicitado?: string;
+  parejaAsignada?: string;
 }
 
 /** Pago */

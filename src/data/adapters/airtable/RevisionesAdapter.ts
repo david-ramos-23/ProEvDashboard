@@ -5,7 +5,7 @@
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
 import { listRecords, getRecord, updateRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
-import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
+import { fetchAlumnoMetaByIds, fetchAlumnoIdsByEdicion } from './AlumnosAdapter';
 
 interface AirtableRevisionFields {
   'Alumno'?: string[];
@@ -53,10 +53,11 @@ function mapToRevision(record: AirtableRecord<AirtableRevisionFields>): Revision
 
 const TABLE = AIRTABLE_TABLES.REVISIONES_VIDEO;
 
-/** Lista revisiones, opcionalmente filtradas por estado */
+/** Lista revisiones, opcionalmente filtradas por estado y/o edición */
 export async function fetchRevisiones(filters?: {
   estado?: EstadoRevision;
   alumnoId?: string;
+  edicionNombre?: string;
 }): Promise<RevisionVideo[]> {
   const formulas: string[] = [];
   if (filters?.estado) formulas.push(`{Estado de Revisión} = '${sanitizeForFormula(filters.estado)}'`);
@@ -73,13 +74,27 @@ export async function fetchRevisiones(filters?: {
 
   const revisiones = records.map(mapToRevision);
 
-  // Enrich alumno names from Alumnos table
+  // Enrich with alumno metadata from Alumnos table
   const alumnoIds = [...new Set(revisiones.map(r => r.alumnoId).filter((id): id is string => !!id))];
   if (alumnoIds.length > 0) {
-    const nombreMap = await fetchAlumnoNombresByIds(alumnoIds);
-    revisiones.forEach(r => { if (r.alumnoId) r.alumnoNombre = nombreMap.get(r.alumnoId); });
+    const metaMap = await fetchAlumnoMetaByIds(alumnoIds);
+    revisiones.forEach(r => {
+      if (r.alumnoId) {
+        const meta = metaMap.get(r.alumnoId);
+        if (meta) {
+          r.alumnoNombre = meta.nombre;
+          r.tipoAlumno = meta.tipoAlumno;
+          r.moduloSolicitado = meta.moduloSolicitado;
+          r.parejaAsignada = meta.parejaAsignada;
+        }
+      }
+    });
   }
 
+  if (filters?.edicionNombre) {
+    const idSet = await fetchAlumnoIdsByEdicion(filters.edicionNombre);
+    return revisiones.filter(r => !r.alumnoId || idSet.has(r.alumnoId));
+  }
   return revisiones;
 }
 
@@ -100,7 +115,12 @@ export async function updateRevision(
   }>
 ): Promise<RevisionVideo> {
   const fields: Partial<AirtableRevisionFields> = {};
-  if (updates.estadoRevision) fields['Estado de Revisión'] = updates.estadoRevision;
+  if (updates.estadoRevision) {
+    fields['Estado de Revisión'] = updates.estadoRevision;
+    if (updates.estadoRevision !== 'Pendiente') {
+      fields['Fecha de Revisión'] = new Date().toISOString().split('T')[0];
+    }
+  }
   if (updates.puntuacion != null) fields['Puntuacion'] = updates.puntuacion;
   if (updates.feedback !== undefined) fields['Feedback'] = updates.feedback;
   if (updates.notasInternas !== undefined) fields['Notas Internas'] = updates.notasInternas;
@@ -110,22 +130,31 @@ export async function updateRevision(
 }
 
 /** Cuenta revisiones por estado — solo descarga los campos necesarios */
-export async function fetchRevisionStats(): Promise<{
+export async function fetchRevisionStats(edicionNombre?: string): Promise<{
   pendientes: number;
   revisadasHoy: number;
   total: number;
 }> {
-  const records = await listRecords<{ 'Estado de Revisión'?: string; 'Fecha de Revisión'?: string }>(TABLE, {
-    fields: ['Estado de Revisión', 'Fecha de Revisión'],
+  const records = await listRecords<{ 'Estado de Revisión'?: string; 'Fecha de Revisión'?: string; 'Alumno'?: string[] }>(TABLE, {
+    fields: ['Estado de Revisión', 'Fecha de Revisión', 'Alumno'],
   });
-  const today = new Date().toISOString().split('T')[0];
 
+  let workingRecords = records;
+  if (edicionNombre) {
+    const idSet = await fetchAlumnoIdsByEdicion(edicionNombre);
+    workingRecords = records.filter(r => {
+      const alumnoId = r.fields['Alumno']?.[0];
+      return !alumnoId || idSet.has(alumnoId);
+    });
+  }
+
+  const today = new Date().toISOString().split('T')[0];
   let pendientes = 0;
   let revisadasHoy = 0;
-  records.forEach(r => {
+  workingRecords.forEach(r => {
     if (r.fields['Estado de Revisión'] === 'Pendiente') pendientes++;
     if (r.fields['Fecha de Revisión']?.startsWith(today)) revisadasHoy++;
   });
 
-  return { pendientes, revisadasHoy, total: records.length };
+  return { pendientes, revisadasHoy, total: workingRecords.length };
 }

@@ -15,6 +15,7 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useHighlightRow } from '@/hooks/useHighlightRow';
 import styles from './VideoReview.module.css';
 import { useTranslation } from '@/i18n';
+import { useEdicion } from '@/context/EdicionContext';
 
 function VideoPlayer({ url }: { url: string }) {
   const [videoErrored, setVideoErrored] = useState(false);
@@ -84,6 +85,7 @@ function VideoPlayer({ url }: { url: string }) {
 export default function VideoReviewPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const { selectedNombre } = useEdicion();
   const isMobile = useIsMobile();
   useHighlightRow();
   const [selected, setSelected] = useState<RevisionVideo | null>(null);
@@ -99,12 +101,12 @@ export default function VideoReviewPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const { data: revisiones = [], isLoading } = useQuery({
-    queryKey: ['revisiones', { estado: 'Pendiente' }],
-    queryFn: () => fetchRevisiones({ estado: 'Pendiente' }),
+    queryKey: ['revisiones', { estado: 'Pendiente', edicion: selectedNombre }],
+    queryFn: () => fetchRevisiones({ estado: 'Pendiente', edicionNombre: selectedNombre }),
   });
   const { data: stats = { pendientes: 0, revisadasHoy: 0, total: 0 } } = useQuery({
-    queryKey: ['revision-stats'],
-    queryFn: fetchRevisionStats,
+    queryKey: ['revision-stats', { edicion: selectedNombre }],
+    queryFn: () => fetchRevisionStats(selectedNombre),
   });
 
   function selectRevision(rev: RevisionVideo, autoSelect = false) {
@@ -269,6 +271,26 @@ export default function VideoReviewPage() {
                 </div>
                 <StatusBadge status={selected.estadoRevision} type="revision" />
               </div>
+
+              {/* Alumno metadata */}
+              {(selected.tipoAlumno || selected.moduloSolicitado || selected.parejaAsignada !== undefined) && (
+                <div className={styles.alumnoMeta}>
+                  {selected.tipoAlumno && (
+                    <span className={styles.metaChip}>
+                      {selected.tipoAlumno === 'Leader' ? '🕺' : selected.tipoAlumno === 'Follower' ? '💃' : '👤'} {selected.tipoAlumno}
+                    </span>
+                  )}
+                  {selected.moduloSolicitado && (
+                    <span className={styles.metaChip}>📚 {selected.moduloSolicitado}</span>
+                  )}
+                  {selected.parejaAsignada
+                    ? <span className={styles.metaChip}>🤝 {selected.parejaAsignada}</span>
+                    : /m[oó]dulo\s*(3|iii)/i.test(selected.moduloSolicitado || '')
+                      ? <span className={styles.metaChipWarning}>⚠️ Sin pareja asignada</span>
+                      : null
+                  }
+                </div>
+              )}
 
               {/* Video */}
               <div className={styles.videoSection}>
