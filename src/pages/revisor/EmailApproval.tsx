@@ -50,6 +50,17 @@ export default function EmailApprovalPage() {
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+      <div role="alert" style={{
+        padding: '10px 16px',
+        marginBottom: '0',
+        background: 'var(--color-bg-warning, rgba(255,180,0,0.1))',
+        color: 'var(--color-accent-warning, #d97706)',
+        border: '1px solid var(--color-accent-warning, #d97706)',
+        borderRadius: 'var(--radius-md, 8px)',
+        fontSize: '0.875rem',
+      }}>
+        Esta página está en desarrollo. Las acciones aquí no afectan a los emails reales todavía.
+      </div>
       <KPIGrid columns={2}>
         {isLoading ? (
           Array.from({ length: 2 }).map((_, i) => <KPICardSkeleton key={i} />)

@@ -31,6 +31,7 @@ export default function AlumnoDetailPage() {
   const [editEstado, setEditEstado] = useState<EstadoGeneral | ''>('');
   const [editNotas, setEditNotas] = useState('');
   const [editPlazo, setEditPlazo] = useState('');
+  const [editPareja, setEditPareja] = useState('');
 
   const { alumno, isLoading, revisiones, pagos, historial, activeTab, goToTab, saveAlumno } = useAlumnoDetail(id);
 
@@ -40,6 +41,7 @@ export default function AlumnoDetailPage() {
       setEditEstado(alumno.estadoGeneral);
       setEditNotas(alumno.notasInternas || '');
       setEditPlazo(alumno.fechaPlazo || '');
+      setEditPareja(alumno.parejaAsignada || '');
     }
   }, [alumno]);
 
@@ -47,10 +49,11 @@ export default function AlumnoDetailPage() {
     if (!alumno) return;
     setIsSaving(true);
     try {
-      const updates: { estadoGeneral?: EstadoGeneral; notasInternas?: string; fechaPlazo?: string } = {};
+      const updates: { estadoGeneral?: EstadoGeneral; notasInternas?: string; fechaPlazo?: string; parejaAsignada?: string } = {};
       if (editEstado && editEstado !== alumno.estadoGeneral) updates.estadoGeneral = editEstado;
       if (editNotas !== (alumno.notasInternas || '')) updates.notasInternas = editNotas;
       if (editPlazo !== (alumno.fechaPlazo || '')) updates.fechaPlazo = editPlazo;
+      if (editPareja !== (alumno.parejaAsignada || '')) updates.parejaAsignada = editPareja;
       if (Object.keys(updates).length > 0) await saveAlumno(updates);
     } catch (err) {
       console.error('Error guardando cambios:', err);
@@ -105,8 +108,11 @@ export default function AlumnoDetailPage() {
   const hasChanges = (
     (editEstado && editEstado !== alumno.estadoGeneral) ||
     editNotas !== (alumno.notasInternas || '') ||
-    editPlazo !== (alumno.fechaPlazo || '')
+    editPlazo !== (alumno.fechaPlazo || '') ||
+    editPareja !== (alumno.parejaAsignada || '')
   );
+
+  const isModulo3 = /m[oó]dulo\s*(3|iii)/i.test(alumno.moduloSolicitado || '');
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
@@ -204,6 +210,21 @@ export default function AlumnoDetailPage() {
                   />
                 </div>
                 <div className={styles.field}>
+                  <label>Pareja asignada</label>
+                  <input
+                    type="text"
+                    value={editPareja}
+                    onChange={(e) => setEditPareja(e.target.value)}
+                    className={styles.input}
+                    placeholder="Nombre de la pareja..."
+                  />
+                  {isModulo3 && !editPareja && (
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-accent-warning, #d97706)', marginTop: '4px', display: 'block' }}>
+                      ⚠️ Módulo 3 requiere pareja asignada
+                    </span>
+                  )}
+                </div>
+                <div className={styles.field}>
                   <label>{t('alumnos.preinscripcion')}</label>
                   <span style={{ color: 'var(--color-text-secondary)' }}>{formatDate(alumno.fechaPreinscripcion)}</span>
                 </div>
@@ -233,6 +254,7 @@ export default function AlumnoDetailPage() {
                     setEditEstado(alumno.estadoGeneral);
                     setEditNotas(alumno.notasInternas || '');
                     setEditPlazo(alumno.fechaPlazo || '');
+                    setEditPareja(alumno.parejaAsignada || '');
                   }}>
                     {t('common.discard')}
                   </button>

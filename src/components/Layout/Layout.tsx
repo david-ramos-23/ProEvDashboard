@@ -104,6 +104,19 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
             >
               <span className={styles.navIcon}>{item.icon}</span>
               <span>{item.label}</span>
+              {item.badge === 'comingSoon' && (
+                <span style={{
+                  fontSize: '0.6rem',
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                  background: 'var(--color-accent-warning, #d97706)',
+                  color: '#fff',
+                  marginLeft: '4px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  verticalAlign: 'middle',
+                }}>Soon</span>
+              )}
             </NavLink>
           ))}
         </nav>

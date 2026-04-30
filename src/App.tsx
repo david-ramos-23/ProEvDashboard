@@ -90,30 +90,21 @@ export default function App() {
             />
           }
         >
-          {/* Rutas Admin */}
-          {session.role === 'admin' && (
-            <>
-              <Route path="/admin/dashboard" element={<DashboardPage />} />
-              <Route path="/admin/alumnos" element={<AlumnosPage />} />
-              <Route path="/admin/alumnos/:id" element={<AlumnoDetailPage />} />
-              <Route path="/admin/pagos" element={<PagosPage />} />
-              <Route path="/admin/inbox" element={<InboxPage />} />
-              {/* Redirect legacy Comunicaciones URL */}
-              <Route path="/admin/comunicaciones" element={<Navigate to="/admin/inbox" replace />} />
-              <Route path="/admin/ediciones" element={<EdicionesPage />} />
-              <Route path="/admin/audit" element={<AuditTrailPage />} />
-              {/* Admin accede a vistas del revisor */}
-              <Route path="/revisor/videos" element={<VideoReviewPage />} />
-              <Route path="/revisor/emails" element={<EmailApprovalPage />} />
-            </>
-          )}
+          {/* Rutas compartidas (admin + revisor) */}
+          <Route path="/admin/dashboard" element={<DashboardPage />} />
+          <Route path="/admin/alumnos" element={<AlumnosPage />} />
+          <Route path="/admin/alumnos/:id" element={<AlumnoDetailPage />} />
+          <Route path="/admin/pagos" element={<PagosPage />} />
+          <Route path="/admin/inbox" element={<InboxPage />} />
+          {/* Redirect legacy Comunicaciones URL */}
+          <Route path="/admin/comunicaciones" element={<Navigate to="/admin/inbox" replace />} />
+          <Route path="/admin/ediciones" element={<EdicionesPage />} />
+          <Route path="/revisor/videos" element={<VideoReviewPage />} />
+          <Route path="/revisor/emails" element={<EmailApprovalPage />} />
 
-          {/* Rutas Revisor */}
-          {session.role === 'revisor' && (
-            <>
-              <Route path="/revisor/videos" element={<VideoReviewPage />} />
-              <Route path="/revisor/emails" element={<EmailApprovalPage />} />
-            </>
+          {/* Rutas exclusivas Admin */}
+          {session.role === 'admin' && (
+            <Route path="/admin/audit" element={<AuditTrailPage />} />
           )}
         </Route>
 
