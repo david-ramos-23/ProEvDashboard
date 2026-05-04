@@ -65,9 +65,8 @@ export default function ComunicacionesPage() {
       {
         key: 'asunto', header: t('comunicaciones.asunto'),
         render: (e) => {
-          const full = e.asunto || e.descripcion || e.mensaje || '';
-          const short = e.mensaje && e.mensaje.length > 60 ? e.mensaje.slice(0, 60) + '…' : e.mensaje;
-          return <span style={{ fontSize: '0.8125rem' }} title={full || undefined}>{e.asunto || e.descripcion || short || '—'}</span>;
+          const text = e.asunto || e.mensaje || '—';
+          return <span style={{ fontSize: '0.8125rem', wordBreak: 'break-word' }}>{text}</span>;
         },
       },
       {
