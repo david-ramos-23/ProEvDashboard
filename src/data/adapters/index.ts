@@ -80,8 +80,8 @@ export async function fetchRevisionById(...args: Parameters<typeof import('./air
 export async function updateRevision(...args: Parameters<typeof import('./airtable/RevisionesAdapter').updateRevision>) {
   return (await getAdapters()).revisiones.updateRevision(...args);
 }
-export async function fetchRevisionStats() {
-  return (await getAdapters()).revisiones.fetchRevisionStats();
+export async function fetchRevisionStats(edicionNombre?: string) {
+  return (await getAdapters()).revisiones.fetchRevisionStats(edicionNombre);
 }
 
 // --- Pagos ---

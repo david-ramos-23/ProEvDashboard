@@ -65,7 +65,7 @@ export default function DashboardPage() {
   });
   const { data: pagosMes = [] } = useQuery({
     queryKey: ['pagos-por-mes'],
-    queryFn: fetchPagosPorMes,
+    queryFn: () => fetchPagosPorMes(),
   });
   const { data: historial = [] } = useQuery({
     queryKey: ['historial', { maxRecords: 15 }],
@@ -175,7 +175,7 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} />
                 <XAxis dataKey="mes" tick={{ fill: chartTheme.tickFill, fontSize: 12 }} />
                 <YAxis tick={{ fill: chartTheme.tickFill, fontSize: 12 }} />
-                <Tooltip contentStyle={{ background: chartTheme.tooltipBg, border: chartTheme.tooltipBorder, borderRadius: 8 }} formatter={(value: number) => [formatCurrency(Number(value)), 'Total']} />
+                <Tooltip contentStyle={{ background: chartTheme.tooltipBg, border: chartTheme.tooltipBorder, borderRadius: 8 }} formatter={(value) => [formatCurrency(Number(value ?? 0)), 'Total']} />
                 <Bar dataKey="total" fill="#0C5A45" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

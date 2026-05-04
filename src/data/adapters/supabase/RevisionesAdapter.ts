@@ -108,7 +108,7 @@ export async function updateRevision(
 }
 
 /** Cuenta revisiones por estado */
-export async function fetchRevisionStats(): Promise<{
+export async function fetchRevisionStats(_edicionNombre?: string): Promise<{
   pendientes: number;
   revisadasHoy: number;
   total: number;

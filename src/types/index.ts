@@ -94,6 +94,8 @@ export interface Alumno extends BaseRecord {
   adminResponsable?: string;
   ultimaModificacion?: string;
   parejaAsignada?: string;
+  parejaRecordId?: string;
+  tipoAlumno?: string;
 }
 
 /** Revisión de Video */

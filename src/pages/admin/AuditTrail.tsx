@@ -217,11 +217,8 @@ export default function AuditTrailPage() {
       <DataTable
         data={filtered}
         columns={columns}
-        keyExtractor={(e) => e.id}
         isLoading={isLoading}
         emptyMessage={t('audit.sinRegistros')}
-        defaultSortKey="createdAt"
-        defaultSortDir="desc"
       />
     </div>
   );

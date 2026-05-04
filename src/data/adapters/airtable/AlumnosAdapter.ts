@@ -43,7 +43,8 @@ interface AirtableAlumnoFields {
   'Dias en Estado Actual'?: number;
   'Dias desde Ultimo Evento'?: number;
   'Rol'?: string[];
-  'Pareja Asignada'?: string;
+  'Pareja Email'?: string;
+  'Pareja (Link)'?: string[];
 }
 
 /** Convierte un registro Airtable → tipo Alumno */
@@ -80,7 +81,8 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
     notasInternas: f['Notas Internas'],
     adminResponsable: f['Admin Responsable'],
     ultimaModificacion: f['Ultima Modificacion'],
-    parejaAsignada: f['Pareja Asignada'] ?? undefined,
+    parejaAsignada: f['Pareja Email'] ?? undefined,
+    parejaRecordId: Array.isArray(f['Pareja (Link)']) ? f['Pareja (Link)'][0] : undefined,
     tipoAlumno: Array.isArray(f['Rol']) ? f['Rol']?.[0] : undefined,
   };
 }
@@ -142,13 +144,15 @@ export async function updateAlumno(
     notasInternas: string;
     fechaPlazo: string;
     parejaAsignada: string;
+    parejaRecordId?: string;
   }>
 ): Promise<Alumno> {
   const fields: Partial<AirtableAlumnoFields> = {};
   if (updates.estadoGeneral) fields['Estado General'] = updates.estadoGeneral;
   if (updates.notasInternas !== undefined) fields['Notas Internas'] = updates.notasInternas;
   if (updates.fechaPlazo) fields['Fecha Plazo'] = updates.fechaPlazo;
-  if (updates.parejaAsignada !== undefined) fields['Pareja Asignada'] = updates.parejaAsignada;
+  if (updates.parejaAsignada !== undefined) fields['Pareja Email'] = updates.parejaAsignada;
+  if (updates.parejaRecordId !== undefined) fields['Pareja (Link)'] = updates.parejaRecordId ? [updates.parejaRecordId] : [];
 
   const record = await updateRecord<AirtableAlumnoFields>(TABLE, id, fields);
   return mapToAlumno(record);
@@ -235,7 +239,7 @@ export async function fetchAlumnoMetaByIds(ids: string[]): Promise<Map<string, A
         nombre: (Array.isArray(f['Nombre']) ? f['Nombre'][0] : f['Nombre']) as string || '',
         tipoAlumno: Array.isArray(f['Rol']) ? f['Rol']?.[0] : undefined,
         moduloSolicitado: f['Modulo Solicitado'] ?? undefined,
-        parejaAsignada: f['Pareja Asignada'] ?? undefined,
+        parejaAsignada: f['Pareja Email'] ?? undefined,
       });
     });
   }

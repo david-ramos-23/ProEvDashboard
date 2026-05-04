@@ -40,7 +40,7 @@ function sortEmails(emails: InboxEmail[]): InboxEmail[] {
     if (!aNew && bNew) return 1;
     const aDate = a.fecha || a.createdTime;
     const bDate = b.fecha || b.createdTime;
-    return new Date(bDate).getTime() - new Date(aDate).getTime();
+    return new Date(bDate || '').getTime() - new Date(aDate || '').getTime();
   });
 }
 

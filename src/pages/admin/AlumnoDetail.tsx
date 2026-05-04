@@ -33,6 +33,7 @@ export default function AlumnoDetailPage() {
   const [editNotas, setEditNotas] = useState('');
   const [editPlazo, setEditPlazo] = useState('');
   const [editPareja, setEditPareja] = useState('');
+  const [editParejaId, setEditParejaId] = useState('');
 
   // Pareja dropdown state
   const [parejaOpen, setParejaOpen] = useState(false);
@@ -62,6 +63,12 @@ export default function AlumnoDetailPage() {
       : parejaOptions;
   }, [parejaOptions, parejaSearch]);
 
+  const displayPareja = useMemo(() => {
+    if (!editParejaId && !editPareja) return '';
+    const found = parejaOptions.find(o => o.id === editParejaId);
+    return found ? (found.nombre || found.email || editPareja) : editPareja;
+  }, [editParejaId, editPareja, parejaOptions]);
+
   // Close pareja dropdown on outside click
   useEffect(() => {
     if (!parejaOpen) return;
@@ -83,6 +90,7 @@ export default function AlumnoDetailPage() {
       setEditNotas(alumno.notasInternas || '');
       setEditPlazo(alumno.fechaPlazo || '');
       setEditPareja(alumno.parejaAsignada || '');
+      setEditParejaId(alumno.parejaRecordId || '');
     }
   }, [alumno]);
 
@@ -90,11 +98,12 @@ export default function AlumnoDetailPage() {
     if (!alumno) return;
     setIsSaving(true);
     try {
-      const updates: { estadoGeneral?: EstadoGeneral; notasInternas?: string; fechaPlazo?: string; parejaAsignada?: string } = {};
+      const updates: { estadoGeneral?: EstadoGeneral; notasInternas?: string; fechaPlazo?: string; parejaAsignada?: string; parejaRecordId?: string } = {};
       if (editEstado && editEstado !== alumno.estadoGeneral) updates.estadoGeneral = editEstado;
       if (editNotas !== (alumno.notasInternas || '')) updates.notasInternas = editNotas;
       if (editPlazo !== (alumno.fechaPlazo || '')) updates.fechaPlazo = editPlazo;
-      if (editPareja !== (alumno.parejaAsignada || '')) updates.parejaAsignada = editPareja;
+      const parejaChanged = editParejaId !== (alumno.parejaRecordId || '') || editPareja !== (alumno.parejaAsignada || '');
+      if (parejaChanged) { updates.parejaAsignada = editPareja; updates.parejaRecordId = editParejaId; }
       if (Object.keys(updates).length > 0) await saveAlumno(updates);
     } catch (err) {
       console.error('Error guardando cambios:', err);
@@ -150,7 +159,7 @@ export default function AlumnoDetailPage() {
     (editEstado && editEstado !== alumno.estadoGeneral) ||
     editNotas !== (alumno.notasInternas || '') ||
     editPlazo !== (alumno.fechaPlazo || '') ||
-    editPareja !== (alumno.parejaAsignada || '')
+    editParejaId !== (alumno.parejaRecordId || '') || editPareja !== (alumno.parejaAsignada || '')
   );
 
   const isModulo3 = /m[oó]dulo\s*(3|iii)/i.test(alumno.moduloSolicitado || '');
@@ -256,10 +265,10 @@ export default function AlumnoDetailPage() {
                     <button
                       type="button"
                       className={styles.input}
-                      style={{ width: '100%', textAlign: 'left', cursor: 'pointer', color: editPareja ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
+                      style={{ width: '100%', textAlign: 'left', cursor: 'pointer', color: displayPareja ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}
                       onClick={() => { setParejaOpen(o => !o); if (!parejaOpen) loadParejaOptions(); }}
                     >
-                      {editPareja || 'Seleccionar pareja...'}
+                      {displayPareja || 'Seleccionar pareja...'}
                     </button>
                     {parejaOpen && (
                       <div style={{
@@ -300,14 +309,14 @@ export default function AlumnoDetailPage() {
                               }}
                               onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-bg-card-hover)')}
                               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                              onClick={() => { setEditPareja(a.nombre || ''); setParejaOpen(false); setParejaSearch(''); }}
+                              onClick={() => { setEditPareja(a.email || ''); setEditParejaId(a.id || ''); setParejaOpen(false); setParejaSearch(''); }}
                             >
                               <span style={{ fontWeight: 500 }}>{a.nombre}</span>
                               <span style={{ marginLeft: '6px', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{a.email}</span>
                             </button>
                           ))}
                         </div>
-                        {editPareja && (
+                        {(editPareja || editParejaId) && (
                           <button
                             type="button"
                             style={{
@@ -317,7 +326,7 @@ export default function AlumnoDetailPage() {
                               cursor: 'pointer', fontFamily: 'var(--font-family)',
                               fontSize: '0.75rem', color: 'var(--color-accent-danger)',
                             }}
-                            onClick={() => { setEditPareja(''); setParejaOpen(false); }}
+                            onClick={() => { setEditPareja(''); setEditParejaId(''); setParejaOpen(false); }}
                           >
                             Quitar pareja asignada
                           </button>
@@ -325,7 +334,7 @@ export default function AlumnoDetailPage() {
                       </div>
                     )}
                   </div>
-                  {isModulo3 && !editPareja && (
+                  {isModulo3 && !editParejaId && !editPareja && (
                     <span style={{ fontSize: '0.75rem', color: 'var(--color-accent-warning, #d97706)', marginTop: '4px', display: 'block' }}>
                       ⚠️ Módulo 3 requiere pareja asignada
                     </span>
@@ -366,6 +375,7 @@ export default function AlumnoDetailPage() {
                 setEditNotas(alumno.notasInternas || '');
                 setEditPlazo(alumno.fechaPlazo || '');
                 setEditPareja(alumno.parejaAsignada || '');
+                setEditParejaId(alumno.parejaRecordId || '');
               }}>
                 {t('common.discard')}
               </button>
