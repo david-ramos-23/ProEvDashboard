@@ -66,7 +66,7 @@ export default function ComunicacionesPage() {
         key: 'asunto', header: t('comunicaciones.asunto'),
         render: (e) => {
           const text = e.asunto || e.mensaje || '—';
-          return <span style={{ fontSize: '0.8125rem', wordBreak: 'break-word' }}>{text}</span>;
+          return <span style={{ fontSize: '0.8125rem', whiteSpace: 'normal', wordBreak: 'break-word' }} title={text}>{text}</span>;
         },
       },
       {
