@@ -381,7 +381,7 @@ export default function VideoReviewPage() {
                 </button>
                 <button
                   className={styles.actionBtn + ' ' + styles.actionRevision}
-                  onClick={() => setConfirmAction({ estado: 'Revision Necesaria', label: t('videoReview.revisionNecesaria'), icon: '🔄', variant: 'warning' })}
+                  onClick={() => setConfirmAction({ estado: 'En revision', label: t('videoReview.revisionNecesaria'), icon: '🔄', variant: 'warning' })}
                   disabled={isSaving}
                 >
                   {t('videoReview.revisionNecesaria')}
