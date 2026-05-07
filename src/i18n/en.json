@@ -185,5 +185,28 @@
     "title": "Audit Trail",
     "sinRegistros": "No audit records",
     "onlySupabase": "Audit Trail is only available with Supabase as data source."
+  },
+  "emailCompose": {
+    "title": "Compose email",
+    "recipient": "To",
+    "templateLabel": "Template",
+    "templatePlaceholder": "Select template",
+    "subjectLabel": "Subject",
+    "subjectPlaceholder": "Email subject",
+    "bodyLabel": "Message",
+    "bodyPlaceholder": "Write your message here...",
+    "sendButton": "Send",
+    "cancelButton": "Cancel",
+    "sendingButton": "Sending...",
+    "successTitle": "Email queued",
+    "successDescription": "The email has been added to the send queue.",
+    "closeButton": "Close",
+    "errorMessage": "Failed to send. Please try again.",
+    "templates": {
+      "disculpa": "Incorrect module",
+      "seguimiento": "No partner assigned (M3)",
+      "recordatorio": "Payment reminder",
+      "libre": "Free email"
+    }
   }
 }

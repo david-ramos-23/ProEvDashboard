@@ -185,5 +185,28 @@
     "title": "Audit Trail",
     "sinRegistros": "Sin registros de auditoria",
     "onlySupabase": "El Audit Trail solo esta disponible con Supabase como fuente de datos."
+  },
+  "emailCompose": {
+    "title": "Redactar email",
+    "recipient": "Para",
+    "templateLabel": "Template",
+    "templatePlaceholder": "Seleccionar template",
+    "subjectLabel": "Asunto",
+    "subjectPlaceholder": "Asunto del email",
+    "bodyLabel": "Mensaje",
+    "bodyPlaceholder": "Escribe tu mensaje aquí...",
+    "sendButton": "Enviar",
+    "cancelButton": "Cancelar",
+    "sendingButton": "Enviando...",
+    "successTitle": "Email en cola",
+    "successDescription": "El email se ha añadido a la cola de envío.",
+    "closeButton": "Cerrar",
+    "errorMessage": "Error al enviar. Inténtalo de nuevo.",
+    "templates": {
+      "disculpa": "Módulo incorrecto",
+      "seguimiento": "Sin pareja asignada (M3)",
+      "recordatorio": "Recordatorio de pago",
+      "libre": "Email libre"
+    }
   }
 }
