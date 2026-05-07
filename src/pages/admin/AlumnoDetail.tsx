@@ -15,6 +15,7 @@ import { useTranslation } from '@/i18n';
 import { useAlumnoDetail, AlumnoDetailTab } from '@/hooks/useAlumnoDetail';
 import { useSchema } from '@/hooks/useSchema';
 import { fetchAlumnos } from '@/data/adapters';
+import { EmailComposeModal } from '@/components/EmailComposeModal';
 import styles from './AlumnoDetail.module.css';
 
 export default function AlumnoDetailPage() {
@@ -27,6 +28,7 @@ export default function AlumnoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
 
   // Campos editables
   const [editEstado, setEditEstado] = useState<EstadoGeneral | ''>('');
@@ -170,6 +172,14 @@ export default function AlumnoDetailPage() {
       <div className={styles.header}>
         <button className={styles.backBtn} onClick={() => navigate('/admin/alumnos')}>
           ← {t('common.back')}
+        </button>
+        <button
+          type="button"
+          className={styles.backBtn}
+          onClick={() => setIsComposeOpen(true)}
+          aria-label={t('emailCompose.title')}
+        >
+          ✉ {t('emailCompose.title')}
         </button>
         <div className={styles.headerInfo}>
           <div className={styles.avatar}>
@@ -489,6 +499,12 @@ export default function AlumnoDetailPage() {
           </div>
         )}
       </div>
+      <EmailComposeModal
+        open={isComposeOpen}
+        alumnoRecordId={alumno.id}
+        alumnoNombre={alumno.nombre ?? alumno.email ?? ''}
+        onClose={() => setIsComposeOpen(false)}
+      />
     </div>
   );
 }
