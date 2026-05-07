@@ -1,5 +1,29 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getSessionRole } from '../_lib/auth';
+
+const AUTHORIZED_USERS: Record<string, 'admin' | 'revisor'> = {
+  'andara14@gmail.com': 'admin',
+  'david@dravaautomations.com': 'admin',
+  'proevolutioncourse@gmail.com': 'admin',
+  'alonsoynoelia17@gmail.com': 'revisor',
+  'alonkickboxer@gmail.com': 'revisor',
+};
+
+const ADMIN_ALIAS_PATTERN = /^andara14\+admin@gmail\.com$/i;
+const REVISOR_ALIAS_PATTERN = /^andara14\+revisor@gmail\.com$/i;
+// TEST_USER_PATTERN only active outside production to prevent admin backdoor in prod
+const TEST_USER_PATTERN = process.env.NODE_ENV !== 'production'
+  ? /^andara14\+test-.*@gmail\.com$/i
+  : null;
+
+function getSessionRole(email: string | undefined): 'admin' | 'revisor' | null {
+  if (!email) return null;
+  const e = email.toLowerCase().trim();
+  if (AUTHORIZED_USERS[e]) return AUTHORIZED_USERS[e];
+  if (ADMIN_ALIAS_PATTERN.test(e)) return 'admin';
+  if (REVISOR_ALIAS_PATTERN.test(e)) return 'revisor';
+  if (TEST_USER_PATTERN?.test(e)) return 'admin';
+  return null;
+}
 
 const AIRTABLE_PAT = process.env.AIRTABLE_PAT;
 const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
