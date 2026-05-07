@@ -40,7 +40,7 @@ const ALLOWED_ORIGINS = [
 
 const VALID_TEMPLATE_KEYS = [
   'disculpa', 'informacion', 'recordatorio',
-  'seguimiento', 'bienvenida', 'felicitacion', 'urgente',
+  'seguimiento', 'bienvenida', 'felicitacion', 'urgente', 'libre',
 ] as const;
 type TemplateKey = typeof VALID_TEMPLATE_KEYS[number];
 
