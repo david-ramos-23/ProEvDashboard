@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { getSession } from '@/auth/AuthService';
 import { useTranslation } from '@/i18n';
 import { EMAIL_TEMPLATES, UI_TEMPLATE_OPTIONS, type TemplateKey } from '@/lib/emailTemplates';
 import styles from './EmailComposeModal.module.css';
@@ -93,7 +94,7 @@ export function EmailComposeModal({
     if (!selectedTemplate) return;
     setModalState('sending');
     try {
-      const sessionEmail = localStorage.getItem('proev_session') ?? '';
+      const sessionEmail = getSession()?.email ?? '';
       const response = await fetch('/api/emails/compose', {
         method: 'POST',
         headers: {
