@@ -16,6 +16,8 @@ import { timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { ESTADO_EMAIL } from '@/utils/constants';
+import { EmailComposeModal } from '@/components/EmailComposeModal';
+import { getSession } from '@/auth/AuthService';
 import styles from './Inbox.module.css';
 
 type SectionType = 'bandeja' | 'cola';
@@ -353,6 +355,8 @@ export default function InboxPage() {
   const [search, setSearch] = useState('');
   const [estadoDropdownOpen, setEstadoDropdownOpen] = useState(false);
   const estadoRef = useRef<HTMLDivElement>(null);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const isAdmin = getSession()?.role === 'admin';
 
   // Close estado dropdown on outside click
   useEffect(() => {
@@ -433,6 +437,17 @@ export default function InboxPage() {
         >
           <span>📧</span> Cola de emails
         </button>
+        {isAdmin && (
+          <button
+            type="button"
+            className="btn-ghost btn-sm"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => setIsComposeOpen(true)}
+            aria-label={t('emailCompose.newEmail')}
+          >
+            ✉️ {t('emailCompose.newEmail')}
+          </button>
+        )}
       </div>
 
       {/* Cola section */}
@@ -573,6 +588,13 @@ export default function InboxPage() {
           </div>
         </div>
       )}
+
+      <EmailComposeModal
+        open={isComposeOpen}
+        alumnoRecordId={selectedEmail?.alumnoId ?? ''}
+        alumnoNombre={selectedEmail?.alumnoNombre ?? ''}
+        onClose={() => setIsComposeOpen(false)}
+      />
     </div>
   );
 }
