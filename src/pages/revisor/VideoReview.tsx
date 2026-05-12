@@ -16,6 +16,7 @@ import { useHighlightRow } from '@/hooks/useHighlightRow';
 import styles from './VideoReview.module.css';
 import { useTranslation } from '@/i18n';
 import { useEdicion } from '@/context/EdicionContext';
+import { EmailComposeModal } from '@/components/EmailComposeModal';
 
 function VideoPlayer({ url }: { url: string }) {
   const [videoErrored, setVideoErrored] = useState(false);
@@ -89,6 +90,7 @@ export default function VideoReviewPage() {
   const isMobile = useIsMobile();
   useHighlightRow();
   const [selected, setSelected] = useState<RevisionVideo | null>(null);
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -366,6 +368,15 @@ export default function VideoReviewPage() {
               {/* Botones de acción */}
               <div className={styles.actions}>
                 <button
+                  type="button"
+                  className="btn-ghost btn-sm"
+                  onClick={() => setIsComposeOpen(true)}
+                  disabled={!selected || isSaving}
+                  aria-label={t('emailCompose.compose')}
+                >
+                  {t('emailCompose.compose')}
+                </button>
+                <button
                   className={styles.actionBtn + ' ' + styles.actionApprove}
                   onClick={() => setConfirmAction({ estado: 'Aprobado', label: t('videoReview.aprobar'), icon: '✅', variant: 'success' })}
                   disabled={isSaving}
@@ -381,7 +392,7 @@ export default function VideoReviewPage() {
                 </button>
                 <button
                   className={styles.actionBtn + ' ' + styles.actionRevision}
-                  onClick={() => setConfirmAction({ estado: 'En revision', label: t('videoReview.revisionNecesaria'), icon: '🔄', variant: 'warning' })}
+                  onClick={() => setConfirmAction({ estado: 'Revision Necesaria', label: t('videoReview.revisionNecesaria'), icon: '🔄', variant: 'warning' })}
                   disabled={isSaving}
                 >
                   {t('videoReview.revisionNecesaria')}
@@ -410,6 +421,13 @@ export default function VideoReviewPage() {
           )}
         </div>
       </div>
+
+      <EmailComposeModal
+        open={isComposeOpen}
+        alumnoRecordId={selected?.alumnoId ?? ''}
+        alumnoNombre={selected?.alumnoNombre ?? ''}
+        onClose={() => setIsComposeOpen(false)}
+      />
     </div>
   );
 }
