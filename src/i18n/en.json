@@ -188,6 +188,11 @@
   },
   "emailCompose": {
     "title": "Compose email",
+    "compose": "Compose email",
+    "newEmail": "New email",
+    "alumnoLabel": "Student",
+    "searchAlumno": "Search student...",
+    "selectAlumnoFirst": "Select a student first",
     "recipient": "To",
     "templateLabel": "Template",
     "templatePlaceholder": "Select template",

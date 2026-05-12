@@ -188,6 +188,11 @@
   },
   "emailCompose": {
     "title": "Redactar email",
+    "compose": "Redactar email",
+    "newEmail": "Redactar",
+    "alumnoLabel": "Alumno",
+    "searchAlumno": "Buscar alumno...",
+    "selectAlumnoFirst": "Selecciona un alumno primero",
     "recipient": "Para",
     "templateLabel": "Template",
     "templatePlaceholder": "Seleccionar template",
