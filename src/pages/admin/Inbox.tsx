@@ -104,6 +104,9 @@ function DetailPanel({ email, onUpdate, isPending, onBack }: DetailPanelProps) {
         <div className={styles.detailHeaderTop}>
           <h2 className={styles.detailSubject}>{email.asunto || '(sin asunto)'}</h2>
           <StatusBadge status={email.estado} />
+          {email.origen === 'Manual' && (
+            <StatusBadge status="Manual" type="origin" />
+          )}
         </div>
         <div className={styles.detailMeta}>
           <span><strong>De:</strong> {email.de}</span>
@@ -255,6 +258,12 @@ function ColaSection() {
       {
         key: 'asunto', header: 'Asunto / Mensaje',
         render: (e) => <span style={{ fontSize: '0.8125rem' }}>{e.asunto || e.descripcion || e.mensaje?.slice(0, 80) || '—'}</span>,
+      },
+      {
+        key: 'origen', header: 'Origen', width: '90px', minWidth: 70,
+        render: (e) => e.asunto
+          ? <StatusBadge status="Manual" type="origin" />
+          : null,
       },
       {
         key: 'estado', header: 'Estado', width: '140px', sortable: true, minWidth: 100,
@@ -566,6 +575,9 @@ export default function InboxPage() {
                           {email.direccion === 'Recibido' ? email.de : email.para}
                         </span>
                         <StatusBadge status={email.estado} />
+                        {email.origen === 'Manual' && (
+                          <StatusBadge status="Manual" type="origin" />
+                        )}
                       </div>
                       {email.resumenIA && (
                         <div className={styles.listItemSnippet}>{email.resumenIA}</div>
