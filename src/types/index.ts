@@ -220,6 +220,7 @@ export interface InboxEmail extends BaseRecord {
   respuestaFinal?: string;
   respuestaEnviada?: boolean;
   ultimaModificacion?: string;
+  origen?: string;  // "Manual" | "Automatico" — from Inbox.Origen singleSelect
 }
 
 // ============================================================

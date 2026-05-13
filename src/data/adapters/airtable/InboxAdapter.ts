@@ -25,6 +25,7 @@ interface AirtableInboxFields {
   'Respuesta Enviada'?: boolean;
   'Alumno'?: string[];
   'Ultima Modificacion'?: string;
+  'Origen'?: string;  // singleSelect: "Automatico" | "Manual"
 }
 
 function mapToInbox(record: AirtableRecord<AirtableInboxFields>): InboxEmail {
@@ -50,6 +51,7 @@ function mapToInbox(record: AirtableRecord<AirtableInboxFields>): InboxEmail {
     respuestaFinal: f['Respuesta Final'],
     respuestaEnviada: f['Respuesta Enviada'],
     ultimaModificacion: f['Ultima Modificacion'],
+    origen: f['Origen'],
   };
 }
 
