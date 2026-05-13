@@ -137,6 +137,12 @@ export const EDITION_ESTADO_COLORS: Record<string, string> = {
   'Finalizada': 'var(--color-estado-finalizado)',
 };
 
+/** Colores de origen de email (Manual vs Automatico) */
+export const ORIGEN_COLORS: Record<string, string> = {
+  Manual: '#7C3AED',      // purple, matches Airtable purpleLight2
+  Automatico: 'var(--color-text-muted)',
+};
+
 /** Colores de estado de email */
 export const EMAIL_COLORS: Record<EstadoEmail, string> = {
   'Pendiente Aprobacion': 'var(--color-accent-warning)',
