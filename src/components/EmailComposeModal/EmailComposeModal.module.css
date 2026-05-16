@@ -248,6 +248,45 @@
   .overlay, .panel { animation: none; }
 }
 
+/* Mode toggle */
+.modeToggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.modeBtn {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  transition: var(--transition-fast, background 150ms, color 150ms, border-color 150ms);
+}
+
+.modeBtn:hover:not(:disabled) {
+  background: var(--color-bg-secondary, #f1f5f9);
+}
+
+.modeBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modeBtnActive {
+  background: var(--color-accent-primary, #0C5A45);
+  color: #fff;
+  border-color: var(--color-accent-primary, #0C5A45);
+}
+
+.modeBtnActive:hover:not(:disabled) {
+  background: var(--color-accent-primary, #0C5A45);
+  opacity: 0.9;
+}
+
 .pickerField {
   display: flex;
   flex-direction: column;

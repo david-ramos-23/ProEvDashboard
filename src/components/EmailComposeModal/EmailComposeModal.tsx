@@ -26,6 +26,7 @@ export function EmailComposeModal({
   const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
 
+  const [composeMode, setComposeMode] = useState<'template' | 'quick'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateKey | ''>('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
@@ -46,6 +47,7 @@ export function EmailComposeModal({
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
+      setComposeMode('template');
       setComposeAlumnoId('');
       setComposeAlumnoNombre('');
       const key = initialTemplateKey ?? '';
@@ -116,10 +118,12 @@ export function EmailComposeModal({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!selectedTemplate || !effectiveAlumnoId) return;
+    if (!effectiveAlumnoId) return;
+    if (composeMode === 'template' && !selectedTemplate) return;
     setModalState('sending');
     try {
       const sessionEmail = getSession()?.email ?? '';
+      const origen = composeMode === 'quick' ? 'manual_quick' : 'manual_template';
       const response = await fetch('/api/emails/compose', {
         method: 'POST',
         headers: {
@@ -128,9 +132,10 @@ export function EmailComposeModal({
         },
         body: JSON.stringify({
           alumnoRecordId: effectiveAlumnoId,
-          asunto: subject,
+          ...(subject ? { asunto: subject } : {}),
           mensaje: body,
-          templateKey: selectedTemplate,
+          ...(composeMode === 'template' ? { templateKey: selectedTemplate } : {}),
+          origen,
         }),
       });
       if (response.ok) {
@@ -166,6 +171,27 @@ export function EmailComposeModal({
           <>
             <h2 id="compose-title" className={styles.title}>{t('emailCompose.title')}</h2>
             <form onSubmit={handleSubmit} className={styles.form}>
+              {/* Mode toggle */}
+              <div className={styles.modeToggle} role="group" aria-label={t('emailCompose.modeToggleLabel')}>
+                <button
+                  type="button"
+                  className={`${styles.modeBtn} ${composeMode === 'template' ? styles.modeBtnActive : ''}`}
+                  onClick={() => setComposeMode('template')}
+                  disabled={modalState === 'sending'}
+                  aria-pressed={composeMode === 'template'}
+                >
+                  {t('emailCompose.modeTemplate')}
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.modeBtn} ${composeMode === 'quick' ? styles.modeBtnActive : ''}`}
+                  onClick={() => setComposeMode('quick')}
+                  disabled={modalState === 'sending'}
+                  aria-pressed={composeMode === 'quick'}
+                >
+                  {t('emailCompose.modeQuick')}
+                </button>
+              </div>
               {isPickerMode ? (
                 <div className={styles.pickerField}>
                   <label htmlFor="compose-alumno-picker" className={styles.label}>
@@ -206,36 +232,40 @@ export function EmailComposeModal({
                   <span className={styles.recipientName}>{alumnoNombre}</span>
                 </div>
               )}
-              <div className={styles.fieldGroup}>
-                <label htmlFor="compose-template" className={styles.label}>{t('emailCompose.templateLabel')}</label>
-                <select
-                  id="compose-template"
-                  className={`${styles.select} ${isPickerMode && !composeAlumnoId ? styles.selectDisabled : ''}`}
-                  value={selectedTemplate}
-                  onChange={(e) => handleTemplateChange(e.target.value as TemplateKey | '')}
-                  disabled={modalState === 'sending' || (isPickerMode && !composeAlumnoId)}
-                  aria-disabled={isPickerMode && !composeAlumnoId ? 'true' : undefined}
-                  required
-                >
-                  <option value="">{t('emailCompose.templatePlaceholder')}</option>
-                  {UI_TEMPLATE_OPTIONS.map(({ key, labelKey }) => (
-                    <option key={key} value={key}>{t(labelKey)}</option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.fieldGroup}>
-                <label htmlFor="compose-subject" className={styles.label}>{t('emailCompose.subjectLabel')}</label>
-                <input
-                  id="compose-subject"
-                  type="text"
-                  className={styles.input}
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder={t('emailCompose.subjectPlaceholder')}
-                  disabled={modalState === 'sending'}
-                  required
-                />
-              </div>
+              {composeMode === 'template' && (
+                <div className={styles.fieldGroup}>
+                  <label htmlFor="compose-template" className={styles.label}>{t('emailCompose.templateLabel')}</label>
+                  <select
+                    id="compose-template"
+                    className={`${styles.select} ${isPickerMode && !composeAlumnoId ? styles.selectDisabled : ''}`}
+                    value={selectedTemplate}
+                    onChange={(e) => handleTemplateChange(e.target.value as TemplateKey | '')}
+                    disabled={modalState === 'sending' || (isPickerMode && !composeAlumnoId)}
+                    aria-disabled={isPickerMode && !composeAlumnoId ? 'true' : undefined}
+                    required
+                  >
+                    <option value="">{t('emailCompose.templatePlaceholder')}</option>
+                    {UI_TEMPLATE_OPTIONS.map(({ key, labelKey }) => (
+                      <option key={key} value={key}>{t(labelKey)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              {composeMode === 'template' && (
+                <div className={styles.fieldGroup}>
+                  <label htmlFor="compose-subject" className={styles.label}>{t('emailCompose.subjectLabel')}</label>
+                  <input
+                    id="compose-subject"
+                    type="text"
+                    className={styles.input}
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder={t('emailCompose.subjectPlaceholder')}
+                    disabled={modalState === 'sending'}
+                    required
+                  />
+                </div>
+              )}
               <div className={styles.fieldGroup}>
                 <label htmlFor="compose-body" className={styles.label}>{t('emailCompose.bodyLabel')}</label>
                 <textarea
@@ -243,7 +273,7 @@ export function EmailComposeModal({
                   className={styles.textarea}
                   value={body}
                   onChange={(e) => setBody(e.target.value)}
-                  placeholder={t('emailCompose.bodyPlaceholder')}
+                  placeholder={composeMode === 'quick' ? t('emailCompose.quickBodyPlaceholder') : t('emailCompose.bodyPlaceholder')}
                   disabled={modalState === 'sending'}
                   rows={8}
                   required
@@ -264,7 +294,7 @@ export function EmailComposeModal({
                 <button
                   type="submit"
                   className={styles.sendButton}
-                  disabled={modalState === 'sending' || !selectedTemplate || !effectiveAlumnoId}
+                  disabled={modalState === 'sending' || !effectiveAlumnoId || (composeMode === 'template' && !selectedTemplate)}
                 >
                   {modalState === 'sending' ? t('emailCompose.sendingButton') : t('emailCompose.sendButton')}
                 </button>

@@ -212,6 +212,10 @@
       "seguimiento": "No partner assigned (M3)",
       "recordatorio": "Payment reminder",
       "libre": "Free email"
-    }
+    },
+    "modeTemplate": "With template",
+    "modeQuick": "Quick email",
+    "modeToggleLabel": "Compose mode",
+    "quickBodyPlaceholder": "Write the email context. The subject will be generated automatically by AI."
   }
 }

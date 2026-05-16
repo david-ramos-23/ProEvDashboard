@@ -212,6 +212,10 @@
       "seguimiento": "Sin pareja asignada (M3)",
       "recordatorio": "Recordatorio de pago",
       "libre": "Email libre"
-    }
+    },
+    "modeTemplate": "Con template",
+    "modeQuick": "Email rápido",
+    "modeToggleLabel": "Modo de redacción",
+    "quickBodyPlaceholder": "Escribe el contexto del email. El asunto será generado automáticamente por IA."
   }
 }

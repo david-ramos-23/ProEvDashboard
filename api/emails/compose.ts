@@ -48,6 +48,15 @@ function isValidTemplateKey(key: string): key is TemplateKey {
   return (VALID_TEMPLATE_KEYS as readonly string[]).includes(key);
 }
 
+const VALID_ORIGINS_FIELD = ['manual_template', 'manual_quick', 'bulk', 'automatico_workflow'] as const;
+type ValidOrigenField = typeof VALID_ORIGINS_FIELD[number];
+
+function isValidOrigenField(v: unknown): v is ValidOrigenField {
+  return typeof v === 'string' && (VALID_ORIGINS_FIELD as readonly string[]).includes(v);
+}
+
+const ORIGEN_AIRTABLE_FIELD_ID = 'fld0QZocgnG8ioHSx';
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS — only echo back a literal allowlist value (never the raw request header)
   const origin = req.headers['origin'] as string | undefined;
@@ -73,22 +82,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (role !== 'admin' && role !== 'revisor') return res.status(403).json({ error: 'Forbidden' });
 
   // Input validation — all fields required, non-empty strings
-  const { alumnoRecordId, asunto, mensaje, templateKey } = req.body ?? {};
+  const { alumnoRecordId, asunto, mensaje, templateKey, origen: origenRaw } = req.body ?? {};
+
+  // Resolve and validate origen; default to manual_template for backward compat
+  const origen: ValidOrigenField = isValidOrigenField(origenRaw) ? origenRaw : 'manual_template';
+  const isQuickMode = origen === 'manual_quick';
 
   if (!alumnoRecordId || typeof alumnoRecordId !== 'string') {
     return res.status(400).json({ error: 'alumnoRecordId is required', field: 'alumnoRecordId' });
   }
-  if (!asunto || typeof asunto !== 'string') {
+  // asunto is required in template mode, optional in quick mode (AI will generate it)
+  if (!isQuickMode && (!asunto || typeof asunto !== 'string')) {
     return res.status(400).json({ error: 'asunto is required', field: 'asunto' });
   }
   if (!mensaje || typeof mensaje !== 'string') {
     return res.status(400).json({ error: 'mensaje is required', field: 'mensaje' });
   }
-  if (!templateKey || typeof templateKey !== 'string') {
-    return res.status(400).json({ error: 'templateKey is required', field: 'templateKey' });
-  }
-  if (!isValidTemplateKey(templateKey)) {
-    return res.status(400).json({ error: 'Invalid templateKey', field: 'templateKey' });
+  // templateKey required only in template mode
+  if (!isQuickMode) {
+    if (!templateKey || typeof templateKey !== 'string') {
+      return res.status(400).json({ error: 'templateKey is required', field: 'templateKey' });
+    }
+    if (!isValidTemplateKey(templateKey)) {
+      return res.status(400).json({ error: 'Invalid templateKey', field: 'templateKey' });
+    }
   }
 
   // Write to Airtable Cola de Emails
@@ -106,10 +123,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             {
               fields: {
                 'Alumno': [alumnoRecordId],
-                'Tipo': templateKey,
+                ...(isQuickMode ? {} : { 'Tipo': templateKey }),
                 'Mensaje': mensaje,
-                'Asunto Generado': asunto,
+                ...(asunto ? { 'Asunto Generado': asunto } : {}),
                 'Estado': 'Pendiente',
+                [ORIGEN_AIRTABLE_FIELD_ID]: origen,
               },
             },
           ],
