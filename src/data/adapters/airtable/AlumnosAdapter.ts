@@ -7,7 +7,7 @@
 
 import { Alumno, EstadoGeneral, DashboardStats } from '@/types';
 import { AIRTABLE_TABLES, ESTADO, FIELD } from '@/utils/constants';
-import { listRecords, getRecord, updateRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
+import { listRecords, getRecord, updateRecord, AirtableRecord, sanitizeForFormula, edicionMatchFormula } from './AirtableClient';
 
 /** Campos de Airtable tal como vienen del API (con nombres originales) */
 interface AirtableAlumnoFields {
@@ -106,7 +106,7 @@ export async function fetchAlumnos(filters?: {
     formulas.push(`{Estado General} = '${sanitizeForFormula(filters.estado)}'`);
   }
   if (filters?.edicionNombre) {
-    formulas.push(`FIND('${sanitizeForFormula(filters.edicionNombre)}', ARRAYJOIN({Edicion}))`);
+    formulas.push(edicionMatchFormula(filters.edicionNombre));
   }
   if (filters?.modulo) {
     formulas.push(`{Modulo Solicitado} = '${sanitizeForFormula(filters.modulo)}'`);
@@ -206,7 +206,7 @@ export async function fetchAlumnoNombresByIds(ids: string[]): Promise<Map<string
  */
 export async function fetchAlumnoIdsByEdicion(edicionNombre: string): Promise<Set<string>> {
   const records = await listRecords<{ 'Edicion'?: string[] }>(TABLE, {
-    filterByFormula: `FIND('${sanitizeForFormula(edicionNombre)}', ARRAYJOIN({Edicion}))`,
+    filterByFormula: edicionMatchFormula(edicionNombre),
   });
   return new Set(records.map(r => r.id));
 }
@@ -249,7 +249,7 @@ export async function fetchAlumnoMetaByIds(ids: string[]): Promise<Map<string, A
 /** Calcula estadísticas del dashboard — solo descarga los campos necesarios */
 export async function fetchDashboardStats(options?: { edicionNombre?: string }): Promise<DashboardStats> {
   const filterByFormula = options?.edicionNombre
-    ? `FIND('${sanitizeForFormula(options.edicionNombre)}', ARRAYJOIN({Edicion}))`
+    ? edicionMatchFormula(options.edicionNombre)
     : undefined;
   const records = await listRecords<Pick<AirtableAlumnoFields, 'Estado General' | 'Importe Total Pagado' | 'Engagement Score'>>(TABLE, {
     fields: [FIELD.ESTADO_GENERAL, FIELD.IMPORTE_TOTAL_PAGADO, FIELD.ENGAGEMENT_SCORE],

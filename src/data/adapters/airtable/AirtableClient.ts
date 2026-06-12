@@ -31,6 +31,18 @@ export function sanitizeForFormula(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
+/**
+ * Fórmula Airtable de coincidencia EXACTA por nombre de edición.
+ * El campo {Edicion} es un linked record (puede contener varias ediciones). Envolvemos
+ * tanto los nombres unidos como el objetivo con comas delimitadoras para que, p. ej.,
+ * "Vol I" NO haga match parcial con "Vol II" (FIND es substring). Se fuerza el
+ * separador de ARRAYJOIN a ',' para tener un delimitador conocido.
+ */
+export function edicionMatchFormula(edicionNombre: string): string {
+  const safe = sanitizeForFormula(edicionNombre);
+  return `FIND(',${safe},', ',' & ARRAYJOIN({Edicion}, ',') & ',')`;
+}
+
 /** Opciones para listar registros */
 export interface ListOptions {
   filterByFormula?: string;

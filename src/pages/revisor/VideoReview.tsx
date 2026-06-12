@@ -15,7 +15,6 @@ import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useHighlightRow } from '@/hooks/useHighlightRow';
 import styles from './VideoReview.module.css';
 import { useTranslation } from '@/i18n';
-import { useEdicion } from '@/context/EdicionContext';
 import { EmailComposeModal } from '@/components/EmailComposeModal';
 
 function VideoPlayer({ url }: { url: string }) {
@@ -86,7 +85,6 @@ function VideoPlayer({ url }: { url: string }) {
 export default function VideoReviewPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
-  const { selectedNombre } = useEdicion();
   const isMobile = useIsMobile();
   useHighlightRow();
   const [selected, setSelected] = useState<RevisionVideo | null>(null);
@@ -102,13 +100,17 @@ export default function VideoReviewPage() {
   const [confirmAction, setConfirmAction] = useState<{ estado: EstadoRevision; label: string; icon: string; variant: 'success' | 'danger' | 'warning' } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // El panel de revisión es una cola de trabajo: debe mostrar TODOS los videos
+  // pendientes sin importar la edición seleccionada en el filtro global. Filtrar
+  // por edición ocultaba silenciosamente revisiones pendientes de ediciones no
+  // activas (p. ej. alumnos de "Vol I" desaparecían bajo el default "Vol II").
   const { data: revisiones = [], isLoading } = useQuery({
-    queryKey: ['revisiones', { estado: 'Pendiente', edicion: selectedNombre }],
-    queryFn: () => fetchRevisiones({ estado: 'Pendiente', edicionNombre: selectedNombre }),
+    queryKey: ['revisiones', { estado: 'Pendiente' }],
+    queryFn: () => fetchRevisiones({ estado: 'Pendiente' }),
   });
   const { data: stats = { pendientes: 0, revisadasHoy: 0, total: 0 } } = useQuery({
-    queryKey: ['revision-stats', { edicion: selectedNombre }],
-    queryFn: () => fetchRevisionStats(selectedNombre),
+    queryKey: ['revision-stats'],
+    queryFn: () => fetchRevisionStats(),
   });
 
   function selectRevision(rev: RevisionVideo, autoSelect = false) {
