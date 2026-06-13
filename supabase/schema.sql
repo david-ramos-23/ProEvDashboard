@@ -264,7 +264,7 @@ CREATE TABLE envios_emails (
   tipo tipo_email,
   mensaje TEXT,
   descripcion TEXT,
-  estado TEXT DEFAULT 'Pendiente',
+  estado TEXT DEFAULT 'Pendiente' CHECK (estado IN ('Borrador','Pendiente','Procesando','Completado','Error')),
   total_emails INT,
   emails_creados INT,
   fecha_completado DATE,
