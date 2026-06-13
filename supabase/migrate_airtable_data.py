@@ -45,6 +45,7 @@ Sources of truth (extracted, not invented):
 from __future__ import annotations
 
 import argparse
+import datetime
 import os
 import sys
 import time
@@ -247,6 +248,7 @@ ENUM_VALUES: dict[str, set[str]] = {
     "tipo_email": {
         "disculpa", "informacion", "recordatorio", "seguimiento", "bienvenida",
         "felicitacion", "urgente",
+        "seguimiento_frio", "recuperacion_pago", "recordatorio_pago", "libre",
     },
     # 'Español' is normalized to 'Espanol' before validation (see
     # normalize_value); 'Espanol' is the single canonical ENUM value.
@@ -256,6 +258,10 @@ ENUM_VALUES: dict[str, set[str]] = {
         "Sistema",
     },
     "origen_email": {"manual_template", "manual_quick", "Automatico", "Manual"},
+    # CHECK-constraint columns (not PG enums) — validated like enums so the
+    # dry-run catches values the DB CHECK would reject:
+    "clasificacion_importancia": {"Alta", "Media", "Baja"},
+    "moneda": {"EUR", "USD", "MXN"},
     "direccion_email": {"Recibido", "Enviado"},
     "estado_inbox": {
         "Nuevo", "Leido", "Respondido", "Archivado", "Eliminado",
@@ -321,7 +327,7 @@ TABLE_COLUMNS: dict[str, dict[str, ColSpec]] = {
         "modulos_completados": ColSpec(kind="text[]"),
         "edicion_id": ColSpec(kind="uuid", fk="ediciones"),
         "foto_perfil": ColSpec(kind="text"),
-        "plazo_revision": ColSpec(kind="date"),
+        "plazo_revision": ColSpec(kind="text"),  # Airtable label, not a date
         "fecha_plazo": ColSpec(kind="date"),
         "fecha_preinscripcion": ColSpec(kind="date"),
         "modulo_reserva": ColSpec(kind="text"),
@@ -363,7 +369,7 @@ TABLE_COLUMNS: dict[str, dict[str, ColSpec]] = {
     "pagos": {
         "alumno_id": ColSpec(kind="uuid", not_null=True, fk="alumnos"),
         "importe": ColSpec(kind="numeric"),
-        "moneda": ColSpec(kind="text"),
+        "moneda": ColSpec(kind="text", enum="moneda"),
         "estado_pago": ColSpec(kind="text", enum="estado_pago"),
         "fecha_pago": ColSpec(kind="date"),
         "link_pago_stripe": ColSpec(kind="text"),
@@ -427,7 +433,7 @@ TABLE_COLUMNS: dict[str, dict[str, ColSpec]] = {
         "error_log": ColSpec(kind="text"),
         "workflow": ColSpec(kind="text"),
         "resumen_automatico": ColSpec(kind="text"),
-        "clasificacion_importancia": ColSpec(kind="text"),
+        "clasificacion_importancia": ColSpec(kind="text", enum="clasificacion_importancia"),
     },
 }
 
@@ -464,6 +470,8 @@ def normalize_value(table: str, column: str, value: Any) -> Any:
         return "Completado"
     if column == "idioma" and value == "Español":
         return "Espanol"
+    if column == "origen_evento" and value == "Automático":
+        return "Automatico"
     return value
 
 
@@ -485,6 +493,10 @@ def coerce_value(spec: ColSpec, value: Any) -> tuple[Any, str | None]:
     """
     if value is None or value == "":
         return None, None
+    # Airtable computed-field error/special objects (e.g. {'state':'error',
+    # 'errorType':'emptyDependency'}) arrive as dicts; treat them as empty.
+    if isinstance(_first(value), dict):
+        return None, None
 
     kind = spec.kind
     try:
@@ -505,9 +517,18 @@ def coerce_value(spec: ColSpec, value: Any) -> tuple[Any, str | None]:
                 return v.strip().lower() in ("true", "1", "yes", "si", "sí"), None
             return bool(v), None
         if kind == "date":
-            return str(_first(value)), None
+            s = str(_first(value))
+            try:
+                return datetime.date.fromisoformat(s[:10]).isoformat(), None
+            except ValueError:
+                return None, f"not a valid date: {s!r}"
         if kind == "timestamptz":
-            return str(_first(value)), None
+            s = str(_first(value))
+            try:
+                datetime.datetime.fromisoformat(s.replace("Z", "+00:00"))
+                return s, None
+            except ValueError:
+                return None, f"not a valid timestamp: {s!r}"
         if kind == "text[]":
             if isinstance(value, list):
                 return [str(x) for x in value], None

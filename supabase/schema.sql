@@ -61,7 +61,11 @@ CREATE TYPE tipo_email AS ENUM (
   'seguimiento',
   'bienvenida',
   'felicitacion',
-  'urgente'
+  'urgente',
+  'seguimiento_frio',
+  'recuperacion_pago',
+  'recordatorio_pago',
+  'libre'
 );
 
 -- MIGRATOR NOTE: Airtable stores idioma as 'Español' (with ñ), but the migrator
@@ -150,7 +154,7 @@ CREATE TABLE alumnos (
   modulos_completados TEXT[],
   edicion_id UUID REFERENCES ediciones(id),
   foto_perfil TEXT,
-  plazo_revision DATE,
+  plazo_revision TEXT,  -- Airtable "Plazo Revision" is a label (e.g. "1ª Revisión (30 Abr)"), not a date
   fecha_plazo DATE,
   fecha_preinscripcion DATE,
   modulo_reserva TEXT,
