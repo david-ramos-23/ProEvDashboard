@@ -480,7 +480,7 @@ LEFT JOIN LATERAL (
 LEFT JOIN LATERAL (
   SELECT
     COUNT(*)::INT AS total_pagos,
-    COALESCE(SUM(CASE WHEN p.estado_pago = 'Pagado' THEN p.importe ELSE 0 END), 0) AS importe_total_pagado,
+    COALESCE(SUM(CASE WHEN p.estado_pago IN ('Completado', 'Pagado') THEN p.importe ELSE 0 END), 0) AS importe_total_pagado,
     MAX(p.created_at) AS fecha_ultimo_pago
   FROM pagos p WHERE p.alumno_id = a.id
 ) pago_stats ON true;
