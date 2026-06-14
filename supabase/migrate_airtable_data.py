@@ -453,6 +453,59 @@ LOAD_ORDER: list[str] = [
 ]
 
 
+# Tables that are legitimately allowed to come back EMPTY from Airtable. For any
+# other table an empty fetch is treated as a transient failure and prune is
+# skipped (a bad/partial fetch must never wipe Supabase). envios_emails is the
+# only known table that is routinely empty in the live base.
+PRUNE_KNOWN_EMPTY_ALLOWLIST: frozenset[str] = frozenset({"envios_emails"})
+
+# Default fraction of the current Supabase row count above which a prune is
+# refused unless --prune-force is passed (see compute_prune_ids).
+DEFAULT_PRUNE_THRESHOLD = 0.25
+
+
+# ------------------------------------------------------------------
+# Prune decision — PURE function (no DB, no network). Single source of truth for
+# WHICH Supabase rows are deletable after a successful Airtable fetch, plus all
+# safety guards. Shared by run() (real prune) and _self_test() (offline unit
+# test) so the test exercises the real decision logic.
+# ------------------------------------------------------------------
+def compute_prune_ids(
+    table: str,
+    supabase_ids: set[str],
+    airtable_ids: set[str],
+    threshold: float = DEFAULT_PRUNE_THRESHOLD,
+    force: bool = False,
+) -> tuple[set[str], str | None]:
+    """Decide which Supabase ``airtable_id`` values are stale and prunable.
+
+    Stale = present in Supabase but absent from the Airtable set fetched this
+    run. Returns ``(ids_to_delete, skip_reason)``. When ``skip_reason`` is not
+    None the prune is refused and ``ids_to_delete`` is empty.
+
+    Safety guards (a bad/partial Airtable fetch must NOT wipe Supabase):
+      * Empty-fetch guard: if ``airtable_ids`` is empty AND ``table`` is not in
+        ``PRUNE_KNOWN_EMPTY_ALLOWLIST``, return ([], reason) — an empty fetch is
+        treated as a likely transient failure. NOT bypassable by ``force``.
+      * Threshold guard: if the number of stale rows exceeds ``threshold`` of
+        the current Supabase row count, return ([], reason) unless ``force`` is
+        True. Bypass with ``--prune-force``.
+    """
+    stale = supabase_ids - airtable_ids
+    if not airtable_ids and table not in PRUNE_KNOWN_EMPTY_ALLOWLIST:
+        return set(), "empty fetch — likely transient failure, skipping prune"
+    if not stale:
+        return set(), None
+    if not force and supabase_ids:
+        pct = len(stale) / len(supabase_ids)
+        if pct > threshold:
+            return set(), (
+                f"exceeds safety threshold {pct * 100:.0f}% "
+                f"(> {threshold * 100:.0f}%) — use --prune-force"
+            )
+    return stale, None
+
+
 # ------------------------------------------------------------------
 # Value normalizations — from MIGRACION-PARITY-SCHEMA.md.
 # ------------------------------------------------------------------
@@ -620,6 +673,18 @@ class TableResult:
     @property
     def failed(self) -> int:
         return len(self.failures)
+
+
+@dataclass
+class PruneResult:
+    """Per-table outcome of a prune pass (report + stdout)."""
+
+    table: str
+    supabase_count: int = 0
+    airtable_count: int = 0
+    candidates: int = 0  # stale rows that WOULD be pruned (pre-guard)
+    deleted: int = 0  # rows actually deleted (0 in dry-run / when skipped)
+    skip_reason: str | None = None
 
 
 # ------------------------------------------------------------------
@@ -878,9 +943,75 @@ def backfill_self_fks(
 
 
 # ------------------------------------------------------------------
+# Prune (one-way sync of DELETIONS) — guarded, only used with --prune.
+# ------------------------------------------------------------------
+def fetch_supabase_airtable_ids(conn: Any, table: str) -> set[str]:
+    """Return the set of non-null ``airtable_id`` values currently in ``table``.
+
+    table is an internal whitelist identifier (TABLE_COLUMNS), composed via
+    psycopg2.sql for safe quoting.
+    """
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 is required for fetch_supabase_airtable_ids")
+    query = psql.SQL(
+        "SELECT airtable_id FROM {table} WHERE airtable_id IS NOT NULL"
+    ).format(table=psql.Identifier(table))
+    with conn.cursor() as cur:
+        cur.execute(query)  # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
+        return {r[0] for r in cur.fetchall() if r[0] is not None}
+
+
+def prune_table(
+    conn: Any,
+    table: str,
+    ids_to_delete: set[str],
+    columns: dict[str, ColSpec],
+) -> int:
+    """DELETE the given ``airtable_id`` rows from ``table`` (inside the txn).
+
+    Self-referential FK columns are NULLed first so a parent row can be deleted
+    in the same batch as its child without tripping the self-FK constraint
+    (e.g. ``alumnos.pareja_alumno_id``, historial parent). The non-self FK load
+    order is handled by the caller, which prunes in REVERSE LOAD_ORDER (children
+    before parents). Returns the number of rows deleted.
+    """
+    if psycopg2 is None:
+        raise RuntimeError("psycopg2 is required for prune_table")
+    if not ids_to_delete:
+        return 0
+    ids = list(ids_to_delete)
+    self_fk_cols = [c for c, spec in columns.items() if spec.self_fk]
+    with conn.cursor() as cur:
+        # Break self-references first so the DELETE cannot violate the self-FK.
+        for col in self_fk_cols:
+            cur.execute(  # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
+                psql.SQL(
+                    "UPDATE {table} SET {col} = NULL "
+                    "WHERE airtable_id = ANY(%s)"
+                ).format(
+                    table=psql.Identifier(table),
+                    col=psql.Identifier(col),
+                ),
+                (ids,),
+            )
+        cur.execute(  # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query
+            psql.SQL(
+                "DELETE FROM {table} WHERE airtable_id = ANY(%s)"
+            ).format(table=psql.Identifier(table)),
+            (ids,),
+        )
+        return cur.rowcount
+
+
+# ------------------------------------------------------------------
 # Report
 # ------------------------------------------------------------------
-def write_report(results: list[TableResult], path: str, dry_run: bool) -> None:
+def write_report(
+    results: list[TableResult],
+    path: str,
+    dry_run: bool,
+    prune_results: list[PruneResult] | None = None,
+) -> None:
     """Write a per-table Markdown report of fetched / mapped-OK / failures."""
     mode = "DRY-RUN (no DB writes)" if dry_run else "LOAD"
     total_fetched = sum(r.fetched for r in results)
@@ -914,6 +1045,27 @@ def write_report(results: list[TableResult], path: str, dry_run: bool) -> None:
             lines.append(f"- `{rec_id}`: {'; '.join(reasons)}")
         lines.append("")
 
+    if prune_results:
+        prune_mode = "WOULD PRUNE (dry-run)" if dry_run else "PRUNED"
+        total_candidates = sum(p.candidates for p in prune_results)
+        total_deleted = sum(p.deleted for p in prune_results)
+        lines.append("## Prune (one-way deletion sync)")
+        lines.append("")
+        lines.append(f"- Mode: **{prune_mode}**")
+        lines.append(f"- Total candidates: {total_candidates}")
+        lines.append(f"- Total deleted: {total_deleted}")
+        lines.append("")
+        lines.append(
+            "| Table | Supabase | Airtable | Candidates | Deleted | Skip reason |"
+        )
+        lines.append("| --- | ---: | ---: | ---: | ---: | --- |")
+        for p in prune_results:
+            lines.append(
+                f"| {p.table} | {p.supabase_count} | {p.airtable_count} | "
+                f"{p.candidates} | {p.deleted} | {p.skip_reason or ''} |"
+            )
+        lines.append("")
+
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines))
@@ -943,6 +1095,63 @@ def process_table(
     return result, valid_rows
 
 
+def _prune_pass(
+    conn: Any,
+    tables: list[str],
+    airtable_ids_by_table: dict[str, set[str]],
+    dry_run: bool,
+    threshold: float,
+    force: bool,
+) -> list[PruneResult]:
+    """Compute (and, when not dry-run, apply) deletions of stale Supabase rows.
+
+    For each table the fetched Airtable ``airtable_id`` set is compared with the
+    current Supabase set; compute_prune_ids applies the safety guards. Deletes
+    run in REVERSE LOAD_ORDER (children before parents) so non-self FK
+    constraints don't trip; self-FKs are NULLed inside prune_table. All deletes
+    share the caller's open transaction (committed by the caller on --load).
+    """
+    prune_results: list[PruneResult] = []
+    decisions: dict[str, tuple[set[str], PruneResult]] = {}
+    # Decide per table (guards included) using the live Supabase id sets.
+    for table in tables:
+        if table not in TABLE_COLUMNS:
+            continue
+        airtable_ids = airtable_ids_by_table.get(table, set())
+        supabase_ids = fetch_supabase_airtable_ids(conn, table)
+        ids_to_delete, skip_reason = compute_prune_ids(
+            table, supabase_ids, airtable_ids, threshold, force,
+        )
+        pr = PruneResult(
+            table=table,
+            supabase_count=len(supabase_ids),
+            airtable_count=len(airtable_ids),
+            candidates=len(supabase_ids - airtable_ids),
+            skip_reason=skip_reason,
+        )
+        decisions[table] = (ids_to_delete, pr)
+        if skip_reason:
+            print(f"[prune] {table}: SKIP — {skip_reason}")
+        else:
+            verb = "would prune" if dry_run else "pruning"
+            print(f"[prune] {table}: {verb} {len(ids_to_delete)} stale row(s)")
+    # Apply deletions in REVERSE FK order so children go before parents.
+    if not dry_run:
+        for table in reversed(LOAD_ORDER):
+            if table not in decisions:
+                continue
+            ids_to_delete, pr = decisions[table]
+            if ids_to_delete:
+                pr.deleted = prune_table(
+                    conn, table, ids_to_delete, TABLE_COLUMNS[table],
+                )
+    # Preserve the requested table order in the report.
+    for table in tables:
+        if table in decisions:
+            prune_results.append(decisions[table][1])
+    return prune_results
+
+
 def run(
     tables: list[str],
     dry_run: bool,
@@ -951,15 +1160,27 @@ def run(
     pat: str | None,
     db_url: str | None,
     records_provider: Callable[[str], list[dict[str, Any]]] | None = None,
+    prune: bool = False,
+    prune_force: bool = False,
+    prune_threshold: float = DEFAULT_PRUNE_THRESHOLD,
 ) -> int:
     """Run the migration pass over the selected tables.
 
     `records_provider` allows the self-test to inject mock fixtures; when None,
     records are fetched live from Airtable.
+
+    When ``prune`` is True the run also reconciles DELETIONS: rows in Supabase
+    whose ``airtable_id`` no longer exists in the Airtable set fetched this run
+    are reported (dry-run) or deleted (--load), subject to compute_prune_ids'
+    safety guards. Pruning always needs the DB to read current Supabase ids, so
+    --dry-run --prune still opens a (read-only) connection when SUPABASE_DB_URL
+    is set; if it is not, the prune is skipped with a clear message.
     """
     limiter = RateLimiter(MAX_REQUESTS_PER_SECOND)
     results: list[TableResult] = []
     valid_by_table: dict[str, list[dict[str, Any]]] = {}
+    # airtable_id set actually fetched this run, per table — the prune universe.
+    airtable_ids_by_table: dict[str, set[str]] = {}
 
     for table in tables:
         if table not in TABLE_COLUMNS:
@@ -973,9 +1194,14 @@ def run(
                 return 2
             table_id = AIRTABLE_TABLES[table]
             records = fetch_airtable_records(base_id, table_id, pat, limiter)
+        airtable_ids_by_table[table] = {
+            rec["id"] for rec in records if rec.get("id")
+        }
         result, valid_rows = process_table(table, records)
         results.append(result)
         valid_by_table[table] = valid_rows
+
+    prune_results: list[PruneResult] | None = None
 
     if not dry_run:
         if db_url is None:
@@ -1017,10 +1243,34 @@ def run(
                     recid_to_pk,
                     TABLE_COLUMNS[table],
                 )
+            # Pass 3: prune stale rows inside the SAME transaction so a failure
+            # rolls back the whole load+prune atomically.
+            if prune:
+                prune_results = _prune_pass(
+                    conn, tables, airtable_ids_by_table, dry_run=False,
+                    threshold=prune_threshold, force=prune_force,
+                )
+                conn.commit()
         finally:
             conn.close()
+    elif prune:
+        # Dry-run prune: report only. Still needs the DB to read current ids.
+        if db_url is None:
+            print("[prune] SUPABASE_DB_URL not set; skipping prune report")
+        elif psycopg2 is None:
+            print("[prune] psycopg2 not installed; skipping prune report")
+        else:
+            conn = psycopg2.connect(db_url)
+            try:
+                prune_results = _prune_pass(
+                    conn, tables, airtable_ids_by_table, dry_run=True,
+                    threshold=prune_threshold, force=prune_force,
+                )
+            finally:
+                conn.rollback()
+                conn.close()
 
-    write_report(results, report_path, dry_run)
+    write_report(results, report_path, dry_run, prune_results)
 
     total_fetched = sum(r.fetched for r in results)
     total_ok = sum(r.mapped_ok for r in results)
@@ -1030,6 +1280,12 @@ def run(
     print(f"Tables    : {len(results)}")
     print(f"Fetched   : {total_fetched} | Mapped OK: {total_ok} | "
           f"Failed: {total_failed}")
+    if prune_results is not None:
+        total_candidates = sum(p.candidates for p in prune_results)
+        total_deleted = sum(p.deleted for p in prune_results)
+        prune_verb = "Would prune" if dry_run else "Deleted"
+        print(f"Prune     : candidates {total_candidates} | "
+              f"{prune_verb} {total_deleted}")
     print(f"Report    : {report_path}")
     return 1 if total_failed else 0
 
@@ -1171,6 +1427,52 @@ def _self_test() -> int:
         and cola_row.get("origen") == "manual_template"
     )
 
+    # ---- compute_prune_ids (PURE) unit tests -------------------------------
+    # Normal prune: rec5 exists in Supabase but not in the Airtable fetch
+    # (1/5 = 20% stale, under the 25% default threshold).
+    ids, reason = compute_prune_ids(
+        "alumnos",
+        {"rec1", "rec2", "rec3", "rec4", "rec5"},
+        {"rec1", "rec2", "rec3", "rec4"},
+    )
+    prune_normal = ids == {"rec5"} and reason is None
+
+    # Empty-fetch guard: a non-allowlisted table with an EMPTY Airtable set must
+    # be skipped (likely transient failure) — never wipe Supabase.
+    ids, reason = compute_prune_ids("alumnos", {"rec1", "rec2"}, set())
+    prune_empty_guard = (
+        ids == set() and reason is not None and "empty fetch" in reason
+    )
+
+    # Known-empty allowlist: envios_emails IS allowed to be empty. The
+    # empty-fetch guard does not fire; force=True clears the threshold guard so
+    # an empty fetch prunes every Supabase row.
+    ids, reason = compute_prune_ids(
+        "envios_emails", {"rec1", "rec2"}, set(), force=True,
+    )
+    prune_allowlist = ids == {"rec1", "rec2"} and reason is None
+
+    # Threshold guard: deleting 3/4 = 75% > default 25% must be refused.
+    ids, reason = compute_prune_ids(
+        "alumnos", {"r1", "r2", "r3", "r4"}, {"r1"},
+    )
+    prune_threshold_guard = (
+        ids == set() and reason is not None and "threshold" in reason
+    )
+
+    # Force override: same 75% delete is allowed with force=True. The
+    # empty-fetch guard is NOT bypassed by force (separate assertion).
+    ids, reason = compute_prune_ids(
+        "alumnos", {"r1", "r2", "r3", "r4"}, {"r1"}, force=True,
+    )
+    prune_force_override = ids == {"r2", "r3", "r4"} and reason is None
+    ids_f, reason_f = compute_prune_ids(
+        "alumnos", {"r1", "r2"}, set(), force=True,
+    )
+    prune_force_keeps_empty_guard = (
+        ids_f == set() and reason_f is not None and "empty fetch" in reason_f
+    )
+
     print("--- self-test assertions ---")
     print(f"bad-enum caught (recAL2)      : {bad_caught}")
     print(f"NOT NULL caught (recAL3)      : {notnull_caught}")
@@ -1181,12 +1483,22 @@ def _self_test() -> int:
     print(f"self-FK NULL on INSERT tuple  : {self_fk_null_on_insert}")
     print(f"inbox estado+origen mapped    : {inbox_mapped}")
     print(f"cola estado+origen mapped     : {cola_mapped}")
+    print(f"prune normal (rec5 stale)     : {prune_normal}")
+    print(f"prune empty-fetch guard       : {prune_empty_guard}")
+    print(f"prune known-empty allowlist   : {prune_allowlist}")
+    print(f"prune threshold guard (75%)   : {prune_threshold_guard}")
+    print(f"prune force override          : {prune_force_override}")
+    print(f"prune force keeps empty guard : {prune_force_keeps_empty_guard}")
     print(f"report generated              : {report_exists} ({report_path})")
     ok = (
         bad_caught and notnull_caught and pago_normalized
         and pareja_mapped and self_fk_flagged and lookup_list_coerced
         and self_fk_null_on_insert
-        and inbox_mapped and cola_mapped and report_exists
+        and inbox_mapped and cola_mapped
+        and prune_normal and prune_empty_guard and prune_allowlist
+        and prune_threshold_guard and prune_force_override
+        and prune_force_keeps_empty_guard
+        and report_exists
     )
     print(f"SELF-TEST: {'PASS' if ok else 'FAIL'} (run rc={rc})")
     return 0 if ok else 1
@@ -1218,6 +1530,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help=f"report output path (default: {DEFAULT_REPORT_PATH})",
     )
     parser.add_argument(
+        "--prune", action="store_true", default=False,
+        help="reconcile DELETIONS: report (dry-run) or delete (--load) "
+             "Supabase rows whose airtable_id no longer exists in Airtable",
+    )
+    parser.add_argument(
+        "--prune-force", action="store_true", default=False,
+        help="bypass the prune safety threshold (still honors the "
+             "empty-fetch guard); only meaningful with --prune",
+    )
+    parser.add_argument(
+        "--prune-threshold", type=float, default=DEFAULT_PRUNE_THRESHOLD,
+        help="max fraction (0-1) of a table's Supabase rows prunable before "
+             f"--prune-force is required (default: {DEFAULT_PRUNE_THRESHOLD})",
+    )
+    parser.add_argument(
         "--self-test", action="store_true", default=False,
         help="run the offline self-test with mock fixtures and exit",
     )
@@ -1247,6 +1574,9 @@ def main(argv: list[str] | None = None) -> int:
         base_id=base_id,
         pat=pat,
         db_url=db_url,
+        prune=args.prune,
+        prune_force=args.prune_force,
+        prune_threshold=args.prune_threshold,
     )
 
 
