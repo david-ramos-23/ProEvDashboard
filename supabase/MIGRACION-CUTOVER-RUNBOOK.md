@@ -89,3 +89,15 @@ Mantener los twins **inactivos**, validar contra datos en sombra, y en el cutove
 Orden: pilotos read-only primero (`R3mQiCRZ8tu66yaQ`, `vAXmsu9exm9LEbID`), **`[Stripe] Pago Recibido`
 el ÚLTIMO**. El sync inverso es la red de seguridad mientras dura. Mapeo de campos para reescribir
 nodos = `FIELD_MAP` del migrador + `schema.sql`.
+
+## Gates operativos (del review pre-merge, 2026-06-14)
+El GitHub Action corre SOLO `--load` (upsert, sin borrados, no toca Airtable) → **sin riesgo activo**.
+Review = SAFE-TO-MERGE, 0 CRITICAL, guardas anti-wipe del prune verificadas. Antes de habilitar más:
+- **Antes de `--prune --load` con `--tables` subset**: podar una tabla PADRE sin sus hijos puede violar
+  `alumnos.edicion_id` (RESTRICT) y abortar la transacción (sin pérdida, pero fallo confuso). En
+  full-table —como el cron— no aplica.
+- **Antes del reverse `--load`**: (a) auditar campos escribibles vs base live (computed/lookup/rollup
+  → 422 toda la batch); (b) escribir recId de vuelta **por-chunk** (fallo parcial → POSTs duplicados al
+  reintentar). Defaults dry-run mitigan hasta entonces.
+- Menores: validar rango de `--prune-threshold` (0<x≤1); docstring "historial parent" self-FK es erróneo
+  (inocuo). Pendientes de un hardening pass.
