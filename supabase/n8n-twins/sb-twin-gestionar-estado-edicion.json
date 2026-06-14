@@ -1,0 +1,142 @@
+{
+  "_meta": {
+    "source_workflow": "R3mQiCRZ8tu66yaQ",
+    "source_name": "[Schedule] Gestionar Estado Edicion",
+    "twin_workflow_id": "sJ3HEoC6C9qFEhFR",
+    "twin_name": "[SB-TWIN] [Schedule] Gestionar Estado Edicion",
+    "status": "created INACTIVE in n8n production (Easypanel)",
+    "validated": "n8n validate_workflow runtime profile -> valid:true, 0 errors",
+    "supabase_credential": "8VXztyOWvaGzChfz (Supabase ProEv Cloud, type supabaseApi)",
+    "node_swaps": [
+      "Airtable search 'Buscar Ediciones No Finalizadas' (filterByFormula NOT({Estado}='Finalizada')) -> Supabase getAll ediciones, filterString 'estado=neq.Finalizada'",
+      "Code 'Evaluar Transiciones' -> rewrote field reads to snake_case (estado, nombre, fecha_inicio_prelanzamiento, fecha_inicio_inscripcion, fecha_fin_curso, id)",
+      "HTTP PATCH 'Actualizar Estado' (api.airtable.com PATCH fields.Estado) -> Supabase update ediciones, filter id eq, set estado"
+    ],
+    "unchanged": [
+      "Schedule Trigger (cron 5 0 * * *)",
+      "IF 'Necesita Cambio?'",
+      "IF 'Es Transicion a Abierta?'",
+      "ExecuteWorkflow 'Ejecutar Campana Email' -> sub yP0Ehu1fk86ZAJoS (will need its OWN twin before cutover; currently still the Airtable sub)"
+    ]
+  },
+  "name": "[SB-TWIN] [Schedule] Gestionar Estado Edicion",
+  "nodes": [
+    {
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [272, 352],
+      "parameters": {
+        "rule": { "interval": [ { "field": "cronExpression", "expression": "5 0 * * *" } ] }
+      }
+    },
+    {
+      "id": "buscar-ediciones-sb",
+      "name": "Buscar Ediciones No Finalizadas",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [480, 352],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ediciones",
+        "returnAll": true,
+        "filterType": "string",
+        "filterString": "estado=neq.Finalizada"
+      },
+      "credentials": {
+        "supabaseApi": { "id": "8VXztyOWvaGzChfz", "name": "Supabase ProEv Cloud" }
+      }
+    },
+    {
+      "id": "evaluar-transiciones",
+      "name": "Evaluar Transiciones",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [704, 352],
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\nconst hoy = new Date();\nhoy.setHours(0, 0, 0, 0);\n\nfor (const item of items) {\n  const edicion = item.json;\n  const estado = edicion.estado;\n  let nuevoEstado = null;\n\n  if (estado === 'Planificada' && edicion.fecha_inicio_prelanzamiento) {\n    const inicio = new Date(edicion.fecha_inicio_prelanzamiento);\n    inicio.setHours(0, 0, 0, 0);\n    if (hoy >= inicio) nuevoEstado = 'Prelanzamiento';\n  }\n\n  if (estado === 'Prelanzamiento' && edicion.fecha_inicio_inscripcion) {\n    const inicio = new Date(edicion.fecha_inicio_inscripcion);\n    inicio.setHours(0, 0, 0, 0);\n    if (hoy >= inicio) nuevoEstado = 'Abierta';\n  }\n\n  if (estado === 'Abierta' && edicion.fecha_fin_curso) {\n    const fin = new Date(edicion.fecha_fin_curso);\n    fin.setHours(0, 0, 0, 0);\n    if (hoy >= fin) nuevoEstado = 'Finalizada';\n  }\n\n  results.push({\n    json: {\n      id: edicion.id,\n      nombre: edicion.nombre,\n      estadoActual: estado,\n      nuevoEstado,\n      necesitaCambio: nuevoEstado !== null\n    }\n  });\n}\n\nreturn results;"
+      }
+    },
+    {
+      "id": "if-necesita-cambio",
+      "name": "Necesita Cambio?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [928, 352],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [ { "id": "cond1", "leftValue": "={{ $json.necesitaCambio }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "actualizar-estado-sb",
+      "name": "Actualizar Estado",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1152, 240],
+      "parameters": {
+        "operation": "update",
+        "tableId": "ediciones",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": { "conditions": [ { "keyName": "id", "condition": "eq", "keyValue": "={{ $json.id }}" } ] },
+        "dataToSend": "defineBelow",
+        "fieldsUi": { "fieldValues": [ { "fieldId": "estado", "fieldValue": "={{ $json.nuevoEstado }}" } ] }
+      },
+      "credentials": {
+        "supabaseApi": { "id": "8VXztyOWvaGzChfz", "name": "Supabase ProEv Cloud" }
+      }
+    },
+    {
+      "id": "if-es-abierta",
+      "name": "Es Transicion a Abierta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1360, 240],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [ { "id": "cond-abierta", "leftValue": "={{ $('Evaluar Transiciones').item.json.nuevoEstado }}", "rightValue": "Abierta", "operator": { "type": "string", "operation": "equals" } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ejecutar-campana",
+      "name": "Ejecutar Campaña Email",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [1584, 144],
+      "parameters": {
+        "workflowId": { "__rl": true, "mode": "id", "value": "yP0Ehu1fk86ZAJoS", "cachedResultName": "[Sub] Campaña Email Apertura Publica" },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": { "edicionId": "={{ $('Evaluar Transiciones').item.json.id }}" },
+          "matchingColumns": [],
+          "schema": [ { "id": "edicionId", "displayName": "edicionId", "required": true, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": false, "readOnly": false, "removed": false } ]
+        },
+        "options": { "waitForSubWorkflow": false }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": { "main": [ [ { "node": "Buscar Ediciones No Finalizadas", "type": "main", "index": 0 } ] ] },
+    "Buscar Ediciones No Finalizadas": { "main": [ [ { "node": "Evaluar Transiciones", "type": "main", "index": 0 } ] ] },
+    "Evaluar Transiciones": { "main": [ [ { "node": "Necesita Cambio?", "type": "main", "index": 0 } ] ] },
+    "Necesita Cambio?": { "main": [ [ { "node": "Actualizar Estado", "type": "main", "index": 0 } ], [] ] },
+    "Actualizar Estado": { "main": [ [ { "node": "Es Transicion a Abierta?", "type": "main", "index": 0 } ] ] },
+    "Es Transicion a Abierta?": { "main": [ [ { "node": "Ejecutar Campaña Email", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "errorWorkflow": "5R7voQ7DIOtsgjDw",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}
