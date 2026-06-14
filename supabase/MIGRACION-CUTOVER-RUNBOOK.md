@@ -70,7 +70,22 @@ Precondición: Preview validado + sync estable varios días + sync inverso (Supa
 5. Rollback (si algo falla): `VITE_DATA_SOURCE=airtable` + reactivar workflows Airtable; el sync
    inverso garantiza que Airtable tiene los datos escritos durante la ventana Supabase.
 
-## Hardening pendiente
-- **`--prune`** en el migrador: borrar de Supabase filas cuyo `airtable_id` ya no esté en Airtable
-  (maneja borrados), con guarda anti-borrado-masivo. Hasta entonces, el sync solo añade/actualiza.
-- **Sync inverso** Supabase→Airtable: requerido antes del big-bang. No construido aún.
+## Hardening — estado
+- **`--prune`** ✅ construido (`migrate_airtable_data.py --prune`): borra de Supabase filas cuyo
+  `airtable_id` ya no esté en Airtable. Guardas anti-wipe: salta si el fetch de una tabla viene vacío
+  (salvo `envios_emails`) y si el borrado superaría el `--prune-threshold` (default 25%, override con
+  `--prune-force`). Verificado en dry-run contra la DB real: 0 candidatos. **Para activarlo en el sync,
+  añadir `--prune` al comando del GitHub Action** (ahora corre solo `--load`).
+- **Sync inverso** Supabase→Airtable ✅ primer corte (`sync_supabase_to_airtable.py`, dry-run por
+  defecto). ⚠️ Requiere **auditoría de campos escribibles** contra la base live antes de cualquier
+  `--load` (no enviar campos computed/lookup/rollup → 422). Sin manejo de conflictos (PATCH pisa).
+
+## Fase n8n (la pieza grande del cutover — planificar aparte)
+24 workflows, **118 puntos de acoplamiento Airtable** (66 nodos nativos + 9 triggers + 43 HTTP crudo
+a api.airtable.com). Plan: por cada workflow que ESCRIBE en Airtable, crear su **twin Supabase**
+(nodos Postgres/Supabase en vez de Airtable; los 43 HTTP crudos hay que reescribirlos a queries).
+Mantener los twins **inactivos**, validar contra datos en sombra, y en el cutover flipear triggers
+(desactivar versión Airtable ↔ activar twin). Ya existe 1 twin: `Z2PZdRgimnJvA1hn` (Consultar Plazas).
+Orden: pilotos read-only primero (`R3mQiCRZ8tu66yaQ`, `vAXmsu9exm9LEbID`), **`[Stripe] Pago Recibido`
+el ÚLTIMO**. El sync inverso es la red de seguridad mientras dura. Mapeo de campos para reescribir
+nodos = `FIELD_MAP` del migrador + `schema.sql`.
