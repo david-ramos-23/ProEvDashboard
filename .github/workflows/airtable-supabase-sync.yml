@@ -1,0 +1,56 @@
+name: Airtable → Supabase sync
+
+# One-way idempotent sync during the Airtable → Supabase migration window.
+# Re-runs the (tested) migrator in --load mode: upserts every Airtable record into
+# Supabase by airtable_id. Additions + field edits propagate; deletions are NOT
+# handled yet (see --prune hardening, tracked separately). Airtable stays the
+# single source of truth; this only refreshes the Supabase replica.
+#
+# Required repo secrets (Settings → Secrets and variables → Actions):
+#   AIRTABLE_PAT      - Airtable Personal Access Token (read scope on the ProEv base)
+#   AIRTABLE_BASE_ID  - app4ZpoxaWOyV4RnR
+#   SUPABASE_DB_URL   - Postgres connection string (use the IPv4 *pooler* host)
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"   # every 15 min (GitHub may delay under load)
+  workflow_dispatch: {}       # manual "Run workflow" button
+
+# Never let two syncs write concurrently; a queued run waits, never cancels an
+# in-flight load (avoids partial writes).
+concurrency:
+  group: airtable-supabase-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install --quiet requests psycopg2-binary
+
+      - name: Run idempotent load (Airtable → Supabase)
+        env:
+          AIRTABLE_PAT: ${{ secrets.AIRTABLE_PAT }}
+          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PYTHONIOENCODING: "utf-8"
+        run: |
+          python supabase/migrate_airtable_data.py --load \
+            --report supabase/migration_data_report.md
+
+      - name: Upload sync report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-data-report
+          path: supabase/migration_data_report.md
+          if-no-files-found: ignore
+          retention-days: 7
