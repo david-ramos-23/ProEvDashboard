@@ -90,6 +90,17 @@ Orden: pilotos read-only primero (`R3mQiCRZ8tu66yaQ`, `vAXmsu9exm9LEbID`), **`[S
 el ÚLTIMO**. El sync inverso es la red de seguridad mientras dura. Mapeo de campos para reescribir
 nodos = `FIELD_MAP` del migrador + `schema.sql`.
 
+## Decisión LOCKED — triggers n8n = Supabase DB Webhooks (2026-06-15)
+Los 9 `airtableTrigger` se reemplazan por **Supabase Database Webhooks** (Postgres → webhook → nodo
+Webhook de n8n en cada twin). Reemplazo 1:1 del modelo event-driven actual.
+⚠️ **Guarda anti-bucle (CRÍTICA):** los DB webhooks deben estar **INACTIVOS durante el modo sombra** —
+si no, cada fila que escribe el sync A→S (cada 15 min) los dispararía → procesamiento duplicado
+(emails dobles, pagos reprocesados, etc.). Se **activan SOLO en el cutover**, cuando el sync A→S se apaga
+y Supabase recibe escrituras reales. El reverse sync escribe en Airtable (no en Supabase) → sin bucle.
+**Orden de construcción de twins: bottom-up** (sub-workflows hoja primero; `executeWorkflow` padre
+después). Todos los twins se crean INACTIVOS hasta el cutover. Credencial n8n: `Supabase ProEv Cloud`
+(`8VXztyOWvaGzChfz`). Pilot ya creado: `sJ3HEoC6C9qFEhFR`.
+
 ## Gates operativos (del review pre-merge, 2026-06-14)
 El GitHub Action corre SOLO `--load` (upsert, sin borrados, no toca Airtable) → **sin riesgo activo**.
 Review = SAFE-TO-MERGE, 0 CRITICAL, guardas anti-wipe del prune verificadas. Antes de habilitar más:
