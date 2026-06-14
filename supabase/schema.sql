@@ -25,15 +25,18 @@ CREATE TYPE estado_revision AS ENUM (
   'Pendiente',
   'Aprobado',
   'Rechazado',
-  'Revision Necesaria'
+  'Revision Necesaria',
+  'Video no accesible'
 );
 
 CREATE TYPE estado_pago AS ENUM (
   'Pendiente',
-  'Pagado',
+  'Pagado',          -- LEGACY/UNUSED: not present in Airtable; kept for back-compat. MIGRATOR NOTE: map legacy 'Pagado' -> 'Completado'.
   'Fallido',
   'Reembolsado',
-  'Enviado'
+  'Enviado',
+  'Completado',
+  'Pendiente Verificación'
 );
 
 CREATE TYPE estado_email AS ENUM (
@@ -58,9 +61,16 @@ CREATE TYPE tipo_email AS ENUM (
   'seguimiento',
   'bienvenida',
   'felicitacion',
-  'urgente'
+  'urgente',
+  'seguimiento_frio',
+  'recuperacion_pago',
+  'recordatorio_pago',
+  'libre'
 );
 
+-- MIGRATOR NOTE: Airtable stores idioma as 'Español' (with ñ), but the migrator
+-- normalizes 'Español' -> 'Espanol' on load, so 'Espanol' is the single canonical
+-- ASCII value. The accented literal is intentionally NOT part of this ENUM.
 CREATE TYPE idioma_tipo AS ENUM ('Espanol', 'Ingles');
 
 CREATE TYPE origen_evento AS ENUM (
@@ -68,7 +78,16 @@ CREATE TYPE origen_evento AS ENUM (
   'Automatico',
   'Webhook',
   'API',
-  'Workflow Automatico'
+  'Workflow Automatico',
+  'Sistema'
+);
+
+-- Origen for Cola de Emails (manual_template/manual_quick) and Inbox (Automatico/Manual)
+CREATE TYPE origen_email AS ENUM (
+  'manual_template',
+  'manual_quick',
+  'Automatico',
+  'Manual'
 );
 
 CREATE TYPE direccion_email AS ENUM ('Recibido', 'Enviado');
@@ -88,6 +107,7 @@ CREATE TYPE estado_inbox AS ENUM (
 -- Ediciones (referenced by alumnos)
 CREATE TABLE ediciones (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
   nombre TEXT NOT NULL,
   estado estado_edicion DEFAULT 'Planificada',
   es_edicion_activa BOOLEAN DEFAULT false,
@@ -95,7 +115,9 @@ CREATE TABLE ediciones (
   fecha_fin_inscripcion DATE,
   fecha_inicio_curso DATE,
   fecha_fin_curso DATE,
+  fecha_inicio_prelanzamiento DATE,
   modulos_disponibles TEXT[],
+  plazos_revision JSONB,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -103,12 +125,18 @@ CREATE TABLE ediciones (
 -- Modulos
 CREATE TABLE modulos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
   modulo_id TEXT UNIQUE NOT NULL,
   nombre TEXT NOT NULL,
   precio_online NUMERIC(10,2),
+  precio_efectivo NUMERIC(10,2),
   activo BOOLEAN DEFAULT true,
   capacidad INT,
   reserva_prelanzamiento BOOLEAN DEFAULT false,
+  -- TYPE MISMATCH: Airtable "Reserva Prelanzamiento" is a number of plazas, not boolean.
+  -- MIGRATOR NOTE: load the Airtable plaza count into reserva_prelanzamiento_plazas;
+  -- the boolean above is legacy and kept to avoid breaking existing references.
+  reserva_prelanzamiento_plazas INT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -116,6 +144,7 @@ CREATE TABLE modulos (
 -- Alumnos (central entity)
 CREATE TABLE alumnos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
   nombre TEXT NOT NULL,
   email TEXT NOT NULL,
   telefono TEXT,
@@ -125,11 +154,20 @@ CREATE TABLE alumnos (
   modulos_completados TEXT[],
   edicion_id UUID REFERENCES ediciones(id),
   foto_perfil TEXT,
-  plazo_revision DATE,
+  plazo_revision TEXT,  -- Airtable "Plazo Revision" is a label (e.g. "1ª Revisión (30 Abr)"), not a date
   fecha_plazo DATE,
   fecha_preinscripcion DATE,
   modulo_reserva TEXT,
   fecha_entrada_reserva DATE,
+  -- Pareja (Modulo 3)
+  pareja_email TEXT,
+  pareja_alumno_id UUID REFERENCES alumnos(id),
+  -- Campaign / prelaunch flags
+  onboarding_enviado BOOLEAN DEFAULT false,
+  bloqueado_proev26 BOOLEAN DEFAULT false,
+  disculpa_enviada BOOLEAN DEFAULT false,
+  prelanzamiento_enviado BOOLEAN DEFAULT false,
+  followup_prelanzamiento INT DEFAULT 0,
   -- AI fields (populated by n8n workflows)
   engagement_score NUMERIC(5,2),
   resumen_feedback_ia TEXT,
@@ -144,9 +182,12 @@ CREATE TABLE alumnos (
 -- Revisiones de Video
 CREATE TABLE revisiones_video (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
   alumno_id UUID NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
+  email_alumno TEXT,
   video_enviado TEXT,
   redes_sociales TEXT,
+  perfiles_rrss TEXT,
   usuarios_rrss TEXT,
   estado_revision estado_revision DEFAULT 'Pendiente',
   puntuacion INT CHECK (puntuacion BETWEEN 1 AND 5),
@@ -164,6 +205,7 @@ CREATE TABLE revisiones_video (
 -- Pagos
 CREATE TABLE pagos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
   alumno_id UUID NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
   importe NUMERIC(10,2),
   moneda TEXT DEFAULT 'EUR' CHECK (moneda IN ('EUR','USD','MXN')),
@@ -183,10 +225,12 @@ CREATE TABLE pagos (
 -- Historial (activity log)
 CREATE TABLE historial (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
   alumno_id UUID REFERENCES alumnos(id) ON DELETE SET NULL,
   descripcion TEXT,
   tipo_accion TEXT,
   origen_evento origen_evento DEFAULT 'Manual',
+  workflow TEXT,
   admin_responsable TEXT,
   error_log TEXT,
   -- AI fields
@@ -198,12 +242,19 @@ CREATE TABLE historial (
 -- Cola de Emails
 CREATE TABLE cola_emails (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
   alumno_id UUID REFERENCES alumnos(id) ON DELETE SET NULL,
   alumno_nombre TEXT,
   tipo tipo_email,
   asunto TEXT,
+  asunto_generado TEXT,
   mensaje TEXT,
+  email_generado TEXT,
   estado estado_email DEFAULT 'Pendiente Aprobacion',
+  origen origen_email,
+  fecha_envio DATE,
+  reprogramado BOOLEAN DEFAULT false,
+  ultimo_reproceso TIMESTAMPTZ,
   descripcion TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -212,11 +263,15 @@ CREATE TABLE cola_emails (
 -- Envios de Emails (bulk sends)
 CREATE TABLE envios_emails (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
   alumnos_ids UUID[],
   tipo tipo_email,
   mensaje TEXT,
   descripcion TEXT,
-  estado TEXT DEFAULT 'Pendiente',
+  estado TEXT DEFAULT 'Pendiente' CHECK (estado IN ('Borrador','Pendiente','Procesando','Completado','Error')),
+  total_emails INT,
+  emails_creados INT,
+  fecha_completado DATE,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -224,6 +279,7 @@ CREATE TABLE envios_emails (
 -- Inbox
 CREATE TABLE inbox (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
   de TEXT,
   para TEXT,
   asunto TEXT,
@@ -234,6 +290,10 @@ CREATE TABLE inbox (
   thread_id TEXT,
   direccion direccion_email DEFAULT 'Recibido',
   estado estado_inbox DEFAULT 'Nuevo',
+  origen origen_email,
+  fecha_apertura TIMESTAMPTZ,
+  gmail_leido BOOLEAN DEFAULT false,
+  gmail_eliminado BOOLEAN DEFAULT false,
   alumno_id UUID REFERENCES alumnos(id) ON DELETE SET NULL,
   -- AI fields
   resumen_ia TEXT,
@@ -255,6 +315,17 @@ CREATE TABLE audit_log (
   user_email TEXT,
   field_changes JSONB,
   created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Configuracion (Airtable tblVyseTbKEU2CrTX) — system parameters + visual templates
+CREATE TABLE configuracion (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  clave TEXT UNIQUE NOT NULL,
+  valor TEXT,
+  descripcion TEXT,
+  plantilla_html TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- ============================================================
@@ -306,6 +377,8 @@ CREATE TRIGGER trg_cola_emails_updated BEFORE UPDATE ON cola_emails
 CREATE TRIGGER trg_envios_emails_updated BEFORE UPDATE ON envios_emails
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 CREATE TRIGGER trg_inbox_updated BEFORE UPDATE ON inbox
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+CREATE TRIGGER trg_configuracion_updated BEFORE UPDATE ON configuracion
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- Audit trigger: captures who changed what with JSON diff
@@ -411,7 +484,7 @@ LEFT JOIN LATERAL (
 LEFT JOIN LATERAL (
   SELECT
     COUNT(*)::INT AS total_pagos,
-    COALESCE(SUM(CASE WHEN p.estado_pago = 'Pagado' THEN p.importe ELSE 0 END), 0) AS importe_total_pagado,
+    COALESCE(SUM(CASE WHEN p.estado_pago IN ('Completado', 'Pagado') THEN p.importe ELSE 0 END), 0) AS importe_total_pagado,
     MAX(p.created_at) AS fecha_ultimo_pago
   FROM pagos p WHERE p.alumno_id = a.id
 ) pago_stats ON true;
@@ -453,6 +526,7 @@ ALTER TABLE modulos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cola_emails ENABLE ROW LEVEL SECURITY;
 ALTER TABLE envios_emails ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inbox ENABLE ROW LEVEL SECURITY;
+ALTER TABLE configuracion ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 
 -- Allow full access for authenticated users (anon key with service role bypasses RLS)
@@ -467,4 +541,5 @@ CREATE POLICY "Allow all for anon" ON modulos FOR ALL TO anon USING (true) WITH 
 CREATE POLICY "Allow all for anon" ON cola_emails FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON envios_emails FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON inbox FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for anon" ON configuracion FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Allow read for anon" ON audit_log FOR SELECT TO anon USING (true);
