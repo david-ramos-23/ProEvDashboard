@@ -66,9 +66,33 @@ Precondición: Preview validado + sync estable varios días + sync inverso (Supa
 3. Repointar en bloque: escrituras del dashboard (`VITE_DATA_SOURCE=supabase` en prod) + los 24
    workflows n8n. Orden interno: pilotos read-only primero (`R3mQiCRZ8tu66yaQ`, `vAXmsu9exm9LEbID`
    — ya hay twin Supabase `Z2PZdRgimnJvA1hn`), **`[Stripe] Pago Recibido` el ÚLTIMO**.
+   ⚠️ Los 2 workflows de tracking (pixel `a9F0DmOsWFohjKlM` + click `eEc8XBMo2ej1xSlv`) **NO se desactivan** — ver «Enlaces de emails ya enviados» abajo.
 4. Apagar el sync A→S. Vigilar ejecuciones.
 5. Rollback (si algo falla): `VITE_DATA_SOURCE=airtable` + reactivar workflows Airtable; el sync
    inverso garantiza que Airtable tiene los datos escritos durante la ventana Supabase.
+
+## Enlaces de emails ya enviados — dual-write tracking (2026-06-15)
+Los emails YA enviados llevan URLs congeladas con paths viejos (`email-track`, `email-click`) y
+**recIds de Airtable**. Si se desactivan los workflows originales esos links se rompen:
+**click → 404 de cara al usuario**, pixel → se pierde el registro de aperturas. Enlaces de pago =
+Stripe-hosted, no afectados.
+
+**Solución implementada (2026-06-15):** los 2 workflows de tracking se mantienen **activos** y se les
+añadió una rama paralela de **dual-write a Supabase** (nodos `disabled` hasta el cutover):
+- Pixel `a9F0DmOsWFohjKlM` (`email-track`): `Log Apertura → SB Lookup Alumno → SB Log Apertura → SB Update Inbox`.
+  La respuesta del pixel sigue en su path independiente.
+- Click `eEc8XBMo2ej1xSlv` (`email-click`): `Preparar Datos Click → SB Lookup Alumno → SB Log Click`
+  (rama paralela; el redirect 302 nunca se bloquea ni depende de Supabase).
+- Resolución `recId→UUID` vía columna `airtable_id` (alumnos/historial/inbox). El insert en `historial`
+  fija `airtable_id` = recId del create de Airtable → **dedup** contra el sync A→S (upsert, no duplica).
+  Credencial `Supabase ProEv Cloud` (`8VXztyOWvaGzChfz`). Todos los nodos nuevos: `continueOnFail` +
+  `retryOnFail:3` + `onError:continueRegularOutput`.
+
+**Enable-step en el cutover** (hacerlo **DESPUÉS de apagar el sync A→S — paso 4 arriba** — así no hay
+solapamiento y el dedup es irrelevante): `n8n_update_partial_workflow` con ops `enableNode`:
+- `a9F0DmOsWFohjKlM`: `SB Lookup Alumno`, `SB Log Apertura`, `SB Update Inbox`.
+- `eEc8XBMo2ej1xSlv`: `SB Lookup Alumno`, `SB Log Click`.
+No requiere reactivar workflows (ya están `active`). Build validado: ambos `valid`, 0 errores nuevos.
 
 ## Hardening — estado
 - **`--prune`** ✅ construido (`migrate_airtable_data.py --prune`): borra de Supabase filas cuyo
