@@ -471,6 +471,16 @@ DEFAULT_PRUNE_THRESHOLD = 0.25
 # it is INDEPENDENT of --prune-threshold and NOT bypassable by --prune-force.
 PRUNE_MIN_FETCH_RATIO = 0.9
 
+# The completeness floor only applies to tables large enough that a paginated
+# fetch could PARTIALLY truncate. Airtable returns up to 100 rows/page, so a
+# table whose row count fits in a single page (<= 100) cannot be partially
+# truncated — a low fetch ratio there means real deletions, not a lost page.
+# Below this size the floor is skipped and the (force-bypassable) threshold
+# guard governs, so a single legitimate deletion on a small table (e.g. the
+# 7-row `pagos`) can still be pruned. Matches the fetch pageSize in
+# fetch_airtable_records.
+PRUNE_FLOOR_MIN_ROWS = 100
+
 # CASCADE relationships from dashboard/supabase/schema.sql: parent table -> the
 # child tables whose FK to it is declared `ON DELETE CASCADE` (deleting a parent
 # row silently cascade-deletes the children). Verified against schema.sql: ONLY
@@ -516,12 +526,16 @@ def compute_prune_ids(
         refuse — deleting parent rows would silently cascade-delete unaccounted
         child rows. Checked before the floor (a structural refusal that holds
         regardless of fetch size). NOT bypassable by ``force``.
-      * Fetch-completeness floor: if the fetch returned fewer than
-        ``PRUNE_MIN_FETCH_RATIO`` of the current Supabase rows, the fetch looks
-        truncated; return ([], reason). Same tier as the empty-fetch guard
-        (empty is the ratio==0 case): INDEPENDENT of ``threshold`` and NOT
-        bypassable by ``force``. The known-empty allowlist still skips this
-        floor (those tables are legitimately empty/small).
+      * Fetch-completeness floor: for tables LARGER than
+        ``PRUNE_FLOOR_MIN_ROWS`` (a paginated fetch could partially truncate),
+        if the fetch returned fewer than ``PRUNE_MIN_FETCH_RATIO`` of the
+        current Supabase rows, the fetch looks truncated; return ([], reason).
+        Same tier as the empty-fetch guard (empty is the ratio==0 case):
+        INDEPENDENT of ``threshold`` and NOT bypassable by ``force``. Tables at
+        or below ``PRUNE_FLOOR_MIN_ROWS`` (single Airtable page) skip this floor
+        — a low ratio there means real deletions, so the (force-bypassable)
+        threshold guard governs and one legitimate deletion can be pruned. The
+        known-empty allowlist also skips this floor.
       * Threshold guard: if the number of stale rows exceeds ``threshold`` of
         the current Supabase row count, return ([], reason) unless ``force`` is
         True. Bypass with ``--prune-force``.
@@ -552,7 +566,7 @@ def compute_prune_ids(
     # threshold (same hard tier as the empty-fetch guard). Allowlisted
     # known-empty tables are exempt (handled by the empty-fetch guard above).
     if (
-        supabase_ids
+        len(supabase_ids) > PRUNE_FLOOR_MIN_ROWS
         and table not in PRUNE_KNOWN_EMPTY_ALLOWLIST
         and len(airtable_ids) < PRUNE_MIN_FETCH_RATIO * len(supabase_ids)
     ):
@@ -1559,25 +1573,51 @@ def _self_test() -> int:
         ids_f == set() and reason_f is not None and "empty fetch" in reason_f
     )
 
-    # Fetch-completeness floor (Fix A): Airtable returned only 8/10 = 80% of the
-    # Supabase rows (< 90% floor). Prune must be REFUSED even with force=True —
-    # a truncated fetch must never delete the missing 2 rows.
-    sup_10 = {f"rec{i}" for i in range(10)}
-    air_8 = {f"rec{i}" for i in range(8)}
+    # Fetch-completeness floor (Fix A) applies only to tables LARGER than
+    # PRUNE_FLOOR_MIN_ROWS (only a paginated fetch can partially truncate). A
+    # 200-row table whose fetch returned 160/200 = 80% (< 90% floor) must be
+    # REFUSED even with force=True — a truncated fetch must not delete the 40.
+    sup_200 = {f"rec{i}" for i in range(200)}
+    air_160 = {f"rec{i}" for i in range(160)}
     ids_inc, reason_inc = compute_prune_ids(
-        "alumnos", sup_10, air_8, force=True,
+        "alumnos", sup_200, air_160, force=True,
     )
     prune_incomplete_guard = (
         ids_inc == set()
         and reason_inc is not None
         and "incomplete" in reason_inc
     )
-    # At/above the floor (9/10 = 90%) the floor does NOT fire: the single stale
-    # row prunes normally (10% stale < 25% threshold).
-    air_9 = {f"rec{i}" for i in range(9)}
-    ids_ok, reason_ok = compute_prune_ids("alumnos", sup_10, air_9)
-    prune_floor_boundary = ids_ok == {"rec9"} and reason_ok is None
+    # At/above the floor (180/200 = 90%) the floor does NOT fire on a large
+    # table: the 20 stale rows prune (10% stale < 25% threshold).
+    air_180 = {f"rec{i}" for i in range(180)}
+    ids_ok, reason_ok = compute_prune_ids("alumnos", sup_200, air_180)
+    prune_floor_boundary = (
+        ids_ok == {f"rec{i}" for i in range(180, 200)} and reason_ok is None
+    )
+    # Small-table exemption (Codex P2): a table at/below PRUNE_FLOOR_MIN_ROWS
+    # (fits in one Airtable page) skips the floor — pagination cannot partially
+    # truncate it. 'pagos' has 7 rows; after one real deletion the fetch returns
+    # 6/7 = 86% (< 90% floor) yet the single stale row must still prune (1/7 =
+    # 14% < 25% threshold) instead of being blocked forever by the floor.
+    sup_7 = {f"pg{i}" for i in range(7)}
+    air_6 = {f"pg{i}" for i in range(6)}  # pg6 = the deleted payment
+    ids_sm, reason_sm = compute_prune_ids("pagos", sup_7, air_6)
+    prune_small_table_exempt = ids_sm == {"pg6"} and reason_sm is None
+    # ...but the threshold guard still governs small tables: 3/7 = 43% > 25%
+    # is refused without force, allowed with force.
+    air_4 = {f"pg{i}" for i in range(4)}  # pg4,pg5,pg6 stale (43%)
+    ids_smt, reason_smt = compute_prune_ids("pagos", sup_7, air_4)
+    ids_smf, reason_smf = compute_prune_ids("pagos", sup_7, air_4, force=True)
+    prune_small_table_threshold = (
+        ids_smt == set()
+        and reason_smt is not None
+        and "threshold" in reason_smt
+        and ids_smf == {"pg4", "pg5", "pg6"}
+        and reason_smf is None
+    )
     # Allowlisted known-empty table is exempt from the floor (envios_emails).
+    sup_10 = {f"rec{i}" for i in range(10)}
+    air_8 = {f"rec{i}" for i in range(8)}
     ids_al, reason_al = compute_prune_ids(
         "envios_emails", sup_10, air_8, force=True,
     )
@@ -1647,6 +1687,8 @@ def _self_test() -> int:
     print(f"prune force keeps empty guard : {prune_force_keeps_empty_guard}")
     print(f"prune incomplete-fetch guard  : {prune_incomplete_guard}")
     print(f"prune floor boundary (90%)    : {prune_floor_boundary}")
+    print(f"prune small-table floor exempt: {prune_small_table_exempt}")
+    print(f"prune small-table threshold   : {prune_small_table_threshold}")
     print(f"prune floor allowlist exempt  : {prune_floor_allowlist}")
     print(f"prune CASCADE-subset guard    : {prune_cascade_guard}")
     print(f"prune CASCADE full selected   : {prune_cascade_full}")
@@ -1662,6 +1704,7 @@ def _self_test() -> int:
         and prune_threshold_guard and prune_force_override
         and prune_force_keeps_empty_guard
         and prune_incomplete_guard and prune_floor_boundary
+        and prune_small_table_exempt and prune_small_table_threshold
         and prune_floor_allowlist and prune_cascade_guard
         and prune_cascade_full and threshold_validation
         and threshold_valid_accepted
