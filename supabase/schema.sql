@@ -451,6 +451,32 @@ CREATE TRIGGER audit_historial AFTER INSERT OR UPDATE OR DELETE ON historial
   FOR EACH ROW EXECUTE FUNCTION audit_trigger_fn();
 
 -- ============================================================
+-- 4b. INSCRIPCIONES (form-intake; Bachata inscription form tbl6I5p5adeeGDv2S)
+-- ============================================================
+-- Source: Airtable inscription form. Structured columns are the fields the
+-- Nueva Inscripcion twin consumes directly; all other (volatile Tally)
+-- question/answer pairs are kept verbatim in respuestas_formulario JSONB.
+CREATE TABLE IF NOT EXISTS inscripciones (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
+  full_name TEXT,
+  email TEXT,
+  phone_number TEXT,
+  timestamp_form TIMESTAMPTZ,                                 -- Airtable "Timestamp"
+  ultima_modificacion TIMESTAMPTZ,                            -- Airtable "Ultima Modificacion"
+  alumno_id UUID REFERENCES alumnos(id) ON DELETE SET NULL,   -- Airtable "Alumnos" link
+  modules_solicitados TEXT[],                                 -- "Which modules would you like to attend?"
+  pais TEXT,                                                  -- "What country are you come from?"
+  rol TEXT,                                                   -- "Are you leader or follower?"
+  respuestas_formulario JSONB,                                -- all remaining form fields (key=label)
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_inscripciones_timestamp ON inscripciones(timestamp_form DESC);
+CREATE INDEX IF NOT EXISTS idx_inscripciones_email ON inscripciones(email);
+CREATE INDEX IF NOT EXISTS idx_inscripciones_alumno ON inscripciones(alumno_id);
+
+-- ============================================================
 -- 5. VIEWS (replace Airtable rollups/lookups)
 -- ============================================================
 
@@ -529,6 +555,7 @@ ALTER TABLE envios_emails ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inbox ENABLE ROW LEVEL SECURITY;
 ALTER TABLE configuracion ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inscripciones ENABLE ROW LEVEL SECURITY;
 
 -- Allow full access for authenticated users (anon key with service role bypasses RLS)
 -- For now, allow all operations for anon (dashboard uses anon key but all users are authenticated via our auth)
@@ -544,3 +571,7 @@ CREATE POLICY "Allow all for anon" ON envios_emails FOR ALL TO anon USING (true)
 CREATE POLICY "Allow all for anon" ON inbox FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON configuracion FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Allow read for anon" ON audit_log FOR SELECT TO anon USING (true);
+CREATE POLICY "Allow all for anon" ON inscripciones FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Match read access of other tables for the standard Supabase roles.
+GRANT SELECT ON inscripciones TO anon, authenticated, service_role;

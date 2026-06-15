@@ -250,26 +250,34 @@ ALTER TABLE alumnos
 --
 -- DESIGN CHOICE: the long question strings are kept as a single JSONB
 --   `respuestas_formulario` blob (Tally questions are volatile / verbose),
---   with the handful of fields the twin actually consumes promoted to
---   typed columns. CONFIRM column set vs JSONB split in OQ-4b.
+--   with the handful of fields the twin consumes promoted to typed columns.
+--
+-- APPLIED 2026-06-15 (shadow DB) — also merged into canonical schema.sql.
+--   Final column set vs the earlier draft:
+--     - `modules` -> `modules_solicitados` (matches the twin/task naming)
+--     - added `rol` ("Are you leader or follower?")
+--     - dropped `email_pareja` / `codigo_descuento` as typed columns: not
+--       consumed by the twin; they live inside respuestas_formulario JSONB
+--       (codigo_descuento) — Email Pareja currently has no live data and is
+--       captured in JSONB if present.
+--   Data loaded by the standalone loader dashboard/supabase/load_inscripciones.py
+--   (the main migrator's FIELD_MAP has no JSONB-collection concept, so this
+--   table is loaded out-of-band). 147 Airtable rows -> 147 inscripciones,
+--   144 with alumno_id resolved (3 form rows have no Alumnos link -> NULL).
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS inscripciones (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   airtable_id TEXT UNIQUE,                       -- Airtable record id of the form row
-  -- Trigger / dedupe
+  full_name TEXT,                               -- "Full Name"  (twin must read full_name, NOT Nombre)
+  email TEXT,                                    -- "Email"
+  phone_number TEXT,                             -- "Phone Number"
   timestamp_form TIMESTAMPTZ,                    -- Airtable "Timestamp" (twin trigger field)
   ultima_modificacion TIMESTAMPTZ,               -- Airtable "Ultima Modificacion"
   alumno_id UUID REFERENCES alumnos(id) ON DELETE SET NULL,  -- "Alumnos" link (set after creation; dedupe guard)
-  -- Fields the twin consumes directly
-  email TEXT,                                    -- "Email"
-  full_name TEXT,                                -- "Full Name"  (twin reads as Nombre — see OQ-4a)
-  email_pareja TEXT,                             -- "Email Pareja"
-  phone_number TEXT,                             -- "Phone Number"
-  modules TEXT[],                                -- "Which modules would you like to attend?"
-  pais TEXT,                                     -- "What country are you come from?" (-> Idioma)
-  codigo_descuento TEXT,                         -- prelaunch discount code field
-  -- Everything else from the (volatile) Tally form, verbatim:
-  respuestas_formulario JSONB,                   -- all remaining question/answer pairs
+  modules_solicitados TEXT[],                    -- "Which modules would you like to attend?"
+  pais TEXT,                                     -- "What country are you come from?"
+  rol TEXT,                                      -- "Are you leader or follower?"
+  respuestas_formulario JSONB,                   -- all remaining form fields (key=question label)
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -278,11 +286,10 @@ CREATE INDEX IF NOT EXISTS idx_inscripciones_timestamp ON inscripciones(timestam
 CREATE INDEX IF NOT EXISTS idx_inscripciones_email ON inscripciones(email);
 CREATE INDEX IF NOT EXISTS idx_inscripciones_alumno ON inscripciones(alumno_id);
 
--- Audit + RLS to match the rest of the schema (only if you mirror those patterns):
--- ALTER TABLE inscripciones ENABLE ROW LEVEL SECURITY;
--- CREATE POLICY "Allow all for anon" ON inscripciones FOR ALL TO anon USING (true) WITH CHECK (true);
--- CREATE TRIGGER audit_inscripciones AFTER INSERT OR UPDATE OR DELETE ON inscripciones
---   FOR EACH ROW EXECUTE FUNCTION audit_trigger_fn();
+-- RLS + read grants to match the rest of the schema (APPLIED):
+ALTER TABLE inscripciones ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow all for anon" ON inscripciones FOR ALL TO anon USING (true) WITH CHECK (true);
+GRANT SELECT ON inscripciones TO anon, authenticated, service_role;
 
 
 -- ============================================================
