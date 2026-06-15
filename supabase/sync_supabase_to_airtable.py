@@ -125,6 +125,19 @@ AIRTABLE_BATCH_SIZE = 10
 # FIRST CUT: derived by inverting FIELD_MAP and choosing the canonical
 # Airtable name per column. The set of WRITABLE fields must be verified
 # against the live base before --load (lookups/rollups would 422).
+#
+# !!!  READ-ONLY FIELDS STRIPPED  !!!  Known Airtable lookup / rollup / AI
+# (computed) fields have been REMOVED below because PATCH/POSTing them returns
+# HTTP 422 ("Field ... cannot accept a value / is computed"). Removed so far:
+#   * revisiones_video: "Email del Alumno" (lookup), "Perfiles Redes Sociales"
+#     (lookup), "Resumen Inteligente de Feedback" (AI), "Clasificacion
+#     Automatica de Video" (AI)
+#   * cola_emails: "Alumno Nombre" (lookup of Alumno.Nombre)
+#   * alumnos: "Engagement Score" (rollup), "Resumen Feedback Video (AI)" (AI),
+#     "Siguiente Accion Recomendada (AI)" (AI)
+# THIS IS NOT EXHAUSTIVE. A FULL writable-field audit via the Airtable Metadata
+# API (field types per table) is STILL REQUIRED before any --load — any
+# remaining lookup/rollup/formula/AI field left here will 422 the whole batch.
 # ------------------------------------------------------------------
 COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
     "ediciones": {
@@ -163,9 +176,8 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
         "fecha_preinscripcion": "Fecha Preinscripcion",
         "modulo_reserva": "Modulo Reserva",
         "fecha_entrada_reserva": "Fecha Entrada Reserva",
-        "engagement_score": "Engagement Score",
-        "resumen_feedback_ia": "Resumen Feedback Video (AI)",
-        "siguiente_accion_ia": "Siguiente Accion Recomendada (AI)",
+        # engagement_score (rollup), resumen_feedback_ia + siguiente_accion_ia
+        # (AI/computed) are READ-ONLY in Airtable — removed (would 422 on --load).
         "notas_internas": "Notas Internas",
         "admin_responsable": "Admin Responsable",
         "pareja_email": "Pareja Email",
@@ -186,10 +198,11 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
         "feedback": "Feedback",
         "revisor_responsable": "Revisor Responsable",
         "fecha_revision": "Fecha de Revision",
-        "resumen_inteligente": "Resumen Inteligente de Feedback",
-        "clasificacion_automatica": "Clasificacion Automatica de Video",
-        "email_alumno": "Email del Alumno",
-        "perfiles_rrss": "Perfiles Redes Sociales",
+        # READ-ONLY in Airtable (removed, would 422 on --load):
+        #   resumen_inteligente -> "Resumen Inteligente de Feedback" (AI)
+        #   clasificacion_automatica -> "Clasificacion Automatica de Video" (AI)
+        #   email_alumno -> "Email del Alumno" (lookup of Alumno.Email)
+        #   perfiles_rrss -> "Perfiles Redes Sociales" (lookup)
     },
     "pagos": {
         "alumno_id": "Alumno",
@@ -200,8 +213,8 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
         "link_pago_stripe": "Link Pago Stripe",
         "id_sesion_stripe": "ID Sesion Stripe",
         "link_recibo": "Link Recibo",
-        "resumen_inteligente": "Resumen Inteligente del Pago",
-        "analisis_riesgo": "Analisis de Riesgo de Pago",
+        # resumen_inteligente / analisis_riesgo -> AI/computed fields in Airtable
+        # (READ-ONLY) — removed, would 422 on --load. Full Metadata-API audit pending.
     },
     "envios_emails": {
         "tipo": "Tipo",
@@ -214,7 +227,8 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
     },
     "cola_emails": {
         "alumno_id": "Alumno",
-        "alumno_nombre": "Alumno Nombre",
+        # alumno_nombre -> "Alumno Nombre" is a lookup of Alumno.Nombre in
+        # Airtable (READ-ONLY) — removed, would 422 on --load.
         "tipo": "Tipo",
         "asunto": "Asunto",
         "asunto_generado": "Asunto Generado",
@@ -257,8 +271,8 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
         "origen_evento": "Origen del Evento",
         "error_log": "Error Log",
         "workflow": "workflow",
-        "resumen_automatico": "Resumen Automatico del Evento",
-        "clasificacion_importancia": "Clasificacion AI de Importancia",
+        # resumen_automatico / clasificacion_importancia -> AI/computed fields in
+        # Airtable (READ-ONLY) — removed, would 422 on --load. Audit pending.
     },
 }
 
@@ -474,12 +488,21 @@ def create_airtable_records(
     pat: str,
     limiter: RateLimiter,
     creates: list[dict[str, Any]],
+    on_chunk: Callable[[list[tuple[str, str]]], None] | None = None,
 ) -> list[tuple[str, str]]:
     """POST up to 10 records/request. ``creates`` are {"fields", "__pg_id"}.
 
     The ``__pg_id`` is stripped before the request and paired with the
     Airtable-assigned recId in the return value so the caller can write the
     recId back into Supabase. Returns a list of ``(pg_id, new_rec_id)``.
+
+    PER-CHUNK WRITEBACK (data-safety): when ``on_chunk`` is given it is invoked
+    with *this chunk's* ``(pg_id, rec_id)`` pairs immediately after each
+    successful POST, BEFORE the next chunk is sent. The caller uses it to write
+    those recIds back into Supabase and COMMIT, so a failure mid-table leaves
+    every already-created row correctly linked (its airtable_id persisted) and
+    the run is safely re-runnable — re-running PATCHes those rows instead of
+    POSTing duplicates into production Airtable.
     """
     if requests is None:
         raise RuntimeError("the 'requests' package is required for --load")
@@ -496,10 +519,24 @@ def create_airtable_records(
         resp = requests.post(url, headers=headers, json=body, timeout=30)
         resp.raise_for_status()
         returned = resp.json().get("records", [])
-        # Airtable returns created records in request order, so we can zip the
-        # pg ids back to the new recIds positionally.
-        for pg_id, rec in zip(pg_ids, returned):
-            pairs.append((str(pg_id), rec["id"]))
+        # Airtable returns created records in request order, so we zip the pg ids
+        # back to the new recIds positionally. If the counts ever differ, the
+        # positional zip would silently mis-pair (and drop) recIds, corrupting
+        # the writeback — fail loudly instead.
+        if len(returned) != len(chunk):
+            raise RuntimeError(
+                f"Airtable POST returned {len(returned)} record(s) for a chunk "
+                f"of {len(chunk)} — refusing to positionally zip recIds "
+                f"(would mis-link/drop airtable_id writebacks)"
+            )
+        chunk_pairs = [
+            (str(pg_id), rec["id"]) for pg_id, rec in zip(pg_ids, returned)
+        ]
+        # Persist THIS chunk's recIds before the next POST so a later failure
+        # cannot orphan already-created Airtable rows (re-run would duplicate).
+        if on_chunk is not None:
+            on_chunk(chunk_pairs)
+        pairs.extend(chunk_pairs)
     return pairs
 
 
@@ -662,15 +699,27 @@ def run(
                 n_patched = patch_airtable_records(
                     base_id, table_id, pat, limiter, patches,
                 )
+
+                # Per-chunk writeback: persist each chunk's recIds into Supabase
+                # (and commit) the instant its POST succeeds, so a mid-table
+                # failure leaves created rows correctly linked + re-runnable.
+                # Newly-created parents also become linkable by later children
+                # within the same run as soon as their chunk lands.
+                def _persist_chunk(
+                    chunk_pairs: list[tuple[str, str]],
+                    _table: str = table,
+                ) -> None:
+                    if not chunk_pairs or conn is None:
+                        return
+                    write_back_airtable_ids(conn, _table, chunk_pairs)
+                    fk_maps.setdefault(_table, {})
+                    for pg_id, rec_id in chunk_pairs:
+                        fk_maps[_table][pg_id] = rec_id
+
                 pairs = create_airtable_records(
                     base_id, table_id, pat, limiter, creates,
+                    on_chunk=_persist_chunk if conn is not None else None,
                 )
-                if pairs and conn is not None:
-                    write_back_airtable_ids(conn, table, pairs)
-                    # Newly-created parents are now linkable by later children.
-                    fk_maps.setdefault(table, {})
-                    for pg_id, rec_id in pairs:
-                        fk_maps[table][pg_id] = rec_id
                 result.written = n_patched + len(pairs)
             results.append(result)
     finally:
@@ -792,6 +841,53 @@ def _self_test() -> int:
         and pay_skipped == []
     )
 
+    # --- 4b. READ-ONLY fields stripped (Fix G): lookup/rollup/AI Airtable
+    # fields must NEVER appear in a payload even when the pg row carries values
+    # for them (sending them would 422 a live --load). ---
+    readonly_alumno_row = {
+        "id": "uuid-al-ro",
+        "airtable_id": "recALRO",
+        "nombre": "RO Test",
+        "email": "ro@example.com",
+        "engagement_score": 87,                 # rollup -> must be dropped
+        "resumen_feedback_ia": "ai summary",    # AI -> must be dropped
+        "siguiente_accion_ia": "do x",          # AI -> must be dropped
+    }
+    _, ro_payload, _ = plan_row("alumnos", readonly_alumno_row, fk_maps)
+    rof = ro_payload["fields"]
+    readonly_rev_row = {
+        "id": "uuid-rev-ro",
+        "airtable_id": "recREVRO",
+        "alumno_id": "uuid-al-1",
+        "email_alumno": "lookup@example.com",   # lookup -> dropped
+        "perfiles_rrss": "@handle",             # lookup -> dropped
+        "resumen_inteligente": "ai",            # AI -> dropped
+        "clasificacion_automatica": "auto",     # AI -> dropped
+        "feedback": "real feedback",            # writable -> kept
+    }
+    _, rev_payload, _ = plan_row("revisiones_video", readonly_rev_row, fk_maps)
+    revf = rev_payload["fields"]
+    readonly_cola_row = {
+        "id": "uuid-cola-ro",
+        "airtable_id": "recCOLARO",
+        "alumno_nombre": "Lookup Name",         # lookup -> dropped
+        "asunto": "Hola",                       # writable -> kept
+    }
+    _, cola_payload, _ = plan_row("cola_emails", readonly_cola_row, fk_maps)
+    colaf = cola_payload["fields"]
+    readonly_stripped_ok = (
+        "Engagement Score" not in rof
+        and "Resumen Feedback Video (AI)" not in rof
+        and "Siguiente Accion Recomendada (AI)" not in rof
+        and "Email del Alumno" not in revf
+        and "Perfiles Redes Sociales" not in revf
+        and "Resumen Inteligente de Feedback" not in revf
+        and "Clasificacion Automatica de Video" not in revf
+        and revf.get("Feedback") == "real feedback"   # writable still present
+        and "Alumno Nombre" not in colaf
+        and colaf.get("Asunto") == "Hola"             # writable still present
+    )
+
     # --- 5. End-to-end dry-run via run() with mock providers (no DB) ---
     import tempfile
     report_path = os.path.join(tempfile.gettempdir(), "revsync_selftest.md")
@@ -811,13 +907,95 @@ def _self_test() -> int:
     )
     run_ok = rc == 0 and os.path.exists(report_path)
 
+    # --- 6. Per-chunk writeback (Fix E) + zip mismatch (Fix F) -------------
+    # Drive create_airtable_records with a fake `requests` so no network is
+    # touched. Assert on_chunk fires AFTER each successful POST (not once at the
+    # end), so a mid-run failure still persists the chunks that did land.
+    global requests  # the module-level guarded `requests` handle
+    saved_requests = requests
+
+    class _FakeResp:
+        def __init__(self, records: list[dict[str, str]]) -> None:
+            self._records = records
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, Any]:
+            return {"records": self._records}
+
+    # 6a. Per-chunk callback ordering: 25 creates -> 3 chunks (10/10/5). The
+    # callback must be invoked once per chunk, each time with only that chunk's
+    # pairs, so a failure on chunk N still has chunks < N persisted.
+    chunk_calls: list[list[tuple[str, str]]] = []
+    posted: list[int] = []
+
+    class _FakeRequestsOK:
+        @staticmethod
+        def post(url: str, headers: dict[str, str], json: dict[str, Any],
+                 timeout: int) -> _FakeResp:
+            n = len(json["records"])
+            posted.append(n)
+            recs = [{"id": f"recNEW{len(posted)}_{i}"} for i in range(n)]
+            return _FakeResp(recs)
+
+    requests = _FakeRequestsOK  # type: ignore[assignment]
+    try:
+        creates_25 = [
+            {"fields": {"Nombre": f"n{i}"}, "__pg_id": f"pg{i}"}
+            for i in range(25)
+        ]
+        all_pairs = create_airtable_records(
+            AIRTABLE_BASE_ID_DEFAULT, "tblFAKE", "patFAKE",
+            RateLimiter(0), creates_25,
+            on_chunk=lambda cp: chunk_calls.append(list(cp)),
+        )
+        per_chunk_ok = (
+            posted == [10, 10, 5]
+            and len(chunk_calls) == 3
+            and [len(c) for c in chunk_calls] == [10, 10, 5]
+            # each callback got ONLY its own chunk's pairs, in order
+            and chunk_calls[0][0] == ("pg0", "recNEW1_0")
+            and chunk_calls[2][-1] == ("pg24", "recNEW3_4")
+            and len(all_pairs) == 25
+        )
+
+        # 6b. Zip-length mismatch (Fix F): Airtable returns fewer records than
+        # the chunk -> must raise (never silently truncate the positional zip).
+        class _FakeRequestsShort:
+            @staticmethod
+            def post(url: str, headers: dict[str, str], json: dict[str, Any],
+                     timeout: int) -> _FakeResp:
+                recs = json["records"][:-1]  # drop one -> count mismatch
+                return _FakeResp([{"id": f"r{i}"} for i in range(len(recs))])
+
+        requests = _FakeRequestsShort  # type: ignore[assignment]
+        zip_mismatch_ok = False
+        try:
+            create_airtable_records(
+                AIRTABLE_BASE_ID_DEFAULT, "tblFAKE", "patFAKE",
+                RateLimiter(0),
+                [{"fields": {}, "__pg_id": f"pg{i}"} for i in range(3)],
+            )
+        except RuntimeError as exc:
+            zip_mismatch_ok = "refusing to positionally zip" in str(exc)
+    finally:
+        requests = saved_requests  # type: ignore[assignment]
+
     print("--- reverse-sync self-test assertions ---")
     print(f"PATCH payload (renames/FK/self-FK/null): {patch_ok}")
     print(f"CREATE payload (no airtable_id -> POST) : {create_ok}")
     print(f"dropped-FK skip (orphan self-FK)        : {drop_ok}")
     print(f"child FK link (pagos.alumno_id)         : {child_fk_ok}")
+    print(f"read-only fields stripped (Fix G)       : {readonly_stripped_ok}")
+    print(f"per-chunk writeback callback (Fix E)    : {per_chunk_ok}")
+    print(f"zip-length mismatch raises (Fix F)      : {zip_mismatch_ok}")
     print(f"end-to-end dry-run run() (no DB)        : {run_ok} ({report_path})")
-    ok = patch_ok and create_ok and drop_ok and child_fk_ok and run_ok
+    ok = (
+        patch_ok and create_ok and drop_ok and child_fk_ok
+        and readonly_stripped_ok and per_chunk_ok and zip_mismatch_ok
+        and run_ok
+    )
     print(f"SELF-TEST: {'PASS' if ok else 'FAIL'}")
     return 0 if ok else 1
 
