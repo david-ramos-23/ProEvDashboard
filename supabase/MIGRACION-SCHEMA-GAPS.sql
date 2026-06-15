@@ -1,201 +1,196 @@
 -- ============================================================
--- ProEv Supabase — SCHEMA GAP PATCH (DRAFT — DO NOT APPLY YET)
+-- ProEv Supabase — SCHEMA GAP PATCH
 -- ============================================================
--- Purpose: define the columns/tables that block activating the n8n
+-- Purpose: define the columns/views that block activating the n8n
 --          Supabase twins (Alertas + Nueva Inscripcion).
 --
--- STATUS: DRAFT. Nothing here has been applied to any DB.
---         Confirm the OPEN QUESTIONS in MIGRACION-SCHEMA-GAPS.md
---         BEFORE running any of this in the Supabase SQL Editor.
+-- STATUS:
+--   - alerta_activa block (GAP 1 + GAP 2 below): APPLIED to the SHADOW
+--     Supabase DB on 2026-06-15 (project qktvdmoggniufynaodzq, EU-North-1).
+--     Applied transactionally; verified; committed. Airtable is still
+--     primary, so the shadow DB does not serve production yet.
+--   - GAP 3 / GAP 4 / GAP 5 below: STILL DRAFTS — not applied. Confirm
+--     OPEN QUESTIONS in MIGRACION-SCHEMA-GAPS.md before running them.
 --
 -- Authoritative sources captured per block:
+--   - Airtable formula "Alerta Activa" (confirmed by David, see GAP 1)
 --   - n8n workflow 86TaFQgNjXIFP2rA  ([Schedule] Alertas - Detectar Alumnos en Riesgo)
 --   - n8n workflow kWDjtwTRmQfUC0B5  ([Airtable] Nueva Inscripcion)
 --   - Airtable live data PAT (read-only) on base app4ZpoxaWOyV4RnR
---   - Existing schema.sql (alumnos / historial / alumnos_enriched view)
+--   - Existing schema (alumnos / historial / alumnos_enriched view)
+-- ============================================================
 --
--- KEY CONSTRAINT discovered (finding #2): the n8n twins filter the
--- BASE TABLE `alumnos` via PostgREST (e.g. `alerta_activa=not.is.null`),
--- NOT the `alumnos_enriched` VIEW. A column that lives ONLY in the view
--- is INVISIBLE to the twin's filter. Therefore alerta_activa /
--- dias_desde_ultimo_evento are proposed as GENERATED / trigger-maintained
--- columns ON the base table (Approach A), with a view-only fallback
--- (Approach B) kept commented for the case where the twin is repointed
--- to alumnos_enriched. Pick ONE per gap after confirming the OQs.
+-- DESIGN DECISION (applied): alerta_activa + the two day-counts live in
+-- the `alumnos_enriched` VIEW, NOT as stored columns on the base table.
+-- A view recomputes on every read, so the time-relative day-counts are
+-- ALWAYS fresh with NO cron / no trigger drift. The only stored fact is
+-- `alumnos.fecha_cambio_estado` (set by a BEFORE trigger when estado
+-- changes), because the DB has no estado-change timestamp otherwise.
+--
+-- TWIN NOTE: the Alertas twin (86TaFQgNjXIFP2rA) currently filters the
+-- BASE TABLE `alumnos` via PostgREST. To consume `alerta_activa` it must
+-- be REPOINTED to read the `alumnos_enriched` view (PostgREST exposes the
+-- view in the public schema; SELECT granted to anon/authenticated/
+-- service_role). That repoint is a SEPARATE step (n8n #16), NOT done here.
 -- ============================================================
 
 
 -- ============================================================
--- GAP 2 (do first — dias_desde_ultimo_evento feeds GAP 1)
--- alumnos.dias_desde_ultimo_evento
+-- APPLIED: alumnos.fecha_cambio_estado  (the one stored fact)
 -- ============================================================
--- SOURCE: Airtable formula field "Dias desde Ultimo Evento" (INT).
---   Live samples: 3, 80, 6, 7, 104  -> small non-negative integers.
---   Read by Alertas twin Code node as alumno['Dias desde Ultimo Evento'].
--- DEFINITION (inferred): whole days between now() and the alumno's most
---   recent historial.created_at. (Airtable "ultimo evento" == newest row
---   in the linked Historial table.)  See OQ-2 in the .md.
---
--- WHY NOT a GENERATED column: Postgres GENERATED ALWAYS columns are
---   STORED and may only reference columns of the SAME row — they cannot
---   aggregate historial. And a "days since" value is time-relative, so it
---   would be stale the moment it's stored. => must be a VIEW expression
---   OR a trigger-refreshed column.
---
--- APPROACH A (base-table, twin-visible): plain INT column refreshed by a
---   trigger on historial INSERT + a daily cron (pg_cron) recompute.
---   Use this ONLY if the Alertas twin filters/reads the base table.
+-- The DB has no estado-change timestamp. We add one column and keep it
+-- maintained by a BEFORE INSERT OR UPDATE trigger that stamps now()
+-- whenever estado_general changes.
 -- ------------------------------------------------------------
-ALTER TABLE alumnos
-  ADD COLUMN IF NOT EXISTS dias_desde_ultimo_evento INT;  -- nullable: NULL = no historial yet
+ALTER TABLE public.alumnos
+  ADD COLUMN IF NOT EXISTS fecha_cambio_estado timestamptz;
 
--- Recompute function (idempotent). Counts whole days since newest historial row.
-CREATE OR REPLACE FUNCTION refresh_dias_desde_ultimo_evento(p_alumno_id UUID DEFAULT NULL)
-RETURNS void AS $$
+CREATE OR REPLACE FUNCTION public.set_fecha_cambio_estado()
+RETURNS trigger LANGUAGE plpgsql AS $fn$
 BEGIN
-  UPDATE alumnos a
-  SET dias_desde_ultimo_evento = sub.dias
-  FROM (
-    SELECT al.id AS alumno_id,
-           CASE WHEN MAX(h.created_at) IS NULL THEN NULL
-                ELSE (CURRENT_DATE - MAX(h.created_at)::date)
-           END AS dias
-    FROM alumnos al
-    LEFT JOIN historial h ON h.alumno_id = al.id
-    WHERE p_alumno_id IS NULL OR al.id = p_alumno_id
-    GROUP BY al.id
-  ) sub
-  WHERE a.id = sub.alumno_id
-    AND a.dias_desde_ultimo_evento IS DISTINCT FROM sub.dias;
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger: when a historial row is added, refresh that alumno's counter.
-CREATE OR REPLACE FUNCTION trg_historial_refresh_dias()
-RETURNS trigger AS $$
-BEGIN
-  PERFORM refresh_dias_desde_ultimo_evento(NEW.alumno_id);
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.fecha_cambio_estado IS NULL THEN
+      NEW.fecha_cambio_estado := now();
+    END IF;
+  ELSIF TG_OP = 'UPDATE' THEN
+    IF NEW.estado_general IS DISTINCT FROM OLD.estado_general THEN
+      NEW.fecha_cambio_estado := now();
+    END IF;
+  END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$fn$;
 
-DROP TRIGGER IF EXISTS historial_refresh_dias ON historial;
-CREATE TRIGGER historial_refresh_dias
-  AFTER INSERT OR UPDATE OF created_at, alumno_id ON historial
-  FOR EACH ROW EXECUTE FUNCTION trg_historial_refresh_dias();
+DROP TRIGGER IF EXISTS trg_set_fecha_cambio_estado ON public.alumnos;
+CREATE TRIGGER trg_set_fecha_cambio_estado
+  BEFORE INSERT OR UPDATE ON public.alumnos
+  FOR EACH ROW EXECUTE FUNCTION public.set_fecha_cambio_estado();
 
--- Daily recompute so the "days since" advances even with no new events.
--- Requires the pg_cron extension (enable in Supabase Dashboard > Database > Extensions).
--- CREATE EXTENSION IF NOT EXISTS pg_cron;
--- SELECT cron.schedule('refresh-dias-evento', '5 0 * * *',
---                      $$SELECT refresh_dias_desde_ultimo_evento();$$);
-
--- One-time backfill after creating the column:
--- SELECT refresh_dias_desde_ultimo_evento();
+-- Backfill existing rows (best-effort / APPROXIMATE): newest
+-- "Actualización de Estado" historial row, else updated_at, else created_at.
+-- NOTE: in the shadow DB every updated_at was the migration date, so every
+-- backfilled fecha_cambio_estado collapsed to the load date => all
+-- dias_en_estado_actual = 0 until estados age naturally via the trigger or
+-- real Airtable timestamps are migrated. The Pago/Video thresholds will
+-- not fire on freshly-loaded data; this is expected, not a logic bug.
+UPDATE public.alumnos a SET fecha_cambio_estado = COALESCE(
+  (SELECT max(h.created_at) FROM public.historial h
+     WHERE h.alumno_id = a.id AND h.tipo_accion = 'Actualización de Estado'),
+  a.updated_at, a.created_at)
+WHERE a.fecha_cambio_estado IS NULL;
 
 
 -- ============================================================
--- GAP 1 — alumnos.alerta_activa  (CORE of the Alertas twin)
+-- APPLIED: alumnos_enriched VIEW extended with 3 derived alert fields
 -- ============================================================
--- SOURCE: Airtable FORMULA field "Alerta Activa" (TEXT).
---   Live sample value: "🥶 Alumno Frío"  (emoji + label, single string).
---   Empty string when no alert.
--- TWIN USAGE (86TaFQgNjXIFP2rA):
---   filterByFormula: AND({Alerta Activa} != '', {Estado General} != 'Finalizado',
---                        {Estado General} != 'Rechazado')
---   Code node branches on substrings of {Alerta Activa}:
---     .includes('Alumno Fr')        -> seguimiento_frio   (label "Alumno Frío")
---     .includes('Pago Pendiente')   -> recordatorio_pago
---     .includes('Video sin Revisar')-> (no email; notify reviewer)
---   => alerta_activa is a human-readable label string, NOT a boolean.
+-- Mirrors the authoritative Airtable "Alerta Activa" formula (confirmed
+-- by David):
+--   IF(AND(EstadoGeneral != "Finalizado", != "Rechazado",
+--          DiasDesdeUltimoEvento >= 7), "🥶 Alumno Frío",
+--    IF(AND(EstadoGeneral = "Pendiente de pago", DiasEnEstado >= 5),
+--          "💳 Pago Pendiente",
+--     IF(AND(EstadoGeneral = "En revisión de video", DiasEnEstado >= 3),
+--          "🎥 Video sin Revisar", "")))
 --
--- INFERRED FORMULA (low confidence — exact Airtable formula is NOT
---   readable via the data PAT; reconstructed from the 3 known labels +
---   the "dias desde ultimo evento" signal). CONFIRM via OQ-1.
---     - "Alumno Frío"        when dias_desde_ultimo_evento > 7
---                            AND estado_general in active/early states
---     - "Pago Pendiente"     when estado_general = 'Pendiente de pago'
---                            AND days in that state exceeded a threshold
---     - "Video sin Revisar"  when a revision has been pending too long
+-- Enum strings verified against the live estado_general enum:
+--   'Finalizado', 'Rechazado', 'Pendiente de pago', 'En revisión de video'
+--   (tilde on "revisión", none on "video").
 --
--- WHY NOT a GENERATED column: it depends on dias_desde_ultimo_evento
---   (which itself aggregates historial) and on revisiones_video state,
---   i.e. cross-table — a STORED GENERATED column cannot do that.
+-- dias_desde_ultimo_evento: now() - newest historial.created_at for the
+--   alumno; NULL (no events) -> 9999 so "no events" counts as cold,
+--   matching the Airtable intent (>= 7 => frío).
+-- dias_en_estado_actual: now() - fecha_cambio_estado.
 --
--- APPROACH A (base-table, twin-visible): TEXT column maintained by the
---   same recompute path as GAP 2. Twin filter becomes
---   `alerta_activa=not.is.null` (or `neq.`) on the base table.
+-- The view keeps ALL pre-existing columns verbatim (CREATE OR REPLACE
+-- requires the leading column set to be unchanged) and APPENDS the 3
+-- derived fields at the end.
 -- ------------------------------------------------------------
-ALTER TABLE alumnos
-  ADD COLUMN IF NOT EXISTS alerta_activa TEXT;  -- NULL/'' = no active alert
-
--- DRAFT recompute. THE THRESHOLDS AND CONDITIONS ARE ASSUMPTIONS (OQ-1).
--- Emits the FIRST matching label, mirroring the if/else-if order in the
--- twin Code node. Returns NULL when no rule fires.
-CREATE OR REPLACE FUNCTION refresh_alerta_activa(p_alumno_id UUID DEFAULT NULL)
-RETURNS void AS $$
-BEGIN
-  UPDATE alumnos a
-  SET alerta_activa = (
+CREATE OR REPLACE VIEW public.alumnos_enriched AS
+ SELECT a.id,
+    a.airtable_id,
+    a.nombre,
+    a.email,
+    a.telefono,
+    a.estado_general,
+    a.idioma,
+    a.modulo_solicitado,
+    a.modulos_completados,
+    a.edicion_id,
+    a.foto_perfil,
+    a.plazo_revision,
+    a.fecha_plazo,
+    a.fecha_preinscripcion,
+    a.modulo_reserva,
+    a.fecha_entrada_reserva,
+    a.pareja_email,
+    a.pareja_alumno_id,
+    a.onboarding_enviado,
+    a.bloqueado_proev26,
+    a.disculpa_enviada,
+    a.prelanzamiento_enviado,
+    a.followup_prelanzamiento,
+    a.engagement_score,
+    a.resumen_feedback_ia,
+    a.siguiente_accion_ia,
+    a.notas_internas,
+    a.admin_responsable,
+    a.created_at,
+    a.updated_at,
+    e.nombre AS edicion_nombre,
+    COALESCE(rev_stats.total_revisiones, 0) AS total_revisiones,
+    rev_stats.ultima_fecha_revision,
+    rev_stats.estado_revision_reciente,
+    rev_stats.puntuacion_video,
+    COALESCE(pago_stats.total_pagos, 0) AS total_pagos,
+    COALESCE(pago_stats.importe_total_pagado, 0::numeric) AS importe_total_pagado,
+    pago_stats.fecha_ultimo_pago,
+    -- derived alert fields (always fresh on read; no cron)
+    COALESCE((now()::date - (SELECT max(h.created_at)::date FROM public.historial h WHERE h.alumno_id = a.id)), 9999) AS dias_desde_ultimo_evento,
+    (now()::date - a.fecha_cambio_estado::date) AS dias_en_estado_actual,
     CASE
-      -- "Pago Pendiente": stuck awaiting payment   [THRESHOLD ASSUMED]
-      WHEN a.estado_general = 'Pendiente de pago'
-           AND COALESCE(a.dias_desde_ultimo_evento, 0) >= 3
-        THEN '⏳ Pago Pendiente'
-      -- "Video sin Revisar": has a pending revision that's aged  [ASSUMED]
-      WHEN EXISTS (
-             SELECT 1 FROM revisiones_video rv
-             WHERE rv.alumno_id = a.id
-               AND rv.estado_revision = 'Pendiente'
-               AND rv.created_at < now() - INTERVAL '3 days'
-           )
-        THEN '📹 Video sin Revisar'
-      -- "Alumno Frío": no recent activity   [THRESHOLD ASSUMED >7 days]
-      WHEN COALESCE(a.dias_desde_ultimo_evento, 0) > 7
-           AND a.estado_general NOT IN ('Finalizado','Rechazado','Privado')
+      WHEN a.estado_general <> 'Finalizado'::estado_general
+       AND a.estado_general <> 'Rechazado'::estado_general
+       AND COALESCE((now()::date - (SELECT max(h.created_at)::date FROM public.historial h WHERE h.alumno_id = a.id)), 9999) >= 7
         THEN '🥶 Alumno Frío'
-      ELSE NULL
-    END
-  )
-  WHERE (p_alumno_id IS NULL OR a.id = p_alumno_id);
-END;
-$$ LANGUAGE plpgsql;
+      WHEN a.estado_general = 'Pendiente de pago'::estado_general
+       AND (now()::date - a.fecha_cambio_estado::date) >= 5
+        THEN '💳 Pago Pendiente'
+      WHEN a.estado_general = 'En revisión de video'::estado_general
+       AND (now()::date - a.fecha_cambio_estado::date) >= 3
+        THEN '🎥 Video sin Revisar'
+      ELSE ''
+    END AS alerta_activa
+   FROM alumnos a
+     LEFT JOIN ediciones e ON a.edicion_id = e.id
+     LEFT JOIN LATERAL ( SELECT count(*)::integer AS total_revisiones,
+            max(r.created_at) AS ultima_fecha_revision,
+            (( SELECT rv.estado_revision
+                   FROM revisiones_video rv
+                  WHERE rv.alumno_id = a.id
+                  ORDER BY rv.created_at DESC
+                 LIMIT 1))::text AS estado_revision_reciente,
+            ( SELECT rv.puntuacion
+                   FROM revisiones_video rv
+                  WHERE rv.alumno_id = a.id
+                  ORDER BY rv.created_at DESC
+                 LIMIT 1) AS puntuacion_video
+           FROM revisiones_video r
+          WHERE r.alumno_id = a.id) rev_stats ON true
+     LEFT JOIN LATERAL ( SELECT count(*)::integer AS total_pagos,
+            COALESCE(sum(
+                CASE
+                    WHEN p.estado_pago = ANY (ARRAY['Completado'::estado_pago, 'Pagado'::estado_pago]) THEN p.importe
+                    ELSE 0::numeric
+                END), 0::numeric) AS importe_total_pagado,
+            max(p.created_at) AS fecha_ultimo_pago
+           FROM pagos p
+          WHERE p.alumno_id = a.id) pago_stats ON true;
 
--- Chain GAP1 off GAP2's refresh: easiest is to also recompute alerta_activa
--- in the daily cron AND inside the historial trigger. Append to the trigger fn:
---   PERFORM refresh_alerta_activa(NEW.alumno_id);
--- (left out of the trigger above to keep GAP2 independently reviewable —
---  wire it in once OQ-1 thresholds are confirmed.)
--- Daily cron line (with GAP2):
---   SELECT cron.schedule('refresh-alertas', '10 0 * * *',
---          $$SELECT refresh_dias_desde_ultimo_evento(); SELECT refresh_alerta_activa();$$);
-
--- ------------------------------------------------------------
--- APPROACH B (VIEW-only) — use INSTEAD of Approach A's column ONLY if you
--- repoint the Alertas twin to read/filter `alumnos_enriched` (a PostgREST
--- view IS filterable, but RLS/permissions differ). If you take this path,
--- DROP the base-table columns above and instead extend the view:
--- ------------------------------------------------------------
--- CREATE OR REPLACE VIEW alumnos_enriched AS
--- SELECT
---   a.*,
---   e.nombre AS edicion_nombre,
---   /* ... existing rev_stats / pago_stats columns ... */,
---   -- GAP 2 derived in-view (always fresh, no trigger needed):
---   (SELECT (CURRENT_DATE - MAX(h.created_at)::date)
---      FROM historial h WHERE h.alumno_id = a.id)          AS dias_desde_ultimo_evento,
---   -- GAP 1 derived in-view (thresholds = OQ-1):
---   CASE
---     WHEN a.estado_general = 'Pendiente de pago' THEN '⏳ Pago Pendiente'
---     WHEN (SELECT (CURRENT_DATE - MAX(h.created_at)::date)
---             FROM historial h WHERE h.alumno_id = a.id) > 7
---          AND a.estado_general NOT IN ('Finalizado','Rechazado','Privado')
---       THEN '🥶 Alumno Frío'
---     ELSE NULL
---   END                                                    AS alerta_activa
--- FROM alumnos a
--- LEFT JOIN ediciones e ON a.edicion_id = e.id
--- /* ... existing LATERAL joins ... */;
+-- Verified post-apply on shadow DB (2026-06-15):
+--   alumnos_enriched columns 38 -> 41 (all 38 prior columns preserved).
+--   alerta_activa distribution: '' = 141, '🥶 Alumno Frío' = 2.
+--   0 inconsistent Pago/Video rows vs the formula.
+--   PostgREST sees the view (SELECT granted, public schema).
 
 
 -- ============================================================
@@ -304,5 +299,7 @@ CREATE INDEX IF NOT EXISTS idx_inscripciones_alumno ON inscripciones(alumno_id);
 -- CREATE INDEX IF NOT EXISTS idx_cola_emails_envio ON cola_emails(envio_id);
 
 -- ============================================================
--- END DRAFT — nothing above has been applied. Review the .md OPEN QUESTIONS.
+-- END — GAP 3/4/5 above are STILL DRAFTS (not applied). The alerta_activa
+-- block at the TOP of this file IS applied. Review the .md OPEN QUESTIONS
+-- before running GAP 3/4/5.
 -- ============================================================

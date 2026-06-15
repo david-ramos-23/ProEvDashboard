@@ -152,6 +152,7 @@ CREATE TABLE alumnos (
   idioma idioma_tipo DEFAULT 'Espanol',
   modulo_solicitado TEXT,
   modulos_completados TEXT[],
+  modules TEXT[],
   edicion_id UUID REFERENCES ediciones(id),
   foto_perfil TEXT,
   plazo_revision TEXT,  -- Airtable "Plazo Revision" is a label (e.g. "1ª Revisión (30 Abr)"), not a date

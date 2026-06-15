@@ -86,6 +86,7 @@ FIELD_MAP: dict[str, str] = {
     "Estado General": "estado_general",
     "Modulo Solicitado": "modulo_solicitado",
     "Modulos Completados": "modulos_completados",
+    "Modules": "modules",
     "Foto de Perfil": "foto_perfil",
     "Plazo Revision": "plazo_revision",
     "Fecha Plazo": "fecha_plazo",
@@ -325,6 +326,7 @@ TABLE_COLUMNS: dict[str, dict[str, ColSpec]] = {
         "idioma": ColSpec(kind="text", enum="idioma_tipo"),
         "modulo_solicitado": ColSpec(kind="text"),
         "modulos_completados": ColSpec(kind="text[]"),
+        "modules": ColSpec(kind="text[]"),
         "edicion_id": ColSpec(kind="uuid", fk="ediciones"),
         "foto_perfil": ColSpec(kind="text"),
         "plazo_revision": ColSpec(kind="text"),  # Airtable label, not a date
