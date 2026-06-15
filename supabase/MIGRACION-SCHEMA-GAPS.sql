@@ -115,6 +115,7 @@ CREATE OR REPLACE VIEW public.alumnos_enriched AS
     a.idioma,
     a.modulo_solicitado,
     a.modulos_completados,
+    a.modules,
     a.edicion_id,
     a.foto_perfil,
     a.plazo_revision,
