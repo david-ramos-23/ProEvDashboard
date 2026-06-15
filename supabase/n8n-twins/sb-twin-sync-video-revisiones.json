@@ -1,0 +1,1237 @@
+{
+  "name": "[SB-TWIN] [Airtable] Sync Video - Revisiones",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sb-sync-video-revisiones",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "trigger-revision",
+      "name": "Cambio en Revision",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        272,
+        400
+      ],
+      "webhookId": "sb-sync-video-revisiones"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// SB-TWIN: input is Supabase DB Webhook payload, NEW row in body.record\nconst rec = ($input.item.json.body && $input.item.json.body.record) || $input.item.json.record || $input.item.json;\nconst revisionId   = rec.id;\nconst estadoRevision = rec.estado_revision || 'Pendiente';\nconst emailAlumno  = rec.email_alumno || '';\n// FK shift: linked array -> scalar UUID FK (no [0] indexing)\nconst alumnoId     = rec.alumno_id || '';\nconst revisor      = rec.revisor_responsable || 'Sin asignar';\nconst feedback     = rec.feedback || '';\nconst puntuacion   = rec.puntuacion || '';\nconst videoUrl     = rec.video_enviado || '';\nconst redesSociales = rec.redes_sociales || [];\nconst mapeo = { 'Pendiente':'En revisión de video','Aprobado':'Aprobado','Rechazado':'Rechazado','Revisión Necesaria':'En revisión de video' };\nconst nuevoEstadoGeneral = mapeo[estadoRevision] || 'En revisión de video';\nreturn { json: { revisionId, estadoRevision, emailAlumno, alumnoId, tieneAlumno: !!alumnoId, tieneEmail: !!emailAlumno, revisor, feedback, puntuacion, videoUrl, redesSociales, nuevoEstadoGeneral } };"
+      },
+      "id": "code-extract",
+      "name": "Extraer Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.tieneAlumno }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-tiene-alumno",
+      "name": "Tiene Alumno?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        704,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.tieneEmail }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-tiene-email",
+      "name": "Tiene Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        928,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alumnos",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "=email=ilike.{{ $json.emailAlumno }}"
+      },
+      "id": "search-alumno",
+      "name": "Buscar Alumno",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        512
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-alumno-found",
+      "name": "Alumno Encontrado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1360,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const alumno = $input.item.json;\nconst extractData = $('Extraer Datos').item.json;\nreturn { json: {\n  alumnoId: alumno.id,                          // scalar UUID FK\n  alumnoNombre: alumno.nombre || 'Sin nombre',\n  alumnoEstadoActual: alumno.estado_general || '',\n  revisionId: extractData.revisionId,\n  estadoRevision: extractData.estadoRevision,\n  nuevoEstadoGeneral: extractData.nuevoEstadoGeneral,\n  revisor: extractData.revisor,\n  feedback: extractData.feedback,\n  puntuacion: extractData.puntuacion,\n  needsVinculacion: true\n} };"
+      },
+      "id": "code-vincular",
+      "name": "Preparar Vinculacion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1584,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "revisiones_video",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.revisionId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $json.alumnoId }}"
+            },
+            {
+              "fieldId": "estado_revision",
+              "fieldValue": "={{ $json.estadoRevision || 'Pendiente' }}"
+            }
+          ]
+        }
+      },
+      "id": "http-vincular-revision",
+      "name": "Vincular Alumno a Revision",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        464
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "alumnoId",
+              "value": "={{ $('Preparar Vinculacion').item.json.alumnoId }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "revisionId",
+              "value": "={{ $('Preparar Vinculacion').item.json.revisionId }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "estadoRevision",
+              "value": "={{ $('Preparar Vinculacion').item.json.estadoRevision }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "nuevoEstadoGeneral",
+              "value": "={{ $('Preparar Vinculacion').item.json.nuevoEstadoGeneral }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "revisor",
+              "value": "={{ $('Preparar Vinculacion').item.json.revisor }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "feedback",
+              "value": "={{ $('Preparar Vinculacion').item.json.feedback }}",
+              "type": "string"
+            },
+            {
+              "id": "a7",
+              "name": "needsVinculacion",
+              "value": "true",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-post-vincular",
+      "name": "Formato Post Vinculacion",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2032,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "alumnoId",
+              "value": "={{ $json.alumnoId }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "revisionId",
+              "value": "={{ $json.revisionId }}",
+              "type": "string"
+            },
+            {
+              "id": "a3",
+              "name": "estadoRevision",
+              "value": "={{ $json.estadoRevision }}",
+              "type": "string"
+            },
+            {
+              "id": "a4",
+              "name": "nuevoEstadoGeneral",
+              "value": "={{ $json.nuevoEstadoGeneral }}",
+              "type": "string"
+            },
+            {
+              "id": "a5",
+              "name": "revisor",
+              "value": "={{ $json.revisor }}",
+              "type": "string"
+            },
+            {
+              "id": "a6",
+              "name": "feedback",
+              "value": "={{ $json.feedback }}",
+              "type": "string"
+            },
+            {
+              "id": "a7",
+              "name": "needsVinculacion",
+              "value": "false",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-datos-sync",
+      "name": "Preparar Sync",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        928,
+        304
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "merge-paths",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        2256,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "alumnos",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.alumnoId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado_general",
+              "fieldValue": "={{ $json.nuevoEstadoGeneral }}"
+            },
+            {
+              "fieldId": "edicion_id",
+              "fieldValue": "={{ $json.edicionId }}"
+            },
+            {
+              "fieldId": "plazo_revision",
+              "fieldValue": "={{ $json.plazoRevision }}"
+            },
+            {
+              "fieldId": "fecha_plazo",
+              "fieldValue": "={{ $json.fechaPlazo || null }}"
+            }
+          ]
+        }
+      },
+      "id": "http-update-alumno",
+      "name": "Actualizar Estado Alumno",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3136,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $('Merge').item.json.alumnoId }}"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Revisión de Video"
+            },
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Workflow Automatico"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "=Estado revisión: {{ $('Merge').item.json.estadoRevision }}. {{ $('Merge').item.json.needsVinculacion ? 'Alumno vinculado automáticamente. ' : '' }}Edicion: {{ $json.edicionActivaId }}. Plazo: {{ $json.plazoRevision }}{{ $('Merge').item.json.feedback ? '. Feedback: ' + $('Merge').item.json.feedback : '' }}"
+            }
+          ]
+        }
+      },
+      "id": "log-historial",
+      "name": "Log Historial",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3360,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Error"
+            },
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Workflow Automatico"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "=Revision de video sin alumno encontrado. Email: {{ $('Extraer Datos').item.json.emailAlumno }}. Revision ID: {{ $('Extraer Datos').item.json.revisionId }}"
+            }
+          ]
+        }
+      },
+      "id": "log-no-encontrado",
+      "name": "Log No Encontrado",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1584,
+        656
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ediciones",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "=es_edicion_activa=is.true"
+      },
+      "id": "leer-edicion-sync",
+      "name": "Leer Edicion Activa",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2688,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const mergeData = $('Merge').item.json;\nconst edicion = $input.item.json;                 // supabase row (flat snake_case)\nconst alumnoActual = $('Leer Alumno Actual').item.json; // supabase row (flat)\nlet rondas = [];\nconst plazosRaw = edicion.plazos_revision || '';\ntry { rondas = typeof plazosRaw === 'string' ? JSON.parse(plazosRaw) : (plazosRaw || []); } catch (e) { rondas = []; }\nconst now = new Date();\nlet plazoRevision = ''; let fechaPlazo = '';\nfor (const r of rondas) { if (now <= new Date(r.fecha + 'T23:59:59')) { plazoRevision = r.label; fechaPlazo = r.fecha; break; } }\n// FK shift: alumnos.edicion_id is a SCALAR UUID (not an array). Just set it to the active edition.\nconst edicionActivaId = edicion.id || '';\nreturn { json: { ...mergeData, edicionActivaId, edicionId: edicionActivaId, plazoRevision, fechaPlazo } };"
+      },
+      "id": "code-calc-plazo",
+      "name": "Calcular Plazo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2912,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alumnos",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "=id=eq.{{ $json.alumnoId }}"
+      },
+      "id": "http-leer-alumno",
+      "name": "Leer Alumno Actual",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2464,
+        208
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "id": "if-validar-url",
+      "name": "Validar URL Video?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2464,
+        560
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $('Extraer Datos').item.json.estadoRevision }}",
+              "rightValue": "Pendiente",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $('Extraer Datos').item.json.videoUrl }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "http-probar-video",
+      "name": "Probar URL Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2720,
+        560
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Extraer Datos').item.json.videoUrl }}",
+        "options": {
+          "timeout": 5000,
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "if-url-accesible",
+      "name": "URL Accesible?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2960,
+        560
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "gmail-video-inaccesible",
+      "name": "Email Video Inaccesible",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3920,
+        560
+      ],
+      "parameters": {
+        "operation": "send",
+        "sendTo": "={{ $json.output.email || $('Extraer Datos').item.json.emailAlumno }}",
+        "subject": "={{ $json.output.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.output.htmlBody }}"
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "b7Ntns1A8KOn5Fs3",
+          "name": "Gmail account"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "log-video-inaccesible",
+      "name": "Log Video Inaccesible",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        4160,
+        700
+      ],
+      "parameters": {
+        "operation": "create",
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $('Merge').item.json.alumnoId }}"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Error"
+            },
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Workflow Automatico"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "=Video inaccesible detectado. Email enviado a: {{ $('Extraer Datos').item.json.emailAlumno }}. URL: {{ $('Extraer Datos').item.json.videoUrl }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "http-marcar-revision-inaccesible",
+      "name": "Marcar Revision Inaccesible",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3000,
+        700
+      ],
+      "parameters": {
+        "operation": "update",
+        "tableId": "revisiones_video",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Extraer Datos').item.json.revisionId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado_revision",
+              "fieldValue": "Video no accesible"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "code-email-video-inaccesible",
+      "name": "Preparar Email Inaccesible",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        700
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const emailAlumno = $('Extraer Datos').item.json.emailAlumno || '';\nconst alumnoId = $('Extraer Datos').item.json.alumnoId || $('Merge').item.json.alumnoId || '';\nconst trackPixel = 'https://hooks.dravaautomations.com/webhook/email-track?alumno=' + alumnoId + '&tipo=video-inaccesible';\nconst logo = 'https://sawa-dev-2-storage-bucket.storage.googleapis.com/profiles/nx0mtgi3zeb8acxp-d7a42.png';\n\nconst subject = 'Tu vídeo de candidatura no está accesible - ProEv';\n\nconst inner = '<div style=\"text-align:center;margin-bottom:30px\"><div style=\"font-size:36px\">&#128249;</div><h1 style=\"color:#0C5A45;font-size:24px;margin:10px 0\">&iexcl;Hola Candidato/a!</h1></div>'\n  + '<p style=\"color:#333;line-height:1.7;font-size:16px\">Hemos recibido tu candidatura, ¡gracias por participar en el proceso de selección de ProEv!</p>'\n  + '<p style=\"color:#333;line-height:1.7;font-size:16px\">Sin embargo, al intentar acceder al enlace de vídeo que nos has enviado, no hemos podido visualizarlo. El enlace no está accesible en este momento.</p>'\n  + '<div style=\"background:#f0f7f4;border-left:4px solid #0C5A45;border-radius:0 8px 8px 0;padding:20px;margin:25px 0\"><p style=\"color:#0C5A45;font-weight:600;margin:0 0 8px\">&#9888;&#65039; ¿Cómo solucionar esto?</p>'\n  + '<p style=\"color:#333;margin:0;line-height:1.7\">Por favor, revisa los permisos del enlace y asegúrate de que cualquier persona con el enlace pueda verlo:</p>'\n  + '<ul style=\"color:#333;margin:10px 0 0;padding-left:20px;line-height:1.9\"><li><strong>Google Drive:</strong> &quot;Cualquier persona con el enlace puede ver&quot;</li><li><strong>YouTube:</strong> vídeo público o no listado</li><li><strong>Otro servicio:</strong> accesible sin necesidad de iniciar sesión</li></ul></div>'\n  + '<p style=\"color:#333;line-height:1.7;font-size:16px\">Una vez corregido, responde a este email con el nuevo enlace y lo revisaremos lo antes posible.</p>'\n  + '<p style=\"color:#333;line-height:1.7;font-size:16px\">¡Muchas gracias por tu paciencia!</p>';\n\nconst sig = '<p style=\"margin:25px 0 0;text-align:center;font-size:15px;color:#1A1A1A;\"><strong>Alonso &amp; Noelia</strong></p>';\n\nconst social = '<p style=\"margin-bottom:15px;\"><a href=\"https://www.instagram.com/alonsoynoelia\" style=\"color:#1A1A1A;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;margin:0 8px;\">INSTAGRAM</a> <a href=\"https://www.youtube.com/@alonsoynoelia\" style=\"color:#1A1A1A;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;margin:0 8px;\">YOUTUBE</a> <a href=\"https://alonsoynoeliaonline.com\" style=\"color:#1A1A1A;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;margin:0 8px;\">WEB</a></p><p style=\"font-size:10px;color:#A9A9A9;margin:0;\">&copy; 2026 Alonso &amp; Noelia.</p>';\n\nconst htmlBody = '<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head><body style=\"margin:0;padding:0\"><center><table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color:#F6F3EE;\"><tr><td align=\"center\" valign=\"top\" style=\"padding:20px;\"><table width=\"500\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"width:500px;max-width:500px;margin:0 auto;font-family:Inter,Helvetica Neue,Arial,sans-serif;\"><tr><td align=\"center\" style=\"padding-bottom:25px;\"><img src=\"' + logo + '\" alt=\"Alonso y Noelia\" width=\"160\" style=\"display:block;\"></td></tr><tr><td style=\"background-color:#fff;border-radius:4px;overflow:hidden;box-shadow:0 5px 15px rgba(0,0,0,0.03);\"><table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"padding:40px 30px;font-size:16px;line-height:1.7;color:#333;\">' + inner + sig + '</td></tr></table></td></tr><tr><td style=\"padding:25px 0;text-align:center;\">' + social + '</td></tr></table></td></tr></table></center><img src=\"' + trackPixel + '\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" /></body></html>';\n\nreturn { json: { email: emailAlumno, subject, htmlBody, idioma: '', alumnoId } };"
+      }
+    },
+    {
+      "id": "llm-traducir-inaccesible",
+      "name": "Traducir Email Inaccesible",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        3440,
+        700
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({subject: $json.subject, htmlBody: $json.htmlBody}) }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Translate the following JSON values to English. Keep the keys unchanged. Preserve all HTML tags, attributes, URLs, and structure exactly. Only translate visible text content.\n\nCRITICAL - Do NOT translate these terms (keep them exactly as-is in Spanish/original):\n- \"bachata\" (it is a dance style name, not a word to translate)\n- \"ProEv\" (brand name)\n- \"Alonso & Noelia\" / \"Alonso y Noelia\" (person names)\n- \"INSTAGRAM\", \"YOUTUBE\", \"WEB\" (social link labels)\n- Any URLs\n- HTML tags and attributes\n\nFor ProEv context: \"ProEv\" is \"Professional Evolution Course for bachata teachers\"\n- \"formación para profesores de bachata\" should be translated as \"Professional Evolution Course for bachata teachers\"\n\nRespond ONLY with the translated JSON."
+            }
+          ]
+        },
+        "batching": {}
+      }
+    },
+    {
+      "id": "openrouter-inaccesible",
+      "name": "OpenRouter Model Inaccesible",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        3440,
+        900
+      ],
+      "parameters": {
+        "model": "anthropic/claude-haiku-4.5",
+        "options": {}
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "QhsRH5XtedXrjlUo",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "id": "parser-inaccesible",
+      "name": "Output Parser Inaccesible",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        3600,
+        900
+      ],
+      "parameters": {
+        "jsonSchemaExample": "{\"subject\": \"Example subject in English\", \"htmlBody\": \"<p>Example HTML</p>\"}"
+      }
+    },
+    {
+      "id": "switch-ab-split",
+      "name": "A/B Split",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        3680,
+        700
+      ],
+      "parameters": {
+        "mode": "expression",
+        "output": "={{ parseInt($('Extraer Datos').item.json.alumnoId.slice(-1), 36) % 2 }}",
+        "outputsAmount": 2
+      }
+    },
+    {
+      "id": "airtable-encolar-inaccesible",
+      "name": "Encolar Cola de Emails",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3920,
+        840
+      ],
+      "parameters": {
+        "operation": "create",
+        "tableId": "cola_emails",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $('Extraer Datos').item.json.alumnoId }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "alerta"
+            },
+            {
+              "fieldId": "asunto_generado",
+              "fieldValue": "={{ $json.output.subject }}"
+            },
+            {
+              "fieldId": "mensaje",
+              "fieldValue": "={{ $json.output.htmlBody }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "Pendiente Aprobacion"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "Video inaccesible — A/B cola"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "sticky-spec",
+      "name": "DB-Webhook Spec",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        240,
+        160
+      ],
+      "parameters": {
+        "width": 760,
+        "height": 360,
+        "content": "## Twin Supabase — [Airtable] Sync Video - Revisiones\n\n**Original:** `MqNEU6FH4sOkvzwq` (airtableTrigger + 6 Airtable + 4 HTTP-PATCH/GET).\n\n### Trigger — DB Webhook spec (configurar en Supabase en cutover)\n- airtableTrigger (poll 5min, field 'Última Actualización') → n8n **Webhook** POST `sb-sync-video-revisiones`.\n- **Tabla:** `revisiones_video`  **Evento:** INSERT + UPDATE\n- **Condición (≡ fórmula AT `OR({Email del Alumno}!='',{Alumno}!='')`):** `(NEW.email_alumno IS NOT NULL AND NEW.email_alumno <> '') OR NEW.alumno_id IS NOT NULL`\n- En UPDATE añadir `OLD IS DISTINCT FROM NEW` para no re-disparar por escrituras sin cambio.\n- **Payload:** Supabase envía `{type,table,record,old_record}`; el Code 'Extraer Datos' lee `body.record` snake_case.\n\n### LOOP-GUARD\nEste flujo **escribe `revisiones_video`** (Vincular Alumno, Marcar Revision Inaccesible) y `alumnos`. El DB-Webhook está en `revisiones_video`, así que esas escrituras **sí** pueden re-disparar.\n- 'Vincular Alumno' fija `estado_revision` al mismo valor → con guard `OLD.estado_revision IS DISTINCT FROM NEW.estado_revision` (o `OLD.alumno_id IS DISTINCT FROM NEW.alumno_id`) no hay bucle salvo cambio real.\n- 'Marcar Revision Inaccesible' fija `estado_revision='Video no accesible'`: re-dispara una vez, pero 'Validar URL Video?' exige `estado_revision='Pendiente'`, corta el bucle.\n\n### Swaps Airtable→Supabase: 11 (1 trigger, 6 Airtable nodes, 4 HTTP). Cred `8VXztyOWvaGzChfz`.\n### Columnas ausentes en Supabase (fallback): alumnos.{feedback_video,enlace_pago,modules} no usadas aquí. revisiones_video sin gaps.\n### FK shift: linked `[recXXX]` arrays → scalar UUID. `alumno_id`, `edicion_id` ahora escalares; eliminado `[0]` indexing y array-wrap `[$json.alumnoId]`."
+      }
+    }
+  ],
+  "connections": {
+    "Cambio en Revision": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos": {
+      "main": [
+        [
+          {
+            "node": "Tiene Alumno?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene Alumno?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Sync",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tiene Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene Email?": {
+      "main": [
+        [
+          {
+            "node": "Buscar Alumno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Encontrado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Alumno": {
+      "main": [
+        [
+          {
+            "node": "Alumno Encontrado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alumno Encontrado?": {
+      "main": [
+        [
+          {
+            "node": "Preparar Vinculacion",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Encontrado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Vinculacion": {
+      "main": [
+        [
+          {
+            "node": "Vincular Alumno a Revision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vincular Alumno a Revision": {
+      "main": [
+        [
+          {
+            "node": "Formato Post Vinculacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formato Post Vinculacion": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Preparar Sync": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Estado Alumno": {
+      "main": [
+        [
+          {
+            "node": "Log Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Edicion Activa": {
+      "main": [
+        [
+          {
+            "node": "Calcular Plazo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calcular Plazo": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Estado Alumno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Alumno Actual": {
+      "main": [
+        [
+          {
+            "node": "Leer Edicion Activa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Validar URL Video?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar URL Video?": {
+      "main": [
+        [
+          {
+            "node": "Probar URL Video",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Leer Alumno Actual",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Probar URL Video": {
+      "main": [
+        [
+          {
+            "node": "URL Accesible?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "URL Accesible?": {
+      "main": [
+        [
+          {
+            "node": "Leer Alumno Actual",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar Revision Inaccesible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Video Inaccesible": {
+      "main": [
+        [
+          {
+            "node": "Log Video Inaccesible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Revision Inaccesible": {
+      "main": [
+        [
+          {
+            "node": "Preparar Email Inaccesible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Email Inaccesible": {
+      "main": [
+        [
+          {
+            "node": "Traducir Email Inaccesible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Model Inaccesible": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Traducir Email Inaccesible",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Parser Inaccesible": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Traducir Email Inaccesible",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traducir Email Inaccesible": {
+      "main": [
+        [
+          {
+            "node": "A/B Split",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A/B Split": {
+      "main": [
+        [
+          {
+            "node": "Email Video Inaccesible",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Encolar Cola de Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Encolar Cola de Emails": {
+      "main": [
+        [
+          {
+            "node": "Log Video Inaccesible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "timezone": "Europe/Madrid",
+    "errorWorkflow": "5R7voQ7DIOtsgjDw"
+  }
+}

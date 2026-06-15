@@ -1,0 +1,999 @@
+{
+  "name": "[SB-TWIN] [Airtable] Nueva Inscripcion - Crear Alumno y Confirmar",
+  "nodes": [
+    {
+      "id": "wh-inscripcion",
+      "name": "Nueva Inscripcion (DB Webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        128,
+        48
+      ],
+      "webhookId": "sb-nueva-inscripcion-wh",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sb-nueva-inscripcion",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "leer-edicion",
+      "name": "Leer Edicion Activa",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        352,
+        48
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "ediciones",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "es_edicion_activa=eq.true"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "id": "merge-datos",
+      "name": "Combinar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        48
+      ],
+      "parameters": {
+        "jsCode": "// Source row = Supabase DB-Webhook payload (inscripciones INSERT) OR direct form post.\nconst rec = $json.body && $json.body.record ? $json.body.record : ($json.record || $json.body || $json);\nconst ed = $('Leer Edicion Activa').first().json;\nconst flat = Object.assign({}, rec);\n\n// Edicion activa UUID (scalar) from getAll result\nflat.edicionActiva = ed.id || '';\n\n// Review deadline from plazos_revision (JSONB -> already object/array, or string)\nconst now = new Date();\nlet rondas = [];\nconst plazosRaw = ed.plazos_revision || ed['Plazos Revision'] || [];\ntry { rondas = Array.isArray(plazosRaw) ? plazosRaw : JSON.parse(plazosRaw); } catch (e) { rondas = []; }\nflat.plazoRevision = 'Fuera de plazo';\nflat.fechaPlazo = '';\nfor (const r of rondas) {\n  if (now <= new Date(r.fecha + 'T23:59:59')) { flat.plazoRevision = r.label; flat.fechaPlazo = r.fecha + 'T23:59:59.000Z'; break; }\n}\n\n// Map form modules -> Modulo Solicitado\nconst modulesKey = Object.keys(flat).find(k => k.toLowerCase().includes('which modules'));\nconst formModules = modulesKey ? flat[modulesKey] : [];\nconst joined = Array.isArray(formModules) ? formModules.join(' ').toLowerCase() : String(formModules).toLowerCase();\nif (joined.includes('1 + 2 + 3') || joined.includes('1, 2 and 3') || joined.includes('total')) flat.moduloSolicitado = 'Formacion Completa (Modulos 1 + 2 + 3)';\nelse if (joined.includes('2 + 3') || joined.includes('2 and 3')) flat.moduloSolicitado = 'Pack Modulos 2 + 3';\nelse if (joined.includes('1 + 2') || joined.includes('1 and 2')) flat.moduloSolicitado = 'Pack Modulos 1 + 2';\nelse if (joined.includes('module 3') || joined.includes('modulo 3')) flat.moduloSolicitado = 'Modulo 3';\nelse if (joined.includes('module 2') || joined.includes('modulo 2')) flat.moduloSolicitado = 'Modulo 2';\nelse flat.moduloSolicitado = 'Modulo 1';\n\n// Country -> Idioma (Supabase enum: 'Espanol'/'Ingles', NO tilde)\nconst country = (flat['What country are you come from?'] || '').toLowerCase();\nconst spanishCountries = ['spain','espa','mexico','colombia','argentina','peru','chile','venezuela','ecuador','guatemala','cuba','bolivia','dominican','honduras','paraguay','el salvador','nicaragua','costa rica','panama','uruguay'];\nflat.idiomaSb = spanishCountries.some(c => country.includes(c)) ? 'Espanol' : 'Ingles';\n\n// Normalize scalar email/nombre (already scalar in Supabase row; guard anyway)\nflat.Email = Array.isArray(flat.email) ? flat.email[0] : (flat.email || flat.Email || '');\nflat.Nombre = Array.isArray(flat.nombre) ? flat.nombre[0] : (flat.nombre || flat.Nombre || '');\nflat.emailPareja = (flat['Email Pareja'] || flat.email_pareja || '').toString();\n\nreturn [{ json: flat }];"
+      }
+    },
+    {
+      "id": "search-email-dup",
+      "name": "Buscar Email Existente",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        800,
+        48
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alumnos",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "=email=ilike.{{ ($json.Email || \"NOMATCH\").toString() }}&select=id,email"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "check-dup",
+      "name": "Verificar Duplicado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        48
+      ],
+      "parameters": {
+        "jsCode": "const original = $('Combinar Datos').first().json;\nconst records = $input.all().map(i => i.json).filter(r => r && (r.id || r.email));\nif (records.length > 0) {\n  return [{ json: { skip: true, reason: 'Alumno ya existe con email: ' + (original.Email||'').toLowerCase() } }];\n}\nreturn [{ json: original }];"
+      }
+    },
+    {
+      "id": "crear-alumno",
+      "name": "Crear Alumno",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1280,
+        48
+      ],
+      "parameters": {
+        "operation": "create",
+        "tableId": "alumnos",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "nombre",
+              "fieldValue": "={{ $json.Nombre || \"Alumno/a\" }}"
+            },
+            {
+              "fieldId": "email",
+              "fieldValue": "={{ $json.Email }}"
+            },
+            {
+              "fieldId": "estado_general",
+              "fieldValue": "Preinscrito"
+            },
+            {
+              "fieldId": "modulo_solicitado",
+              "fieldValue": "={{ $json.moduloSolicitado || \"Modulo 1\" }}"
+            },
+            {
+              "fieldId": "edicion_id",
+              "fieldValue": "={{ $json.edicionActiva }}"
+            },
+            {
+              "fieldId": "plazo_revision",
+              "fieldValue": "={{ $json.plazoRevision }}"
+            },
+            {
+              "fieldId": "fecha_plazo",
+              "fieldValue": "={{ $json.fechaPlazo || null }}"
+            },
+            {
+              "fieldId": "idioma",
+              "fieldValue": "={{ $json.idiomaSb || \"Espanol\" }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "id": "prep-email",
+      "name": "Preparar Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        48
+      ],
+      "parameters": {
+        "jsCode": "const original = $('Verificar Duplicado').first().json;\nif (original.skip) return [{ json: { skip: true } }];\nconst created = $('Crear Alumno').first().json;\nconst alumnoId = created.id || '';            // server-generated UUID, NOT recId\nconst email = original.Email || '';\nconst nombre = original.Nombre || 'Alumno/a';\nif (!email) return [{ json: { skip: true } }];\nconst idioma = (created.idioma || original.idiomaSb || '').toString().toLowerCase();\nconst tallyForm2 = 'https://tally.so/r/vGMKM0?fullname=' + encodeURIComponent(nombre) + '&email=' + encodeURIComponent(email) + '&alumnoId=' + encodeURIComponent(alumnoId);\nreturn [{ json: { email, nombre, alumnoId, idioma, subject: 'Confirmacion de inscripcion - ProEv', tallyForm2 } }];"
+      }
+    },
+    {
+      "id": "check-skip",
+      "name": "Tiene Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1728,
+        48
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "crear-inbox-insc",
+      "name": "Crear Inbox Pre-Envio",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1952,
+        48
+      ],
+      "parameters": {
+        "operation": "create",
+        "tableId": "inbox",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "direccion",
+              "fieldValue": "Enviado"
+            },
+            {
+              "fieldId": "de",
+              "fieldValue": "alonsoynoelia@gmail.com"
+            },
+            {
+              "fieldId": "para",
+              "fieldValue": "={{ $json.email }}"
+            },
+            {
+              "fieldId": "asunto",
+              "fieldValue": "={{ $json.subject }}"
+            },
+            {
+              "fieldId": "contenido",
+              "fieldValue": "Email confirmacion inscripcion"
+            },
+            {
+              "fieldId": "fecha",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "Archivado"
+            },
+            {
+              "fieldId": "origen",
+              "fieldValue": "Automatico"
+            },
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $json.alumnoId }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "id": "montar-html-insc",
+      "name": "Montar Email HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2176,
+        48
+      ],
+      "parameters": {
+        "jsCode": "const prev = $('Tiene Email?').item.json;\nconst inboxId = $input.first().json.id || '';\nconst alumnoId = prev.alumnoId;\nconst email = prev.email;\nconst nombre = prev.nombre;\nconst idioma = prev.idioma;\nconst subject = prev.subject;\nconst tallyForm2 = prev.tallyForm2;\nconst trackPixel = 'https://hooks.dravaautomations.com/webhook/sb-email-track?alumno=' + alumnoId + '&tipo=inscripcion&inboxId=' + inboxId;\nconst trackedFormUrl = 'https://hooks.dravaautomations.com/webhook/sb-email-click?alumno=' + alumnoId + '&tipo=inscripcion&inboxId=' + inboxId + '&url=' + encodeURIComponent(tallyForm2);\nconst displayName = nombre || 'Alumno/a';\nconst logo = 'https://sawa-dev-2-storage-bucket.storage.googleapis.com/profiles/nx0mtgi3zeb8acxp-d7a42.png';\nconst inner = '<div style=\"text-align:center;margin-bottom:30px\"><div style=\"font-size:36px\">&#128131;</div><h1 style=\"color:#0C5A45;font-size:24px;margin:10px 0\">&iexcl;Hola ' + displayName + '!</h1></div>'\n  + '<p style=\"color:#333;line-height:1.7;font-size:16px\">&iexcl;Gracias por inscribirte en nuestro curso de formaci&oacute;n para profesores de bachata!</p>'\n  + '<p style=\"color:#333;line-height:1.7;font-size:16px\">Hemos recibido tu solicitud correctamente. Como parte del proceso de selecci&oacute;n, necesitamos que nos env&iacute;es un <strong>video de presentaci&oacute;n</strong> para que podamos evaluar tu nivel.</p>'\n  + '<div style=\"text-align:center;margin:30px 0\"><a href=\"' + trackedFormUrl + '\" style=\"display:inline-block;background-color:#0C5A45;color:#ffffff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px\">ENVIAR MI VIDEO</a></div>'\n  + '<div style=\"background:#f0f7f4;border-radius:8px;padding:20px;margin:25px 0\"><p style=\"color:#0C5A45;font-weight:600;margin:0 0 8px\">&iquest;C&oacute;mo funciona el proceso?</p><ol style=\"color:#333;line-height:1.8;margin:0;padding-left:20px\"><li>Env&iacute;a tu video a trav&eacute;s del enlace de arriba</li><li>Nuestro equipo revisar&aacute; tu video y te notificaremos el resultado</li><li>Si es aprobado, te enviaremos el enlace de pago</li></ol></div>'\n  + '<p style=\"color:#333;line-height:1.7;font-size:16px\">Si tienes alguna pregunta, no dudes en responder a este email.</p>';\nconst sig = '<p style=\"margin:25px 0 0;text-align:center;font-size:15px;color:#1A1A1A;\"><strong>Alonso &amp; Noelia</strong></p>';\nconst social = '<p style=\"margin-bottom:15px;\"><a href=\"https://www.instagram.com/alonsoynoelia\" style=\"color:#1A1A1A;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;margin:0 8px;\">INSTAGRAM</a> <a href=\"https://www.youtube.com/@alonsoynoelia\" style=\"color:#1A1A1A;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;margin:0 8px;\">YOUTUBE</a> <a href=\"https://alonsoynoeliaonline.com\" style=\"color:#1A1A1A;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;margin:0 8px;\">WEB</a></p><p style=\"font-size:10px;color:#A9A9A9;margin:0;\">&copy; 2026 Alonso &amp; Noelia.</p>';\nconst htmlBody = '<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1.0\"></head><body style=\"margin:0;padding:0\"><center><table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color:#F6F3EE;\"><tr><td align=\"center\" valign=\"top\" style=\"padding:20px;\"><table width=\"500\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"width:500px;max-width:500px;margin:0 auto;font-family:Inter,Helvetica Neue,Arial,sans-serif;\"><tr><td align=\"center\" style=\"padding-bottom:25px;\"><img src=\"' + logo + '\" alt=\"Alonso y Noelia\" width=\"160\" style=\"display:block;\"></td></tr><tr><td style=\"background-color:#fff;border-radius:4px;overflow:hidden;box-shadow:0 5px 15px rgba(0,0,0,0.03);\"><table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr><td style=\"padding:40px 30px;font-size:16px;line-height:1.7;color:#333;\">' + inner + sig + '</td></tr></table></td></tr><tr><td style=\"padding:25px 0;text-align:center;\">' + social + '</td></tr></table></td></tr></table></center><img src=\"' + trackPixel + '\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\" /></body></html>';\nreturn [{ json: { email, nombre: displayName, alumnoId, inboxId, idioma, subject, htmlBody, tallyForm2, trackPixel } }];"
+      }
+    },
+    {
+      "id": "if-traducir",
+      "name": "Traducir?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2400,
+        48
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.idioma }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.idioma }}",
+              "rightValue": "espa",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "llm-traducir",
+      "name": "Traducir Email",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2624,
+        -80
+      ],
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({subject: $json.subject, htmlBody: $json.htmlBody}) }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Translate the following JSON values to English. Keep the keys unchanged. Preserve all HTML tags, attributes, URLs, and structure exactly. Only translate visible text content.\n\nCRITICAL - Do NOT translate these terms (keep them exactly as-is in Spanish/original):\n- \"bachata\" (it is a dance style name, not a word to translate)\n- \"ProEv\" (brand name)\n- \"Alonso & Noelia\" / \"Alonso y Noelia\" (proper names)\n- The course is called \"Professional Evolution Course\" in English (NOT \"professional training course\" or \"bachelor course\")\n- \"formación para profesores de bachata\" should be translated as \"Professional Evolution Course for bachata teachers\"\n\nRespond ONLY with the translated JSON."
+            }
+          ]
+        },
+        "batching": {}
+      }
+    },
+    {
+      "id": "openrouter",
+      "name": "OpenRouter Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        144
+      ],
+      "parameters": {
+        "model": "anthropic/claude-haiku-4.5",
+        "options": {}
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "QhsRH5XtedXrjlUo",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "id": "parser",
+      "name": "Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2768,
+        144
+      ],
+      "parameters": {
+        "jsonSchemaExample": "{\"subject\": \"Example subject in English\", \"htmlBody\": \"<p>Example HTML</p>\"}"
+      }
+    },
+    {
+      "id": "extract-trad",
+      "name": "Extraer Traduccion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        -80
+      ],
+      "parameters": {
+        "jsCode": "const llmOutput = $json.output || {};\nconst original = $('Traducir?').item.json;\nreturn [{ json: { email: original.email, nombre: original.nombre, alumnoId: original.alumnoId, inboxId: original.inboxId, subject: llmOutput.subject || original.subject, htmlBody: llmOutput.htmlBody || original.htmlBody, trackPixel: original.trackPixel, idioma: original.idioma } }];"
+      }
+    },
+    {
+      "id": "send-confirm",
+      "name": "Email Confirmacion",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3200,
+        48
+      ],
+      "webhookId": "8dff17cf-2206-4693-9621-a9865dcca2b9",
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "emailType": "html",
+        "message": "={{ $json.htmlBody }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "b7Ntns1A8KOn5Fs3",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "id": "actualizar-inbox",
+      "name": "Actualizar Inbox",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3424,
+        48
+      ],
+      "parameters": {
+        "operation": "update",
+        "tableId": "inbox",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $(\"Montar Email HTML\").item.json.inboxId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "thread_id",
+              "fieldValue": "={{ $json.threadId }}"
+            },
+            {
+              "fieldId": "contenido_html",
+              "fieldValue": "={{ $(\"Montar Email HTML\").item.json.htmlBody }}"
+            },
+            {
+              "fieldId": "asunto",
+              "fieldValue": "={{ $(\"Montar Email HTML\").item.json.subject }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "log-inscripcion",
+      "name": "Log Historial",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        3648,
+        48
+      ],
+      "parameters": {
+        "operation": "create",
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "Email confirmacion inscripcion enviado"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Preinscripción"
+            },
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Automatico"
+            },
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $(\"Montar Email HTML\").item.json.alumnoId }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "pareja-init",
+      "name": "Pareja - Init",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        320
+      ],
+      "parameters": {
+        "jsCode": "const formData = $('Combinar Datos').first().json;\nconst created = $('Crear Alumno').first().json;\nif (formData.skip || !created.id) return [{ json: { skip: true } }];\nconst emailPareja = (formData.emailPareja || '').toString().trim().toLowerCase();\nconst alumnoId = created.id;                       // UUID scalar\nconst alumnoEmail = (formData.Email || '').toString().trim().toLowerCase();\nreturn [{ json: { emailPareja, alumnoId, alumnoEmail, skip: !emailPareja } }];"
+      }
+    },
+    {
+      "id": "pareja-if-tiene",
+      "name": "Pareja - Tiene Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "p1",
+              "leftValue": "={{ $json.emailPareja }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "pareja-buscar",
+      "name": "Pareja - Buscar en Alumnos",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1728,
+        320
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alumnos",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "=email=ilike.{{ $json.emailPareja }}&select=id,email,pareja_alumno_id"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "alwaysOutputData": true
+    },
+    {
+      "id": "pareja-prep-patches",
+      "name": "Pareja - Preparar Patches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        320
+      ],
+      "parameters": {
+        "jsCode": "const initData = $('Pareja - Init').first().json;\nconst records = $input.all().map(i => i.json).filter(r => r && r.id);\nconst alumnoAId = initData.alumnoId;\nconst alumnoAEmail = initData.alumnoEmail;\nconst emailPareja = initData.emailPareja;\nif (records.length === 0) {\n  return [{ json: { alumnoAId, parejaEmailA: emailPareja, parejaLinkA: null, alumnoBId: null, shouldPatchB: false } }];\n}\nconst partner = records[0];\nconst alumnoBId = partner.id;                        // UUID scalar\nconst bLink = partner.pareja_alumno_id || null;\nconst alreadyLinked = bLink === alumnoAId;\nreturn [{ json: { alumnoAId, parejaEmailA: emailPareja, parejaLinkA: alumnoBId, alumnoBId, parejaEmailB: alumnoAEmail, parejaLinkB: alumnoAId, shouldPatchB: !alreadyLinked } }];"
+      }
+    },
+    {
+      "id": "pareja-patch-a",
+      "name": "Pareja - PATCH Alumno A",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2176,
+        320
+      ],
+      "parameters": {
+        "operation": "update",
+        "tableId": "alumnos",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.alumnoAId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "pareja_email",
+              "fieldValue": "={{ $json.parejaEmailA }}"
+            },
+            {
+              "fieldId": "pareja_alumno_id",
+              "fieldValue": "={{ $json.parejaLinkA || null }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "pareja-if-found",
+      "name": "Pareja - Found Partner?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        320
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "p2",
+              "leftValue": "={{ $(\"Pareja - Preparar Patches\").first().json.shouldPatchB }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "pareja-patch-b",
+      "name": "Pareja - PATCH Alumno B",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2624,
+        320
+      ],
+      "parameters": {
+        "operation": "update",
+        "tableId": "alumnos",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $(\"Pareja - Preparar Patches\").first().json.alumnoBId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "pareja_email",
+              "fieldValue": "={{ $(\"Pareja - Preparar Patches\").first().json.parejaEmailB }}"
+            },
+            {
+              "fieldId": "pareja_alumno_id",
+              "fieldValue": "={{ $(\"Pareja - Preparar Patches\").first().json.parejaLinkB }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "sticky-spec",
+      "name": "DB-Webhook Spec",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        80,
+        -360
+      ],
+      "parameters": {
+        "width": 720,
+        "height": 560,
+        "content": "## SB-TWIN — Nueva Inscripcion: Crear Alumno y Confirmar\n\nGemelo Supabase de `[Airtable] Nueva Inscripcion` (id `kWDjtwTRmQfUC0B5`). active:false.\n\n### Trigger — DB Webhook (configurar en cutover)\n- Reemplaza airtableTrigger (poll Timestamp) → n8n **Webhook** POST `sb-nueva-inscripcion`.\n- **Tabla:** `inscripciones` (⚠️ NO existe aún en Supabase; el form de inscripción debe escribir a una tabla `inscripciones` o postear directo al webhook).\n- **Evento:** INSERT\n- **Condición:** fila nueva de inscripción (con Email).\n- **Payload:** `{ type, table, record, old_record }` → Code `Combinar Datos` lee `body.record`.\n- **LOOP-GUARD:** este WF crea filas en `alumnos`/`inbox`/`historial`, NO en `inscripciones` → sin auto-retrigger.\n\n### Swaps Airtable → Supabase (8)\n- airtableTrigger → Webhook.\n- `Leer Edicion Activa` (airtable search) → getAll `ediciones` `es_edicion_activa=eq.true`.\n- `Buscar Email Existente` (HTTP api.airtable) → getAll `alumnos` `email=ilike`.\n- `Crear Alumno` (airtable create) → create `alumnos`; **captura UUID** `row.id` (no recId).\n- `Crear Inbox Pre-Envio` (HTTP POST) → create `inbox`.\n- `Actualizar Inbox` (HTTP PATCH) → update `inbox` WHERE id=inboxId.\n- `Log Historial` (airtable create) → create `historial`.\n- Pareja: `Buscar` (HTTP)→getAll `alumnos`; `PATCH A`/`PATCH B` (HTTP)→update `alumnos`.\n\n### FK fixes\n- Linked `[recXXX]` arrays → UUID escalar: `Edicion:[id]`→`edicion_id`; `Alumno:[id]`→`alumno_id`; `Pareja (Link):[id]`→`pareja_alumno_id`; created `row.id` UUID reemplaza recId aguas abajo.\n\n### Flags / dropeados\n- **DROPEADO** `Inscripcion (form)` link en alumnos → no hay columna en schema.\n- Idioma enum Supabase = `Espanol`/`Ingles` (SIN tilde) — el twin escribe `idiomaSb`.\n- `plazos_revision` es JSONB (no JSON-string) — Combinar Datos maneja ambos.\n- recId→UUID en URLs pixel/click (`?alumno=`) + paths `sb-` (igual que otros twins)."
+      }
+    }
+  ],
+  "connections": {
+    "Nueva Inscripcion (DB Webhook)": {
+      "main": [
+        [
+          {
+            "node": "Leer Edicion Activa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Leer Edicion Activa": {
+      "main": [
+        [
+          {
+            "node": "Combinar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Datos": {
+      "main": [
+        [
+          {
+            "node": "Buscar Email Existente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Email Existente": {
+      "main": [
+        [
+          {
+            "node": "Verificar Duplicado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Duplicado": {
+      "main": [
+        [
+          {
+            "node": "Crear Alumno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Alumno": {
+      "main": [
+        [
+          {
+            "node": "Preparar Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Pareja - Init",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Email": {
+      "main": [
+        [
+          {
+            "node": "Tiene Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene Email?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Crear Inbox Pre-Envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Inbox Pre-Envio": {
+      "main": [
+        [
+          {
+            "node": "Montar Email HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Email HTML": {
+      "main": [
+        [
+          {
+            "node": "Traducir?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traducir?": {
+      "main": [
+        [
+          {
+            "node": "Traducir Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Confirmacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traducir Email": {
+      "main": [
+        [
+          {
+            "node": "Extraer Traduccion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Traduccion": {
+      "main": [
+        [
+          {
+            "node": "Email Confirmacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Confirmacion": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Inbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Inbox": {
+      "main": [
+        [
+          {
+            "node": "Log Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Traducir Email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Traducir Email",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pareja - Init": {
+      "main": [
+        [
+          {
+            "node": "Pareja - Tiene Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pareja - Tiene Email?": {
+      "main": [
+        [
+          {
+            "node": "Pareja - Buscar en Alumnos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pareja - Buscar en Alumnos": {
+      "main": [
+        [
+          {
+            "node": "Pareja - Preparar Patches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pareja - Preparar Patches": {
+      "main": [
+        [
+          {
+            "node": "Pareja - PATCH Alumno A",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pareja - PATCH Alumno A": {
+      "main": [
+        [
+          {
+            "node": "Pareja - Found Partner?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pareja - Found Partner?": {
+      "main": [
+        [
+          {
+            "node": "Pareja - PATCH Alumno B",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid"
+  }
+}
