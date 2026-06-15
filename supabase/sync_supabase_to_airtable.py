@@ -162,9 +162,10 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
         "reserva_prelanzamiento_plazas": "Reserva Prelanzamiento",
     },
     "alumnos": {
-        "nombre": "Nombre",
-        "email": "Email",
-        "telefono": "Phone Number",
+        # READ-ONLY in Airtable (removed after Metadata-API audit, would 422):
+        #   nombre   -> "Nombre"       (multipleLookupValues)
+        #   email    -> "Email"        (multipleLookupValues)
+        #   telefono -> "Phone Number" (multipleLookupValues)
         "estado_general": "Estado General",
         "idioma": "Idioma",
         "modulo_solicitado": "Modulo Solicitado",
@@ -173,7 +174,8 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
         "foto_perfil": "Foto de Perfil",
         "plazo_revision": "Plazo Revision",
         "fecha_plazo": "Fecha Plazo",
-        "fecha_preinscripcion": "Fecha Preinscripcion",
+        # fecha_preinscripcion -> "Fecha Preinscripcion" is a createdTime field
+        # in Airtable (READ-ONLY) — removed after Metadata-API audit, would 422.
         "modulo_reserva": "Modulo Reserva",
         "fecha_entrada_reserva": "Fecha Entrada Reserva",
         # engagement_score (rollup), resumen_feedback_ia + siguiente_accion_ia
@@ -193,11 +195,11 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
         "video_enviado": "Video Enviado",
         "redes_sociales": "Redes Sociales",
         "usuarios_rrss": "Usuarios RRSS",
-        "estado_revision": "Estado de Revision",
+        "estado_revision": "Estado de Revisión",  # audit: accent added (live name)
         "puntuacion": "Puntuacion",
         "feedback": "Feedback",
         "revisor_responsable": "Revisor Responsable",
-        "fecha_revision": "Fecha de Revision",
+        "fecha_revision": "Fecha de Revisión",  # audit: accent added (live name)
         # READ-ONLY in Airtable (removed, would 422 on --load):
         #   resumen_inteligente -> "Resumen Inteligente de Feedback" (AI)
         #   clasificacion_automatica -> "Clasificacion Automatica de Video" (AI)
@@ -211,7 +213,7 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
         "estado_pago": "Estado de Pago",
         "fecha_pago": "Fecha de Pago",
         "link_pago_stripe": "Link Pago Stripe",
-        "id_sesion_stripe": "ID Sesion Stripe",
+        "id_sesion_stripe": "ID Sesión Stripe",  # audit: accent added (live name)
         "link_recibo": "Link Recibo",
         # resumen_inteligente / analisis_riesgo -> AI/computed fields in Airtable
         # (READ-ONLY) — removed, would 422 on --load. Full Metadata-API audit pending.
@@ -230,13 +232,15 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
         # alumno_nombre -> "Alumno Nombre" is a lookup of Alumno.Nombre in
         # Airtable (READ-ONLY) — removed, would 422 on --load.
         "tipo": "Tipo",
-        "asunto": "Asunto",
+        # asunto -> "Asunto" does NOT exist on Cola de Emails (only "Asunto
+        # Generado") — removed after Metadata-API audit (MISSING field).
         "asunto_generado": "Asunto Generado",
         "email_generado": "Email Generado",
         "mensaje": "Mensaje",
         "estado": "Estado",
         "origen": "Origen",
-        "descripcion": "Descripcion",
+        # descripcion -> "Descripcion" does NOT exist on Cola de Emails —
+        # removed after Metadata-API audit (MISSING field).
         "fecha_envio": "Fecha Envio",
         "reprogramado": "Reprogramado",
         "ultimo_reproceso": "Ultimo Reproceso",
@@ -266,8 +270,8 @@ COLUMN_TO_AIRTABLE_FIELD: dict[str, dict[str, str]] = {
     },
     "historial": {
         "alumno_id": "Alumno",
-        "descripcion": "Descripcion",
-        "tipo_accion": "Tipo de Accion",
+        "descripcion": "Descripción Detallada",  # audit: live name (was "Descripcion")
+        "tipo_accion": "Tipo de Acción",  # audit: accent added (live name)
         "origen_evento": "Origen del Evento",
         "error_log": "Error Log",
         "workflow": "workflow",
@@ -780,13 +784,13 @@ def _self_test() -> int:
     patch_ok = (
         action == "patch"
         and payload["id"] == "recAL1"
-        and f.get("Nombre") == "Ana Test"
-        and f.get("Email") == "ana@example.com"
+        and "Nombre" not in f                          # lookup -> dropped (audit)
+        and "Email" not in f                           # lookup -> dropped (audit)
         and f.get("Estado General") == "Preinscrito"
         and f.get("Edicion") == ["recEDI1"]          # UUID->recId link array
         and f.get("Pareja (Link)") == ["recAL2"]     # self-FK resolved
         and f.get("Modulos Completados") == ["M1", "M2"]
-        and "Phone Number" not in f                   # None dropped
+        and "Phone Number" not in f                   # lookup -> dropped (audit)
         and skipped == []
     )
 
@@ -803,7 +807,8 @@ def _self_test() -> int:
         action2 == "create"
         and payload2.get("__pg_id") == "uuid-al-new"
         and "id" not in payload2                       # no recId to PATCH
-        and payload2["fields"].get("Nombre") == "Nuevo"
+        and "Nombre" not in payload2["fields"]         # lookup -> dropped (audit)
+        and payload2["fields"].get("Estado General") == "Privado"
         and skipped2 == []
     )
 
@@ -811,14 +816,16 @@ def _self_test() -> int:
     orphan_row = {
         "id": "uuid-al-3",
         "airtable_id": "recAL3",
-        "nombre": "Sin Pareja",
-        "email": "sp@example.com",
+        "nombre": "Sin Pareja",                 # lookup -> dropped (audit)
+        "email": "sp@example.com",              # lookup -> dropped (audit)
+        "estado_general": "Preinscrito",        # writable -> kept
         "pareja_alumno_id": "uuid-al-missing",  # absent in fk_maps -> drop
     }
     _, payload3, skipped3 = plan_row("alumnos", orphan_row, fk_maps)
     drop_ok = (
         "Pareja (Link)" not in payload3["fields"]      # link dropped
-        and payload3["fields"].get("Nombre") == "Sin Pareja"
+        and "Nombre" not in payload3["fields"]         # lookup -> dropped (audit)
+        and payload3["fields"].get("Estado General") == "Preinscrito"
         and any("pareja_alumno_id" in s for s in skipped3)
     )
 
@@ -871,7 +878,8 @@ def _self_test() -> int:
         "id": "uuid-cola-ro",
         "airtable_id": "recCOLARO",
         "alumno_nombre": "Lookup Name",         # lookup -> dropped
-        "asunto": "Hola",                       # writable -> kept
+        "asunto": "Hola",                       # MISSING field -> dropped (audit)
+        "tipo": "manual",                       # writable -> kept
     }
     _, cola_payload, _ = plan_row("cola_emails", readonly_cola_row, fk_maps)
     colaf = cola_payload["fields"]
@@ -885,7 +893,8 @@ def _self_test() -> int:
         and "Clasificacion Automatica de Video" not in revf
         and revf.get("Feedback") == "real feedback"   # writable still present
         and "Alumno Nombre" not in colaf
-        and colaf.get("Asunto") == "Hola"             # writable still present
+        and "Asunto" not in colaf                     # MISSING field dropped (audit)
+        and colaf.get("Tipo") == "manual"             # writable still present
     )
 
     # --- 5. End-to-end dry-run via run() with mock providers (no DB) ---

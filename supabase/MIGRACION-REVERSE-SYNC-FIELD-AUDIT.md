@@ -1,213 +1,186 @@
 # MIGRACION — Reverse-Sync Field Audit (Airtable writable-field check)
 
-> Audit goal: verify that every target Airtable field in `COLUMN_TO_AIRTABLE_FIELD`
-> (in `supabase/sync_supabase_to_airtable.py`, post-hardening version on `origin/master`)
-> is **writable** via the Airtable REST API, so a future
-> `sync_supabase_to_airtable.py --load` will not 422 on read-only/computed fields.
+Source of truth: live Airtable Metadata API on base `app4ZpoxaWOyV4RnR` (production PAT, full scope), cross-checked against `COLUMN_TO_AIRTABLE_FIELD` in `sync_supabase_to_airtable.py`.
 
-**Date:** 2026-06-15
-**Base ID:** `app4ZpoxaWOyV4RnR`
-**Mode:** READ-ONLY against Airtable (nothing written to Airtable or Supabase).
+**Total curated fields audited: 103** · Verdicts: WRITABLE = safe to PATCH/POST · READ-ONLY = would HTTP 422 · MISSING = curated name not on live table.
+
+READ-ONLY field types treated as non-writable: `formula`, `rollup`, `lookup`, `multipleLookupValues`, `count`, `autoNumber`, `createdTime`, `lastModifiedTime`, `createdBy`, `lastModifiedBy`, `button`, `aiText`.
+
+
+## `ediciones` → Airtable **Ediciones**
+
+| pg_column | airtable_field | type | verdict |
+|---|---|---|---|
+| `nombre` | `Nombre` | singleLineText | WRITABLE |
+| `estado` | `Estado` | singleSelect | WRITABLE |
+| `es_edicion_activa` | `Es Edicion Activa` | checkbox | WRITABLE |
+| `fecha_inicio_inscripcion` | `Fecha Inicio Inscripcion` | date | WRITABLE |
+| `fecha_fin_inscripcion` | `Fecha Fin Inscripcion` | date | WRITABLE |
+| `fecha_inicio_curso` | `Fecha Inicio Curso` | date | WRITABLE |
+| `fecha_fin_curso` | `Fecha Fin Curso` | date | WRITABLE |
+| `modulos_disponibles` | `Modulos Disponibles` | multipleSelects | WRITABLE |
+| `fecha_inicio_prelanzamiento` | `Fecha Inicio Prelanzamiento` | date | WRITABLE |
+| `plazos_revision` | `Plazos Revision` | richText | WRITABLE |
+
+## `modulos` → Airtable **Modulos**
+
+| pg_column | airtable_field | type | verdict |
+|---|---|---|---|
+| `modulo_id` | `ID` | singleLineText | WRITABLE |
+| `nombre` | `Nombre` | singleLineText | WRITABLE |
+| `precio_online` | `Precio Online` | currency | WRITABLE |
+| `precio_efectivo` | `Precio Efectivo` | currency | WRITABLE |
+| `activo` | `Activo` | checkbox | WRITABLE |
+| `capacidad` | `Capacidad` | number | WRITABLE |
+| `reserva_prelanzamiento_plazas` | `Reserva Prelanzamiento` | number | WRITABLE |
+
+## `alumnos` → Airtable **Alumnos**
+
+| pg_column | airtable_field | type | verdict |
+|---|---|---|---|
+| `nombre` | `Nombre` | multipleLookupValues | READ-ONLY |
+| `email` | `Email` | multipleLookupValues | READ-ONLY |
+| `telefono` | `Phone Number` | multipleLookupValues | READ-ONLY |
+| `estado_general` | `Estado General` | singleSelect | WRITABLE |
+| `idioma` | `Idioma` | singleSelect | WRITABLE |
+| `modulo_solicitado` | `Modulo Solicitado` | singleSelect | WRITABLE |
+| `modulos_completados` | `Modulos Completados` | multipleSelects | WRITABLE |
+| `edicion_id` | `Edicion` | multipleRecordLinks | WRITABLE |
+| `foto_perfil` | `Foto de Perfil` | multipleAttachments | WRITABLE |
+| `plazo_revision` | `Plazo Revision` | singleLineText | WRITABLE |
+| `fecha_plazo` | `Fecha Plazo` | date | WRITABLE |
+| `fecha_preinscripcion` | `Fecha Preinscripcion` | createdTime | READ-ONLY |
+| `modulo_reserva` | `Modulo Reserva` | singleLineText | WRITABLE |
+| `fecha_entrada_reserva` | `Fecha Entrada Reserva` | date | WRITABLE |
+| `notas_internas` | `Notas Internas` | multilineText | WRITABLE |
+| `admin_responsable` | `Admin Responsable` | singleLineText | WRITABLE |
+| `pareja_email` | `Pareja Email` | singleLineText | WRITABLE |
+| `pareja_alumno_id` | `Pareja (Link)` | multipleRecordLinks | WRITABLE |
+| `onboarding_enviado` | `Onboarding Enviado` | checkbox | WRITABLE |
+| `bloqueado_proev26` | `Bloqueado ProEv26` | checkbox | WRITABLE |
+| `disculpa_enviada` | `Disculpa Enviada` | checkbox | WRITABLE |
+| `prelanzamiento_enviado` | `Prelanzamiento Enviado` | checkbox | WRITABLE |
+| `followup_prelanzamiento` | `Followup Prelanzamiento` | number | WRITABLE |
+
+## `revisiones_video` → Airtable **Revisiones de Video**
+
+| pg_column | airtable_field | type | verdict |
+|---|---|---|---|
+| `alumno_id` | `Alumno` | multipleRecordLinks | WRITABLE |
+| `video_enviado` | `Video Enviado` | url | WRITABLE |
+| `redes_sociales` | `Redes Sociales` | multipleSelects | WRITABLE |
+| `usuarios_rrss` | `Usuarios RRSS` | multilineText | WRITABLE |
+| `estado_revision` | `Estado de Revision` | — | MISSING (accent typo) → **RENAME to `Estado de Revisión` (singleSelect, writable)** |
+| `puntuacion` | `Puntuacion` | rating | WRITABLE |
+| `feedback` | `Feedback` | multilineText | WRITABLE |
+| `revisor_responsable` | `Revisor Responsable` | singleLineText | WRITABLE |
+| `fecha_revision` | `Fecha de Revision` | — | MISSING (accent typo) → **RENAME to `Fecha de Revisión` (date, writable)** |
+
+## `pagos` → Airtable **Pagos**
+
+| pg_column | airtable_field | type | verdict |
+|---|---|---|---|
+| `alumno_id` | `Alumno` | multipleRecordLinks | WRITABLE |
+| `importe` | `Importe` | currency | WRITABLE |
+| `moneda` | `Moneda` | singleSelect | WRITABLE |
+| `estado_pago` | `Estado de Pago` | singleSelect | WRITABLE |
+| `fecha_pago` | `Fecha de Pago` | date | WRITABLE |
+| `link_pago_stripe` | `Link Pago Stripe` | url | WRITABLE |
+| `id_sesion_stripe` | `ID Sesion Stripe` | — | MISSING (accent typo) → **RENAME to `ID Sesión Stripe` (singleLineText, writable)** |
+| `link_recibo` | `Link Recibo` | url | WRITABLE |
+
+## `envios_emails` → Airtable **Envios de Emails**
+
+| pg_column | airtable_field | type | verdict |
+|---|---|---|---|
+| `tipo` | `Tipo` | singleSelect | WRITABLE |
+| `mensaje` | `Mensaje` | multilineText | WRITABLE |
+| `descripcion` | `Descripcion` | singleLineText | WRITABLE |
+| `estado` | `Estado` | singleSelect | WRITABLE |
+| `total_emails` | `Total Emails` | number | WRITABLE |
+| `emails_creados` | `Emails Creados` | number | WRITABLE |
+| `fecha_completado` | `Fecha Completado` | date | WRITABLE |
+
+## `cola_emails` → Airtable **Cola de Emails**
+
+| pg_column | airtable_field | type | verdict |
+|---|---|---|---|
+| `alumno_id` | `Alumno` | multipleRecordLinks | WRITABLE |
+| `tipo` | `Tipo` | singleLineText | WRITABLE |
+| `asunto` | `Asunto` | — | MISSING → **REMOVE (no such field on table)** |
+| `asunto_generado` | `Asunto Generado` | singleLineText | WRITABLE |
+| `email_generado` | `Email Generado` | multilineText | WRITABLE |
+| `mensaje` | `Mensaje` | singleLineText | WRITABLE |
+| `estado` | `Estado` | singleSelect | WRITABLE |
+| `origen` | `Origen` | singleSelect | WRITABLE |
+| `descripcion` | `Descripcion` | — | MISSING → **REMOVE (no such field on table)** |
+| `fecha_envio` | `Fecha Envio` | date | WRITABLE |
+| `reprogramado` | `Reprogramado` | checkbox | WRITABLE |
+| `ultimo_reproceso` | `Ultimo Reproceso` | dateTime | WRITABLE |
+
+## `inbox` → Airtable **Inbox**
+
+| pg_column | airtable_field | type | verdict |
+|---|---|---|---|
+| `de` | `De` | email | WRITABLE |
+| `para` | `Para` | email | WRITABLE |
+| `asunto` | `Asunto` | singleLineText | WRITABLE |
+| `fecha` | `Fecha` | dateTime | WRITABLE |
+| `contenido` | `Contenido` | multilineText | WRITABLE |
+| `contenido_html` | `Contenido HTML` | multilineText | WRITABLE |
+| `message_id` | `messageId` | singleLineText | WRITABLE |
+| `thread_id` | `threadId` | singleLineText | WRITABLE |
+| `direccion` | `Direccion` | singleSelect | WRITABLE |
+| `estado` | `Estado` | singleSelect | WRITABLE |
+| `origen` | `Origen` | singleSelect | WRITABLE |
+| `alumno_id` | `Alumno` | multipleRecordLinks | WRITABLE |
+| `resumen_ia` | `Resumen AI` | multilineText | WRITABLE |
+| `tipo_consulta` | `Tipo Consulta` | singleSelect | WRITABLE |
+| `requiere_atencion` | `Requiere Atencion` | checkbox | WRITABLE |
+| `respuesta_sugerida` | `Respuesta Sugerida` | multilineText | WRITABLE |
+| `respuesta_final` | `Respuesta Final` | multilineText | WRITABLE |
+| `respuesta_enviada` | `Respuesta Enviada` | checkbox | WRITABLE |
+| `fecha_apertura` | `Fecha Apertura` | dateTime | WRITABLE |
+| `gmail_leido` | `Gmail Leido` | checkbox | WRITABLE |
+| `gmail_eliminado` | `Gmail Eliminado` | checkbox | WRITABLE |
+
+## `historial` → Airtable **Historial**
+
+| pg_column | airtable_field | type | verdict |
+|---|---|---|---|
+| `alumno_id` | `Alumno` | multipleRecordLinks | WRITABLE |
+| `descripcion` | `Descripcion` | — | MISSING (accent typo) → **RENAME to `Descripción Detallada` (multilineText, writable)** |
+| `tipo_accion` | `Tipo de Accion` | — | MISSING (accent typo) → **RENAME to `Tipo de Acción` (singleSelect, writable)** |
+| `origen_evento` | `Origen del Evento` | singleSelect | WRITABLE |
+| `error_log` | `Error Log` | multilineText | WRITABLE |
+| `workflow` | `workflow` | url | WRITABLE |
 
 ---
 
-## RESULT: BLOCKED — PAT lacks `schema.bases:read` metadata scope
+## REMOVE list — delete these exact `COLUMN_TO_AIRTABLE_FIELD` entries
 
-The Airtable Metadata API is required to read each field's **type** (formula / rollup /
-lookup / autoNumber / createdTime / etc.), which is the only reliable way to tell
-writable fields from read-only ones. The provided PAT cannot reach it.
+READ-ONLY (would 422 the whole batch on `--load`):
+- `alumnos` → `"nombre": "Nombre"`  (multipleLookupValues)
+- `alumnos` → `"email": "Email"`  (multipleLookupValues)
+- `alumnos` → `"telefono": "Phone Number"`  (multipleLookupValues)
+- `alumnos` → `"fecha_preinscripcion": "Fecha Preinscripcion"`  (createdTime)
 
-| Check | Endpoint | HTTP | Result |
-|---|---|---|---|
-| Token validity | `GET /v0/meta/whoami` | **200** | OK — token is valid (`usrVSI2iCD8Qtv8Tk`) |
-| Base schema (tables+fields) | `GET /v0/meta/bases/app4ZpoxaWOyV4RnR/tables` | **403** | `INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND` |
-| List bases | `GET /v0/meta/bases` | **403** | `INVALID_PERMISSIONS_OR_MODEL_NOT_FOUND` |
+MISSING — field genuinely absent on live table (no writable equivalent):
+- `cola_emails` → `"asunto": "Asunto"`  (no `Asunto` field exists)
+- `cola_emails` → `"descripcion": "Descripcion"`  (no `Descripcion` field exists)
 
-The token authenticates (whoami 200) but **every Metadata API call returns 403**.
-This is the documented signature of a PAT that has **data scopes**
-(`data.records:read/write`) but **not** `schema.bases:read`.
+## FIX list — rename (do NOT delete; live field exists, just mis-accented)
 
-Consistent with project memory: *"Airtable Meta API schema:write — el PAT de producción
-no tiene scope schema:write"* — and this audit shows it also lacks **schema.bases:read**.
+- `revisiones_video` → `"estado_revision": "Estado de Revision"`  →  `"estado_revision": "Estado de Revisión"`  (singleSelect, WRITABLE)
+- `revisiones_video` → `"fecha_revision": "Fecha de Revision"`  →  `"fecha_revision": "Fecha de Revisión"`  (date, WRITABLE)
+- `pagos` → `"id_sesion_stripe": "ID Sesion Stripe"`  →  `"id_sesion_stripe": "ID Sesión Stripe"`  (singleLineText, WRITABLE)
+- `historial` → `"descripcion": "Descripcion"`  →  `"descripcion": "Descripción Detallada"`  (multilineText, WRITABLE)
+- `historial` → `"tipo_accion": "Tipo de Accion"`  →  `"tipo_accion": "Tipo de Acción"`  (singleSelect, WRITABLE)
 
-### What unblocks this audit
-Provide a PAT (same base) that additionally has the **`schema.bases:read`** scope.
-With it, re-run the audit: pull each table's `fields[].type`, build a
-`name → type` map per table, and cross-check the curated inventory below.
-No guessing of field types was done (per instructions).
+## Summary
 
----
-
-## Pre-staged inventory (extracted from `origin/master` source — ready for cross-check)
-
-Curated `COLUMN_TO_AIRTABLE_FIELD`: **9 tables, 103 column→field entries.**
-For each, the cross-check will fill the **Type** and **Verdict** columns
-(WRITABLE / READ-ONLY / MISSING) once metadata is available.
-
-### Table: `ediciones`  (10 fields)
-
-| Supabase column | → Airtable field | Type | Verdict |
-|---|---|---|---|
-| `nombre` | `Nombre` | _(pending: needs metadata)_ | _(pending)_ |
-| `estado` | `Estado` | _(pending: needs metadata)_ | _(pending)_ |
-| `es_edicion_activa` | `Es Edicion Activa` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_inicio_inscripcion` | `Fecha Inicio Inscripcion` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_fin_inscripcion` | `Fecha Fin Inscripcion` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_inicio_curso` | `Fecha Inicio Curso` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_fin_curso` | `Fecha Fin Curso` | _(pending: needs metadata)_ | _(pending)_ |
-| `modulos_disponibles` | `Modulos Disponibles` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_inicio_prelanzamiento` | `Fecha Inicio Prelanzamiento` | _(pending: needs metadata)_ | _(pending)_ |
-| `plazos_revision` | `Plazos Revision` | _(pending: needs metadata)_ | _(pending)_ |
-
-### Table: `modulos`  (7 fields)
-
-| Supabase column | → Airtable field | Type | Verdict |
-|---|---|---|---|
-| `modulo_id` | `ID` | _(pending: needs metadata)_ | _(pending)_ |
-| `nombre` | `Nombre` | _(pending: needs metadata)_ | _(pending)_ |
-| `precio_online` | `Precio Online` | _(pending: needs metadata)_ | _(pending)_ |
-| `precio_efectivo` | `Precio Efectivo` | _(pending: needs metadata)_ | _(pending)_ |
-| `activo` | `Activo` | _(pending: needs metadata)_ | _(pending)_ |
-| `capacidad` | `Capacidad` | _(pending: needs metadata)_ | _(pending)_ |
-| `reserva_prelanzamiento_plazas` | `Reserva Prelanzamiento` | _(pending: needs metadata)_ | _(pending)_ |
-
-### Table: `alumnos`  (23 fields)
-
-| Supabase column | → Airtable field | Type | Verdict |
-|---|---|---|---|
-| `nombre` | `Nombre` | _(pending: needs metadata)_ | _(pending)_ |
-| `email` | `Email` | _(pending: needs metadata)_ | _(pending)_ |
-| `telefono` | `Phone Number` | _(pending: needs metadata)_ | _(pending)_ |
-| `estado_general` | `Estado General` | _(pending: needs metadata)_ | _(pending)_ |
-| `idioma` | `Idioma` | _(pending: needs metadata)_ | _(pending)_ |
-| `modulo_solicitado` | `Modulo Solicitado` | _(pending: needs metadata)_ | _(pending)_ |
-| `modulos_completados` | `Modulos Completados` | _(pending: needs metadata)_ | _(pending)_ |
-| `edicion_id` | `Edicion` | _(pending: needs metadata)_ | _(pending)_ |
-| `foto_perfil` | `Foto de Perfil` | _(pending: needs metadata)_ | _(pending)_ |
-| `plazo_revision` | `Plazo Revision` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_plazo` | `Fecha Plazo` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_preinscripcion` | `Fecha Preinscripcion` | _(pending: needs metadata)_ | _(pending)_ |
-| `modulo_reserva` | `Modulo Reserva` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_entrada_reserva` | `Fecha Entrada Reserva` | _(pending: needs metadata)_ | _(pending)_ |
-| `notas_internas` | `Notas Internas` | _(pending: needs metadata)_ | _(pending)_ |
-| `admin_responsable` | `Admin Responsable` | _(pending: needs metadata)_ | _(pending)_ |
-| `pareja_email` | `Pareja Email` | _(pending: needs metadata)_ | _(pending)_ |
-| `pareja_alumno_id` | `Pareja (Link)` | _(pending: needs metadata)_ | _(pending)_ |
-| `onboarding_enviado` | `Onboarding Enviado` | _(pending: needs metadata)_ | _(pending)_ |
-| `bloqueado_proev26` | `Bloqueado ProEv26` | _(pending: needs metadata)_ | _(pending)_ |
-| `disculpa_enviada` | `Disculpa Enviada` | _(pending: needs metadata)_ | _(pending)_ |
-| `prelanzamiento_enviado` | `Prelanzamiento Enviado` | _(pending: needs metadata)_ | _(pending)_ |
-| `followup_prelanzamiento` | `Followup Prelanzamiento` | _(pending: needs metadata)_ | _(pending)_ |
-
-### Table: `revisiones_video`  (9 fields)
-
-| Supabase column | → Airtable field | Type | Verdict |
-|---|---|---|---|
-| `alumno_id` | `Alumno` | _(pending: needs metadata)_ | _(pending)_ |
-| `video_enviado` | `Video Enviado` | _(pending: needs metadata)_ | _(pending)_ |
-| `redes_sociales` | `Redes Sociales` | _(pending: needs metadata)_ | _(pending)_ |
-| `usuarios_rrss` | `Usuarios RRSS` | _(pending: needs metadata)_ | _(pending)_ |
-| `estado_revision` | `Estado de Revision` | _(pending: needs metadata)_ | _(pending)_ |
-| `puntuacion` | `Puntuacion` | _(pending: needs metadata)_ | _(pending)_ |
-| `feedback` | `Feedback` | _(pending: needs metadata)_ | _(pending)_ |
-| `revisor_responsable` | `Revisor Responsable` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_revision` | `Fecha de Revision` | _(pending: needs metadata)_ | _(pending)_ |
-
-### Table: `pagos`  (8 fields)
-
-| Supabase column | → Airtable field | Type | Verdict |
-|---|---|---|---|
-| `alumno_id` | `Alumno` | _(pending: needs metadata)_ | _(pending)_ |
-| `importe` | `Importe` | _(pending: needs metadata)_ | _(pending)_ |
-| `moneda` | `Moneda` | _(pending: needs metadata)_ | _(pending)_ |
-| `estado_pago` | `Estado de Pago` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_pago` | `Fecha de Pago` | _(pending: needs metadata)_ | _(pending)_ |
-| `link_pago_stripe` | `Link Pago Stripe` | _(pending: needs metadata)_ | _(pending)_ |
-| `id_sesion_stripe` | `ID Sesion Stripe` | _(pending: needs metadata)_ | _(pending)_ |
-| `link_recibo` | `Link Recibo` | _(pending: needs metadata)_ | _(pending)_ |
-
-### Table: `envios_emails`  (7 fields)
-
-| Supabase column | → Airtable field | Type | Verdict |
-|---|---|---|---|
-| `tipo` | `Tipo` | _(pending: needs metadata)_ | _(pending)_ |
-| `mensaje` | `Mensaje` | _(pending: needs metadata)_ | _(pending)_ |
-| `descripcion` | `Descripcion` | _(pending: needs metadata)_ | _(pending)_ |
-| `estado` | `Estado` | _(pending: needs metadata)_ | _(pending)_ |
-| `total_emails` | `Total Emails` | _(pending: needs metadata)_ | _(pending)_ |
-| `emails_creados` | `Emails Creados` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_completado` | `Fecha Completado` | _(pending: needs metadata)_ | _(pending)_ |
-
-### Table: `cola_emails`  (12 fields)
-
-| Supabase column | → Airtable field | Type | Verdict |
-|---|---|---|---|
-| `alumno_id` | `Alumno` | _(pending: needs metadata)_ | _(pending)_ |
-| `tipo` | `Tipo` | _(pending: needs metadata)_ | _(pending)_ |
-| `asunto` | `Asunto` | _(pending: needs metadata)_ | _(pending)_ |
-| `asunto_generado` | `Asunto Generado` | _(pending: needs metadata)_ | _(pending)_ |
-| `email_generado` | `Email Generado` | _(pending: needs metadata)_ | _(pending)_ |
-| `mensaje` | `Mensaje` | _(pending: needs metadata)_ | _(pending)_ |
-| `estado` | `Estado` | _(pending: needs metadata)_ | _(pending)_ |
-| `origen` | `Origen` | _(pending: needs metadata)_ | _(pending)_ |
-| `descripcion` | `Descripcion` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_envio` | `Fecha Envio` | _(pending: needs metadata)_ | _(pending)_ |
-| `reprogramado` | `Reprogramado` | _(pending: needs metadata)_ | _(pending)_ |
-| `ultimo_reproceso` | `Ultimo Reproceso` | _(pending: needs metadata)_ | _(pending)_ |
-
-### Table: `inbox`  (21 fields)
-
-| Supabase column | → Airtable field | Type | Verdict |
-|---|---|---|---|
-| `de` | `De` | _(pending: needs metadata)_ | _(pending)_ |
-| `para` | `Para` | _(pending: needs metadata)_ | _(pending)_ |
-| `asunto` | `Asunto` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha` | `Fecha` | _(pending: needs metadata)_ | _(pending)_ |
-| `contenido` | `Contenido` | _(pending: needs metadata)_ | _(pending)_ |
-| `contenido_html` | `Contenido HTML` | _(pending: needs metadata)_ | _(pending)_ |
-| `message_id` | `messageId` | _(pending: needs metadata)_ | _(pending)_ |
-| `thread_id` | `threadId` | _(pending: needs metadata)_ | _(pending)_ |
-| `direccion` | `Direccion` | _(pending: needs metadata)_ | _(pending)_ |
-| `estado` | `Estado` | _(pending: needs metadata)_ | _(pending)_ |
-| `origen` | `Origen` | _(pending: needs metadata)_ | _(pending)_ |
-| `alumno_id` | `Alumno` | _(pending: needs metadata)_ | _(pending)_ |
-| `resumen_ia` | `Resumen AI` | _(pending: needs metadata)_ | _(pending)_ |
-| `tipo_consulta` | `Tipo Consulta` | _(pending: needs metadata)_ | _(pending)_ |
-| `requiere_atencion` | `Requiere Atencion` | _(pending: needs metadata)_ | _(pending)_ |
-| `respuesta_sugerida` | `Respuesta Sugerida` | _(pending: needs metadata)_ | _(pending)_ |
-| `respuesta_final` | `Respuesta Final` | _(pending: needs metadata)_ | _(pending)_ |
-| `respuesta_enviada` | `Respuesta Enviada` | _(pending: needs metadata)_ | _(pending)_ |
-| `fecha_apertura` | `Fecha Apertura` | _(pending: needs metadata)_ | _(pending)_ |
-| `gmail_leido` | `Gmail Leido` | _(pending: needs metadata)_ | _(pending)_ |
-| `gmail_eliminado` | `Gmail Eliminado` | _(pending: needs metadata)_ | _(pending)_ |
-
-### Table: `historial`  (6 fields)
-
-| Supabase column | → Airtable field | Type | Verdict |
-|---|---|---|---|
-| `alumno_id` | `Alumno` | _(pending: needs metadata)_ | _(pending)_ |
-| `descripcion` | `Descripcion` | _(pending: needs metadata)_ | _(pending)_ |
-| `tipo_accion` | `Tipo de Accion` | _(pending: needs metadata)_ | _(pending)_ |
-| `origen_evento` | `Origen del Evento` | _(pending: needs metadata)_ | _(pending)_ |
-| `error_log` | `Error Log` | _(pending: needs metadata)_ | _(pending)_ |
-| `workflow` | `workflow` | _(pending: needs metadata)_ | _(pending)_ |
-
----
-
-## Read-only field types reference (for the cross-check)
-
-Any curated target whose live Airtable type is one of these would **422 on PATCH/POST**
-and must be REMOVED from `COLUMN_TO_AIRTABLE_FIELD`:
-
-`formula`, `rollup`, `lookup`, `multipleLookupValues`, `count`, `autoNumber`,
-`createdTime`, `lastModifiedTime`, `createdBy`, `lastModifiedBy`, `button`,
-`barcode` (sometimes), plus any AI/automation-computed field.
-
-Also flag any curated target field **name that does not exist** in the live base
-(typo / renamed) → MISSING.
-
-## Map entries to REMOVE
-
-> **Not determinable yet** — requires the metadata-scoped PAT. This section will be
-> filled with the exact `table.field` lines to delete from `COLUMN_TO_AIRTABLE_FIELD`
-> once the cross-check runs.
+- Audited: **103** curated field mappings across 9 tables.
+- Flagged: **11** (4 READ-ONLY + 2 MISSING-delete + 5 MISSING-rename).
+- **Remove: 6** entries (4 read-only + 2 absent).
+- **Fix (rename): 5** entries (live field present under accented name).
+- Remaining after fixes: **97** writable mappings.
