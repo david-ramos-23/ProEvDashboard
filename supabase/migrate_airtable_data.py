@@ -463,6 +463,25 @@ PRUNE_KNOWN_EMPTY_ALLOWLIST: frozenset[str] = frozenset({"envios_emails"})
 # refused unless --prune-force is passed (see compute_prune_ids).
 DEFAULT_PRUNE_THRESHOLD = 0.25
 
+# Fetch-completeness floor: if the Airtable fetch returns FEWER than this
+# fraction of the rows currently in Supabase, the fetch is presumed incomplete
+# (truncated page / transient failure) and prune is REFUSED for that table —
+# pruning against a partial fetch would silently delete live rows. This is the
+# SAME safety tier as the empty-fetch guard (empty is just the ratio==0 case):
+# it is INDEPENDENT of --prune-threshold and NOT bypassable by --prune-force.
+PRUNE_MIN_FETCH_RATIO = 0.9
+
+# CASCADE relationships from dashboard/supabase/schema.sql: parent table -> the
+# child tables whose FK to it is declared `ON DELETE CASCADE` (deleting a parent
+# row silently cascade-deletes the children). Verified against schema.sql: ONLY
+# alumnos -> revisiones_video and alumnos -> pagos are CASCADE; every other FK is
+# SET NULL or RESTRICT, so it cannot silently destroy child rows. Used to refuse
+# a SUBSET prune of a parent when a CASCADE child is NOT in the selected --tables
+# set (otherwise those children get cascade-deleted with no candidate accounting).
+CASCADE_CHILDREN: dict[str, list[str]] = {
+    "alumnos": ["revisiones_video", "pagos"],
+}
+
 
 # ------------------------------------------------------------------
 # Prune decision — PURE function (no DB, no network). Single source of truth for
@@ -476,6 +495,7 @@ def compute_prune_ids(
     airtable_ids: set[str],
     threshold: float = DEFAULT_PRUNE_THRESHOLD,
     force: bool = False,
+    selected_tables: set[str] | None = None,
 ) -> tuple[set[str], str | None]:
     """Decide which Supabase ``airtable_id`` values are stale and prunable.
 
@@ -483,17 +503,65 @@ def compute_prune_ids(
     run. Returns ``(ids_to_delete, skip_reason)``. When ``skip_reason`` is not
     None the prune is refused and ``ids_to_delete`` is empty.
 
+    ``selected_tables`` is the full set of tables being processed this run (used
+    only for the CASCADE-subset guard below). When None the guard is inactive
+    (treated as a full-table run).
+
     Safety guards (a bad/partial Airtable fetch must NOT wipe Supabase):
       * Empty-fetch guard: if ``airtable_ids`` is empty AND ``table`` is not in
         ``PRUNE_KNOWN_EMPTY_ALLOWLIST``, return ([], reason) — an empty fetch is
         treated as a likely transient failure. NOT bypassable by ``force``.
+      * CASCADE-subset guard: if this run is a SUBSET of all tables and a
+        CASCADE child of ``table`` (see ``CASCADE_CHILDREN``) is NOT selected,
+        refuse — deleting parent rows would silently cascade-delete unaccounted
+        child rows. Checked before the floor (a structural refusal that holds
+        regardless of fetch size). NOT bypassable by ``force``.
+      * Fetch-completeness floor: if the fetch returned fewer than
+        ``PRUNE_MIN_FETCH_RATIO`` of the current Supabase rows, the fetch looks
+        truncated; return ([], reason). Same tier as the empty-fetch guard
+        (empty is the ratio==0 case): INDEPENDENT of ``threshold`` and NOT
+        bypassable by ``force``. The known-empty allowlist still skips this
+        floor (those tables are legitimately empty/small).
       * Threshold guard: if the number of stale rows exceeds ``threshold`` of
         the current Supabase row count, return ([], reason) unless ``force`` is
         True. Bypass with ``--prune-force``.
+
+    Guard order: empty-fetch -> CASCADE-subset -> completeness-floor ->
+    threshold (the first three are hard refusals; only the last honors force).
     """
     stale = supabase_ids - airtable_ids
     if not airtable_ids and table not in PRUNE_KNOWN_EMPTY_ALLOWLIST:
         return set(), "empty fetch — likely transient failure, skipping prune"
+    # CASCADE-subset guard: on a partial-table run, refuse to prune a parent
+    # whose ON DELETE CASCADE children are not all in the selected set — those
+    # children would be silently cascade-deleted with no candidate accounting.
+    # Same hard tier as the empty/incomplete guards (not bypassable by force).
+    if selected_tables is not None and table in CASCADE_CHILDREN:
+        missing_children = [
+            child for child in CASCADE_CHILDREN[table]
+            if child not in selected_tables
+        ]
+        if missing_children:
+            return set(), (
+                f"CASCADE child(ren) {', '.join(missing_children)} not in "
+                f"--tables — pruning '{table}' would silently cascade-delete "
+                f"them; add them to --tables (not bypassable by --prune-force)"
+            )
+    # Fetch-completeness floor: a fetch that returned far fewer rows than
+    # Supabase holds is presumed truncated. Refuse prune regardless of force /
+    # threshold (same hard tier as the empty-fetch guard). Allowlisted
+    # known-empty tables are exempt (handled by the empty-fetch guard above).
+    if (
+        supabase_ids
+        and table not in PRUNE_KNOWN_EMPTY_ALLOWLIST
+        and len(airtable_ids) < PRUNE_MIN_FETCH_RATIO * len(supabase_ids)
+    ):
+        pct = len(airtable_ids) / len(supabase_ids)
+        return set(), (
+            f"fetch looks incomplete — Airtable returned {pct * 100:.0f}% of "
+            f"Supabase rows (< {PRUNE_MIN_FETCH_RATIO * 100:.0f}% floor), "
+            f"skipping prune (not bypassable by --prune-force)"
+        )
     if not stale:
         return set(), None
     if not force and supabase_ids:
@@ -1113,6 +1181,10 @@ def _prune_pass(
     """
     prune_results: list[PruneResult] = []
     decisions: dict[str, tuple[set[str], PruneResult]] = {}
+    # Full set of tables this run touches — drives the CASCADE-subset guard. A
+    # run that names every table cannot orphan/cascade-delete a non-selected
+    # child, so the guard only bites on a genuine subset.
+    selected = {t for t in tables if t in TABLE_COLUMNS}
     # Decide per table (guards included) using the live Supabase id sets.
     for table in tables:
         if table not in TABLE_COLUMNS:
@@ -1121,6 +1193,7 @@ def _prune_pass(
         supabase_ids = fetch_supabase_airtable_ids(conn, table)
         ids_to_delete, skip_reason = compute_prune_ids(
             table, supabase_ids, airtable_ids, threshold, force,
+            selected_tables=selected,
         )
         pr = PruneResult(
             table=table,
@@ -1243,8 +1316,13 @@ def run(
                     recid_to_pk,
                     TABLE_COLUMNS[table],
                 )
-            # Pass 3: prune stale rows inside the SAME transaction so a failure
-            # rolls back the whole load+prune atomically.
+            # Pass 3: prune stale rows. NOTE: this is NOT atomic with the loads
+            # above — load_table and backfill_self_fks each commit per-table
+            # (idempotent incremental upserts), so by the time we reach here the
+            # loads are already durable. Prune is a SEPARATE step: its deletes
+            # accumulate on this connection and are committed once at the end
+            # (the conn.commit() after this block), so the prune itself is
+            # atomic, but it does NOT roll back the already-committed loads.
             if prune:
                 prune_results = _prune_pass(
                     conn, tables, airtable_ids_by_table, dry_run=False,
@@ -1428,14 +1506,15 @@ def _self_test() -> int:
     )
 
     # ---- compute_prune_ids (PURE) unit tests -------------------------------
-    # Normal prune: rec5 exists in Supabase but not in the Airtable fetch
-    # (1/5 = 20% stale, under the 25% default threshold).
-    ids, reason = compute_prune_ids(
-        "alumnos",
-        {"rec1", "rec2", "rec3", "rec4", "rec5"},
-        {"rec1", "rec2", "rec3", "rec4"},
-    )
-    prune_normal = ids == {"rec5"} and reason is None
+    # Normal prune: 1 of 20 Supabase rows is absent from the Airtable fetch
+    # (fetch ratio 19/20 = 95% >= 90% floor; 1/20 = 5% stale < 25% threshold),
+    # so the single stale row prunes cleanly. NOTE: fixtures must keep the fetch
+    # ratio at/above PRUNE_MIN_FETCH_RATIO or the completeness floor (Fix A)
+    # refuses the prune before the threshold guard is even reached.
+    sup_20 = {f"rec{i}" for i in range(20)}
+    air_19 = {f"rec{i}" for i in range(19)}  # rec19 stale
+    ids, reason = compute_prune_ids("alumnos", sup_20, air_19)
+    prune_normal = ids == {"rec19"} and reason is None
 
     # Empty-fetch guard: a non-allowlisted table with an EMPTY Airtable set must
     # be skipped (likely transient failure) — never wipe Supabase.
@@ -1452,25 +1531,102 @@ def _self_test() -> int:
     )
     prune_allowlist = ids == {"rec1", "rec2"} and reason is None
 
-    # Threshold guard: deleting 3/4 = 75% > default 25% must be refused.
+    # Threshold guard: with the completeness floor active (Fix A), the testable
+    # band is fetch-ratio >= 90% AND stale% > threshold. We pass a LOWER
+    # threshold=0.05 so 9/100 = 9% stale (fetch ratio 91/100 = 91% >= 90% floor)
+    # trips the threshold guard. Default 0.25 can never be tripped once the floor
+    # holds (stale <= 10%), which is by design — the floor subsumes high-stale.
+    sup_100 = {f"r{i}" for i in range(100)}
+    air_91 = {f"r{i}" for i in range(91)}  # r91..r99 stale (9 rows)
+    stale_9 = {f"r{i}" for i in range(91, 100)}
     ids, reason = compute_prune_ids(
-        "alumnos", {"r1", "r2", "r3", "r4"}, {"r1"},
+        "alumnos", sup_100, air_91, threshold=0.05,
     )
     prune_threshold_guard = (
         ids == set() and reason is not None and "threshold" in reason
     )
 
-    # Force override: same 75% delete is allowed with force=True. The
-    # empty-fetch guard is NOT bypassed by force (separate assertion).
+    # Force override: the same 9% delete is allowed with force=True (force
+    # bypasses the threshold guard but NOT the floor — here the floor passes).
     ids, reason = compute_prune_ids(
-        "alumnos", {"r1", "r2", "r3", "r4"}, {"r1"}, force=True,
+        "alumnos", sup_100, air_91, threshold=0.05, force=True,
     )
-    prune_force_override = ids == {"r2", "r3", "r4"} and reason is None
+    prune_force_override = ids == stale_9 and reason is None
     ids_f, reason_f = compute_prune_ids(
         "alumnos", {"r1", "r2"}, set(), force=True,
     )
     prune_force_keeps_empty_guard = (
         ids_f == set() and reason_f is not None and "empty fetch" in reason_f
+    )
+
+    # Fetch-completeness floor (Fix A): Airtable returned only 8/10 = 80% of the
+    # Supabase rows (< 90% floor). Prune must be REFUSED even with force=True —
+    # a truncated fetch must never delete the missing 2 rows.
+    sup_10 = {f"rec{i}" for i in range(10)}
+    air_8 = {f"rec{i}" for i in range(8)}
+    ids_inc, reason_inc = compute_prune_ids(
+        "alumnos", sup_10, air_8, force=True,
+    )
+    prune_incomplete_guard = (
+        ids_inc == set()
+        and reason_inc is not None
+        and "incomplete" in reason_inc
+    )
+    # At/above the floor (9/10 = 90%) the floor does NOT fire: the single stale
+    # row prunes normally (10% stale < 25% threshold).
+    air_9 = {f"rec{i}" for i in range(9)}
+    ids_ok, reason_ok = compute_prune_ids("alumnos", sup_10, air_9)
+    prune_floor_boundary = ids_ok == {"rec9"} and reason_ok is None
+    # Allowlisted known-empty table is exempt from the floor (envios_emails).
+    ids_al, reason_al = compute_prune_ids(
+        "envios_emails", sup_10, air_8, force=True,
+    )
+    prune_floor_allowlist = ids_al == {"rec8", "rec9"} and reason_al is None
+
+    # CASCADE-subset guard (Fix C): pruning 'alumnos' as a SUBSET that omits a
+    # CASCADE child (revisiones_video / pagos) must be REFUSED even with force.
+    # The CASCADE guard sits ABOVE the completeness floor, so it fires even on a
+    # tiny/low-ratio fetch (here 1/2) — it short-circuits first.
+    ids_cas, reason_cas = compute_prune_ids(
+        "alumnos", {"a1", "a2"}, {"a1"}, force=True,
+        selected_tables={"alumnos"},
+    )
+    prune_cascade_guard = (
+        ids_cas == set()
+        and reason_cas is not None
+        and "CASCADE" in reason_cas
+    )
+    # When BOTH CASCADE children are selected the guard does not fire. The fetch
+    # must still clear the completeness floor, so use 20 Supabase / 19 fetched
+    # (95% >= 90% floor); force clears the threshold so the single stale alumno
+    # (a19) prunes.
+    sup_20c = {f"a{i}" for i in range(20)}
+    air_19c = {f"a{i}" for i in range(19)}  # a19 stale
+    ids_full, reason_full = compute_prune_ids(
+        "alumnos", sup_20c, air_19c, force=True,
+        selected_tables={"alumnos", "revisiones_video", "pagos"},
+    )
+    prune_cascade_full = ids_full == {"a19"} and reason_full is None
+
+    # Threshold range validation (Fix B): parse_args must reject >= 1.0, 0 and
+    # negatives with a non-zero exit (SystemExit from parser.error()).
+    def _threshold_rejected(value: str) -> bool:
+        try:
+            parse_args(["--prune", "--prune-threshold", value])
+        except SystemExit as exc:  # argparse error -> non-zero exit
+            return exc.code not in (0, None)
+        return False
+
+    threshold_validation = (
+        _threshold_rejected("1.5")
+        and _threshold_rejected("1.0")
+        and _threshold_rejected("0")
+        and _threshold_rejected("-0.1")
+    )
+    # A valid in-range threshold is accepted (no SystemExit).
+    threshold_valid_accepted = (
+        parse_args(["--prune", "--prune-threshold", "0.5"]).prune_threshold
+        == 0.5
     )
 
     print("--- self-test assertions ---")
@@ -1489,6 +1645,13 @@ def _self_test() -> int:
     print(f"prune threshold guard (75%)   : {prune_threshold_guard}")
     print(f"prune force override          : {prune_force_override}")
     print(f"prune force keeps empty guard : {prune_force_keeps_empty_guard}")
+    print(f"prune incomplete-fetch guard  : {prune_incomplete_guard}")
+    print(f"prune floor boundary (90%)    : {prune_floor_boundary}")
+    print(f"prune floor allowlist exempt  : {prune_floor_allowlist}")
+    print(f"prune CASCADE-subset guard    : {prune_cascade_guard}")
+    print(f"prune CASCADE full selected   : {prune_cascade_full}")
+    print(f"threshold range rejected      : {threshold_validation}")
+    print(f"threshold valid accepted      : {threshold_valid_accepted}")
     print(f"report generated              : {report_exists} ({report_path})")
     ok = (
         bad_caught and notnull_caught and pago_normalized
@@ -1498,6 +1661,10 @@ def _self_test() -> int:
         and prune_normal and prune_empty_guard and prune_allowlist
         and prune_threshold_guard and prune_force_override
         and prune_force_keeps_empty_guard
+        and prune_incomplete_guard and prune_floor_boundary
+        and prune_floor_allowlist and prune_cascade_guard
+        and prune_cascade_full and threshold_validation
+        and threshold_valid_accepted
         and report_exists
     )
     print(f"SELF-TEST: {'PASS' if ok else 'FAIL'} (run rc={rc})")
@@ -1548,7 +1715,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--self-test", action="store_true", default=False,
         help="run the offline self-test with mock fixtures and exit",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    # Validate the prune threshold range: it must be in the OPEN interval
+    # (0, 1). A value >= 1.0 silently disables the threshold guard (no stale
+    # fraction can EXCEED 100%, so the guard never fires), and 0 / negatives are
+    # nonsensical. parser.error() prints to stderr and exits with status 2
+    # (non-zero), so an out-of-range value never runs.
+    if not (0 < args.prune_threshold < 1):
+        parser.error(
+            f"--prune-threshold must be in the open range (0, 1); got "
+            f"{args.prune_threshold} (>= 1.0 would disable the safety guard)"
+        )
+    return args
 
 
 def main(argv: list[str] | None = None) -> int:
