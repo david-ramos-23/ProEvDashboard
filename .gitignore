@@ -42,4 +42,10 @@ __pycache__/
 *.pyc
 supabase/migration_data_report.md
 
+# Stray per-twin backups/notes at supabase root — keep them under supabase/n8n-twins/ instead
+supabase/twin-*.json
+supabase/twin_*.json
+supabase/TWIN-NOTES-*.md
+supabase/sb-twin-*.notes.md
+
 .vercel
