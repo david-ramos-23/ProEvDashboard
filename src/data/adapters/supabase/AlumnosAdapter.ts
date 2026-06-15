@@ -17,6 +17,7 @@ function mapToAlumno(row: Record<string, unknown>): Alumno {
     estadoGeneral: (row.estado_general as EstadoGeneral) || 'Privado',
     idioma: row.idioma === 'Ingles' ? 'Ingles' : 'Espanol',
     moduloSolicitado: row.modulo_solicitado as string | undefined,
+    modulosInscritos: row.modules as string[] | undefined,
     modulosCompletados: row.modulos_completados as string[] | undefined,
     edicionId: row.edicion_id as string | undefined,
     edicion: row.edicion_nombre as string | undefined,

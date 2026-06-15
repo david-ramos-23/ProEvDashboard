@@ -355,6 +355,18 @@ export default function AlumnoDetailPage() {
                   <span style={{ color: 'var(--color-text-secondary)' }}>{formatDate(alumno.fechaPreinscripcion)}</span>
                 </div>
                 <div className={styles.field}>
+                  <label>{t('alumnos.modulosInscritos')}</label>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>
+                    {alumno.modulosInscritos?.length ? alumno.modulosInscritos.join(', ') : '—'}
+                  </span>
+                </div>
+                <div className={styles.field}>
+                  <label>{t('alumnos.modulosCompletados')}</label>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>
+                    {alumno.modulosCompletados?.length ? alumno.modulosCompletados.join(', ') : '—'}
+                  </span>
+                </div>
+                <div className={styles.field}>
                   <label>{t('alumnos.ultimaModificacion')}</label>
                   <span style={{ color: 'var(--color-text-muted)' }}>{timeAgo(alumno.ultimaModificacion)}</span>
                 </div>

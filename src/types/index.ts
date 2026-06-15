@@ -67,6 +67,9 @@ export interface Alumno extends BaseRecord {
   estadoGeneral: EstadoGeneral;
   idioma: Idioma;
   moduloSolicitado?: string;
+  /** Módulos en los que el alumno se inscribió (selección del formulario, p.ej. ["Modules 1 + 2 + 3"]) */
+  modulosInscritos?: string[];
+  /** Módulos realmente completados (p.ej. ["1", "2", "3"]) */
   modulosCompletados?: string[];
   edicion?: string;
   edicionId?: string;

@@ -73,6 +73,8 @@
     "datosAlumno": "Student Data",
     "fechaPlazo": "Deadline",
     "preinscripcion": "Pre-registration",
+    "modulosInscritos": "Enrolled in",
+    "modulosCompletados": "Completed",
     "ultimaModificacion": "Last Modified",
     "notasInternas": "Internal Notes",
     "notasPlaceholder": "Private notes about this student...",
