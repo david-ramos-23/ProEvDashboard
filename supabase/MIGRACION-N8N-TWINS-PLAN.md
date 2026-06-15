@@ -1,3 +1,5 @@
+> ⚠️ SUPERADO por MIGRACION-N8N-TWINS-BUILT.md (estado final autoritativo de los 22 twins). Este doc es el plan previo a la construcción; conservar como histórico. (Nota: su row #4 decía cola_emails; el workflow live escribe historial.)
+
 # Plan de twins Supabase para los 24 workflows n8n (ProEv)
 
 > **Análisis no destructivo.** Ningún workflow existente se modificó, activó ni
