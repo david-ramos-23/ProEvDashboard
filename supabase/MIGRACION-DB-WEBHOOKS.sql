@@ -50,7 +50,7 @@ CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- Base URL of the EasyPanel n8n that hosts the twins. Each twin's webhook URL is
 -- {base}/webhook/{path}. Centralised here as a comment for auditability:
---   base = https://drava-n8n.lk0nyk.easypanel.host
+--   base = https://hooks.dravaautomations.com
 
 -- Shared header set (JSON content type). No auth header: the twin webhooks are
 -- unauthenticated POST nodes (n8n webhook path acts as the shared secret).
@@ -62,7 +62,7 @@ CREATE EXTENSION IF NOT EXISTS pg_net;
 --           AND gmail_leido = false
 --   guard : self-write sets gmail_leido=true -> fire condition (gmail_leido=false)
 --           becomes false on the re-fired UPDATE. No loop.
---   url   : https://drava-n8n.lk0nyk.easypanel.host/webhook/sb-inbox-estado-leido
+--   url   : https://hooks.dravaautomations.com/webhook/sb-inbox-estado-leido
 -- =============================================================================
 CREATE OR REPLACE FUNCTION public.tg_sbwh_inbox_estado_leido()
 RETURNS trigger LANGUAGE plpgsql AS $$
@@ -73,7 +73,7 @@ BEGIN
       AND COALESCE(NEW.gmail_leido, false) = false
       AND COALESCE(OLD.gmail_leido, false) = false) THEN
     PERFORM net.http_post(
-      url     := 'https://drava-n8n.lk0nyk.easypanel.host/webhook/sb-inbox-estado-leido',
+      url     := 'https://hooks.dravaautomations.com/webhook/sb-inbox-estado-leido',
       body    := jsonb_build_object('type','UPDATE','table','inbox',
                    'record', to_jsonb(NEW), 'old_record', to_jsonb(OLD)),
       headers := '{"Content-Type":"application/json"}'::jsonb,
@@ -106,7 +106,7 @@ BEGIN
       AND NEW.thread_id <> ''
       AND NEW.gmail_eliminado IS NOT TRUE) THEN
     PERFORM net.http_post(
-      url     := 'https://drava-n8n.lk0nyk.easypanel.host/webhook/sb-estado-eliminado-papelera',
+      url     := 'https://hooks.dravaautomations.com/webhook/sb-estado-eliminado-papelera',
       body    := jsonb_build_object('type', TG_OP, 'table','inbox',
                    'record', to_jsonb(NEW),
                    'old_record', CASE WHEN TG_OP='UPDATE' THEN to_jsonb(OLD) ELSE 'null'::jsonb END),
@@ -142,7 +142,7 @@ BEGIN
       AND (OLD.respuesta_enviada IS DISTINCT FROM NEW.respuesta_enviada
            OR OLD.respuesta_final IS DISTINCT FROM NEW.respuesta_final)) THEN
     PERFORM net.http_post(
-      url     := 'https://drava-n8n.lk0nyk.easypanel.host/webhook/sb-respuesta-final-reply',
+      url     := 'https://hooks.dravaautomations.com/webhook/sb-respuesta-final-reply',
       body    := jsonb_build_object('type','UPDATE','table','inbox',
                    'record', to_jsonb(NEW), 'old_record', to_jsonb(OLD)),
       headers := '{"Content-Type":"application/json"}'::jsonb,
@@ -179,7 +179,7 @@ BEGIN
                              'Reserva','Plazo Vencido','Pago Fallido')
       AND NEW.estado_general IS DISTINCT FROM OLD.estado_general) THEN
     PERFORM net.http_post(
-      url     := 'https://drava-n8n.lk0nyk.easypanel.host/webhook/sb-emails-segun-estado',
+      url     := 'https://hooks.dravaautomations.com/webhook/sb-emails-segun-estado',
       body    := jsonb_build_object('type','UPDATE','table','alumnos',
                    'record', to_jsonb(NEW), 'old_record', to_jsonb(OLD)),
       headers := '{"Content-Type":"application/json"}'::jsonb,
@@ -209,7 +209,7 @@ BEGIN
   IF (NEW.estado_general = 'Pagado'
       AND COALESCE(NEW.onboarding_enviado, false) = false) THEN
     PERFORM net.http_post(
-      url     := 'https://drava-n8n.lk0nyk.easypanel.host/webhook/sb-onboarding',
+      url     := 'https://hooks.dravaautomations.com/webhook/sb-onboarding',
       body    := jsonb_build_object('type', TG_OP, 'table','alumnos',
                    'record', to_jsonb(NEW),
                    'old_record', CASE WHEN TG_OP='UPDATE' THEN to_jsonb(OLD) ELSE 'null'::jsonb END),
@@ -244,7 +244,7 @@ BEGIN
       AND COALESCE(array_length(NEW.alumnos_ids, 1), 0) >= 1
       AND (TG_OP = 'INSERT' OR OLD.estado IS DISTINCT FROM NEW.estado)) THEN
     PERFORM net.http_post(
-      url     := 'https://drava-n8n.lk0nyk.easypanel.host/webhook/sb-envio-masivo-crear-cola',
+      url     := 'https://hooks.dravaautomations.com/webhook/sb-envio-masivo-crear-cola',
       body    := jsonb_build_object('type', TG_OP, 'table','envios_emails',
                    'record', to_jsonb(NEW),
                    'old_record', CASE WHEN TG_OP='UPDATE' THEN to_jsonb(OLD) ELSE 'null'::jsonb END),
@@ -282,7 +282,7 @@ BEGIN
            OR OLD.estado IS DISTINCT FROM NEW.estado
            OR OLD.mensaje IS DISTINCT FROM NEW.mensaje)) THEN
     PERFORM net.http_post(
-      url     := 'https://drava-n8n.lk0nyk.easypanel.host/webhook/sb-cola-email-procesar',
+      url     := 'https://hooks.dravaautomations.com/webhook/sb-cola-email-procesar',
       body    := jsonb_build_object('type', TG_OP, 'table','cola_emails',
                    'record', to_jsonb(NEW),
                    'old_record', CASE WHEN TG_OP='UPDATE' THEN to_jsonb(OLD) ELSE 'null'::jsonb END),
@@ -312,7 +312,7 @@ RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF (NEW.email IS NOT NULL AND NEW.email <> '') THEN
     PERFORM net.http_post(
-      url     := 'https://drava-n8n.lk0nyk.easypanel.host/webhook/sb-nueva-inscripcion',
+      url     := 'https://hooks.dravaautomations.com/webhook/sb-nueva-inscripcion',
       body    := jsonb_build_object('type','INSERT','table','inscripciones',
                    'record', to_jsonb(NEW), 'old_record', 'null'::jsonb),
       headers := '{"Content-Type":"application/json"}'::jsonb,
@@ -349,7 +349,7 @@ BEGIN
            OR OLD.estado_revision IS DISTINCT FROM NEW.estado_revision
            OR OLD.alumno_id IS DISTINCT FROM NEW.alumno_id)) THEN
     PERFORM net.http_post(
-      url     := 'https://drava-n8n.lk0nyk.easypanel.host/webhook/sb-sync-video-revisiones',
+      url     := 'https://hooks.dravaautomations.com/webhook/sb-sync-video-revisiones',
       body    := jsonb_build_object('type', TG_OP, 'table','revisiones_video',
                    'record', to_jsonb(NEW),
                    'old_record', CASE WHEN TG_OP='UPDATE' THEN to_jsonb(OLD) ELSE 'null'::jsonb END),
