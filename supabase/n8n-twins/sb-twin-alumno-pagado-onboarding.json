@@ -1,0 +1,595 @@
+{
+  "name": "[SB-TWIN] [Airtable] Alumno Pagado - Enviar Onboarding",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sb-alumno-pagado-onboarding",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "webhook-alumno-pagado-sb",
+      "name": "Webhook Alumno Pagado",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        256,
+        48
+      ],
+      "webhookId": "b1f6c2a0-7e3d-4a91-9c52-onboarding001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const fields = item.json.fields || item.json;\n  const emailArr = fields.Email || [];\n  const email = Array.isArray(emailArr) ? emailArr[0] : emailArr;\n  const nombreArr = fields.Nombre || [];\n  const nombre = Array.isArray(nombreArr) ? nombreArr[0] : nombreArr;\n  const alumnoId = item.json.id || fields.id || '';\n  const idioma = (fields.Idioma || '').toString().toLowerCase();\n\n  if (!email) continue;\n\n  const baseFormUrl = 'https://tally.so/r/xXrvao';\n  const formOnboarding = baseFormUrl\n    + '?fullname=' + encodeURIComponent(nombre || '')\n    + '&email=' + encodeURIComponent(email)\n    + '&alumnoId=' + encodeURIComponent(alumnoId);\n  const displayName = nombre || 'Alumno/a';\n  const isEnglish = idioma && !idioma.includes('espa');\n  const subject = isEnglish ? 'ProEv - Welcome to the course!' : 'ProEv - Bienvenido/a al curso!';\n\n  results.push({\n    json: {\n      email,\n      nombre: displayName,\n      alumnoId,\n      formOnboarding,\n      idioma,\n      subject\n    }\n  });\n}\n\nreturn results.length > 0 ? results : [{ json: { skip: true } }];"
+      },
+      "id": "prep-onboarding",
+      "name": "Preparar Onboarding",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 3,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-skip3",
+      "name": "Tiene Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        704,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "inbox",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "direccion",
+              "fieldValue": "Enviado"
+            },
+            {
+              "fieldId": "de",
+              "fieldValue": "alonsoynoelia@gmail.com"
+            },
+            {
+              "fieldId": "para",
+              "fieldValue": "={{ $json.email }}"
+            },
+            {
+              "fieldId": "asunto",
+              "fieldValue": "={{ $json.subject }}"
+            },
+            {
+              "fieldId": "contenido",
+              "fieldValue": "Email de onboarding post-pago"
+            },
+            {
+              "fieldId": "fecha",
+              "fieldValue": "={{ $now.toISO() }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "Archivado"
+            },
+            {
+              "fieldId": "origen",
+              "fieldValue": "Automatico"
+            },
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $json.alumnoId }}"
+            }
+          ]
+        }
+      },
+      "id": "crear-inbox-pre",
+      "name": "Crear Inbox Pre-Envio",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        928,
+        48
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prev = $('Tiene Email?').item.json;\nconst inboxId = $input.first().json.id || '';\nconst alumnoId = prev.alumnoId;\n\nconst trackPixel = 'https://hooks.dravaautomations.com/webhook/email-track?alumno=' + alumnoId + '&tipo=onboarding&inboxId=' + inboxId;\nconst formOnboarding = prev.formOnboarding;\nconst displayName = prev.nombre;\nconst isEnglish = prev.idioma && !prev.idioma.toLowerCase().includes('espa');\n\n// Link tracking URL\nconst trackedFormUrl = 'https://hooks.dravaautomations.com/webhook/email-click?alumno=' + alumnoId + '&tipo=onboarding&inboxId=' + inboxId + '&url=' + encodeURIComponent(formOnboarding);\n\nconst greeting = isEnglish ? 'Hi ' + displayName + '!' : '&iexcl;Hola ' + displayName + '!';\nconst headerBlock = '<div style=\"text-align:center;margin-bottom:30px\"><div style=\"font-size:36px\">&#127881;&#128131;</div><h1 style=\"color:#0C5A45;font-size:24px;margin:10px 0\">' + greeting + '</h1></div>';\n\nconst buttonText = isEnglish ? 'COMPLETE FINAL DETAILS' : 'COMPLETAR DATOS FINALES';\nconst buttonStyle = 'background-color:#0C5A45;color:#fff;font-size:14px;font-weight:600;text-decoration:none;padding:15px 30px;border-radius:3px;display:inline-block;letter-spacing:0.5px;';\nconst ctaButton = '<table border=\"0\" cellspacing=\"0\" cellpadding=\"0\" width=\"100%\"><tr><td align=\"center\" style=\"padding:20px 0;\"><a href=\"' + trackedFormUrl + '\" target=\"_blank\" style=\"' + buttonStyle + '\">' + buttonText + '</a></td></tr></table>';\n\nlet bodyContent;\nif (isEnglish) {\n  bodyContent = '<p style=\"color:#1A1A1A;line-height:1.7;font-size:15px\">Your payment has been confirmed! You are now officially part of our bachata course.</p>' +\n    '<p style=\"color:#1A1A1A;line-height:1.7;font-size:15px\">We are very excited to have you with us. We just need a few final details to prepare everything:</p>' +\n    ctaButton +\n    '<p style=\"color:#888;font-size:14px;text-align:center\">T-shirt size, emergency contact details, etc.</p>' +\n    '<div style=\"background:#f0f7f4;border-radius:8px;padding:20px;margin:25px 0\">' +\n    '<p style=\"color:#0C5A45;font-weight:600;margin:0 0 8px\">Next steps:</p>' +\n    '<ol style=\"color:#1A1A1A;line-height:1.8;margin:0;padding-left:20px\">' +\n    '<li>Fill out the form above</li>' +\n    '<li>We will send you the complete course information (schedules, location, what to bring)</li>' +\n    '<li>See you soon!</li></ol></div>';\n} else {\n  bodyContent = '<p style=\"color:#1A1A1A;line-height:1.7;font-size:15px\">&iexcl;Tu pago ha sido confirmado! Ya eres oficialmente parte de nuestro curso de bachata.</p>' +\n    '<p style=\"color:#1A1A1A;line-height:1.7;font-size:15px\">Estamos muy emocionados de tenerte con nosotros. Solo necesitamos unos &uacute;ltimos datos para preparar todo:</p>' +\n    ctaButton +\n    '<p style=\"color:#888;font-size:14px;text-align:center\">Talla de camiseta, datos de contacto de emergencia, etc.</p>' +\n    '<div style=\"background:#f0f7f4;border-radius:8px;padding:20px;margin:25px 0\">' +\n    '<p style=\"color:#0C5A45;font-weight:600;margin:0 0 8px\">Pr&oacute;ximos pasos:</p>' +\n    '<ol style=\"color:#1A1A1A;line-height:1.8;margin:0;padding-left:20px\">' +\n    '<li>Rellena el formulario de arriba</li>' +\n    '<li>Te enviaremos la informaci&oacute;n completa del curso (horarios, lugar, qu&eacute; traer)</li>' +\n    '<li>&iexcl;Nos vemos pronto!</li></ol></div>';\n}\n\nconst signature = '<p style=\"margin:25px 0 0;text-align:center;font-size:15px;color:#1A1A1A;\"><strong>Alonso &amp; Noelia</strong></p>';\nconst socialLinks = '<p style=\"margin-bottom:15px;\"><a href=\"https://www.instagram.com/alonsoynoelia\" style=\"color:#1A1A1A;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;margin:0 8px;\">INSTAGRAM</a> <a href=\"https://www.youtube.com/@alonsoynoelia\" style=\"color:#1A1A1A;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;margin:0 8px;\">YOUTUBE</a> <a href=\"https://alonsoynoeliaonline.com\" style=\"color:#1A1A1A;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:1px;margin:0 8px;\">WEB</a></p>';\n\nconst subject = prev.subject;\n\nconst htmlBody = '<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>' + subject + '</title><style>body{margin:0;padding:0;width:100%!important;background-color:#F6F3EE;font-family:Inter,Helvetica Neue,Arial,sans-serif;color:#1A1A1A}@media screen and (max-width:520px){.wrapper{width:100%!important}.inner{padding:30px 20px!important}}</style></head><body style=\"margin:0;padding:0;background-color:#F6F3EE;\"><center><table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"background-color:#F6F3EE;\"><tr><td align=\"center\" valign=\"top\" style=\"padding:20px;\"><table class=\"wrapper\" width=\"500\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\" style=\"width:500px;max-width:500px;margin:0 auto;\"><tr><td align=\"center\" style=\"padding-bottom:25px;\"><img src=\"https://sawa-dev-2-storage-bucket.storage.googleapis.com/profiles/nx0mtgi3zeb8acxp-d7a42.png\" alt=\"Alonso y Noelia\" width=\"160\" style=\"display:block;\"></td></tr><tr><td style=\"background-color:#fff;border-radius:4px;overflow:hidden;box-shadow:0 5px 15px rgba(0,0,0,0.03);\"><table width=\"100%\" border=\"0\" cellpadding=\"0\" cellspacing=\"0\"><tr><td class=\"inner\" style=\"padding:40px 30px;font-size:15px;line-height:1.7;color:#1A1A1A;\">' + headerBlock + bodyContent + signature + '</td></tr></table></td></tr><tr><td style=\"padding:25px 0;text-align:center;\">' + socialLinks + '<p style=\"font-size:10px;color:#A9A9A9;margin:0;\">&copy; 2026 Alonso &amp; Noelia.</p></td></tr></table></td></tr></table></center><img src=\"' + trackPixel + '\" width=\"1\" height=\"1\" style=\"display:none\" alt=\"\"></body></html>';\n\nreturn [{\n  json: {\n    email: prev.email,\n    nombre: displayName,\n    alumnoId,\n    inboxId,\n    trackPixel,\n    formOnboarding,\n    idioma: prev.idioma,\n    subject,\n    htmlBody\n  }\n}];"
+      },
+      "id": "montar-html-wf8",
+      "name": "Montar Email HTML",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1152,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": false,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.idioma }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "c2",
+              "leftValue": "={{ $json.idioma.toLowerCase() }}",
+              "rightValue": "espa",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            },
+            {
+              "id": "c3",
+              "leftValue": "={{ $json.idioma.toLowerCase() }}",
+              "rightValue": "ingl",
+              "operator": {
+                "type": "string",
+                "operation": "notContains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-traducir-wf8",
+      "name": "Traducir?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1376,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ JSON.stringify({subject: $json.subject, htmlBody: $json.htmlBody}) }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Translate the following JSON values to English. Keep the keys unchanged. Preserve all HTML tags, attributes, URLs, and structure exactly. Only translate visible text content.\\n\\nCRITICAL - Do NOT translate these terms (keep them exactly as-is in Spanish/original):\\n- \"bachata\" (it is a dance style name, not a word to translate)\\n- \"ProEv\" (brand name)\\n- \"Alonso & Noelia\" / \"Alonso y Noelia\" (proper names)\\n- The course is called \"Professional Evolution Course\" in English (NOT \"professional training course\" or \"bachelor course\")\\n- \"formación para profesores de bachata\" should be translated as \"Professional Evolution Course for bachata teachers\"\\n\\nRespond ONLY with the translated JSON."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "id": "llm-traducir-wf8",
+      "name": "Traducir Email",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1600,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-haiku-4.5",
+        "options": {}
+      },
+      "id": "openrouter-wf8",
+      "name": "OpenRouter Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1616,
+        144
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "QhsRH5XtedXrjlUo",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\"subject\": \"Example subject in English\", \"htmlBody\": \"<p>Example HTML</p>\"}"
+      },
+      "id": "parser-wf8",
+      "name": "Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1744,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const llmOutput = $json.output || {};\nconst original = $('Traducir?').item.json;\nreturn [{\n  json: {\n    email: original.email,\n    nombre: original.nombre,\n    alumnoId: original.alumnoId,\n    inboxId: original.inboxId,\n    subject: llmOutput.subject || original.subject,\n    htmlBody: llmOutput.htmlBody || original.htmlBody,\n    trackPixel: original.trackPixel,\n    idioma: original.idioma\n  }\n}];"
+      },
+      "id": "extract-trad-wf8",
+      "name": "Extraer Traduccion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1952,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.htmlBody }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "email-onboarding",
+      "name": "Email Onboarding",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2176,
+        48
+      ],
+      "webhookId": "fe41bfd4-0a5d-44d1-a6f6-9033fa208300",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "b7Ntns1A8KOn5Fs3",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "inbox",
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Montar Email HTML').item.json.inboxId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "message_id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "thread_id",
+              "fieldValue": "={{ $json.threadId }}"
+            },
+            {
+              "fieldId": "contenido_html",
+              "fieldValue": "={{ $('Montar Email HTML').item.json.htmlBody }}"
+            },
+            {
+              "fieldId": "asunto",
+              "fieldValue": "={{ $('Montar Email HTML').item.json.subject }}"
+            }
+          ]
+        }
+      },
+      "id": "actualizar-inbox-wf8",
+      "name": "Actualizar Inbox",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2400,
+        48
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "alumnos",
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Montar Email HTML').item.json.alumnoId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "onboarding_enviado",
+              "fieldValue": "={{ true }}"
+            }
+          ]
+        }
+      },
+      "id": "marcar-enviado",
+      "name": "Marcar Onboarding Enviado",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2624,
+        48
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "Email de onboarding enviado con enlace al formulario de datos finales (talla camiseta, idioma libro, etc.)"
+            },
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $('Montar Email HTML').item.json.alumnoId }}"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Email Enviado"
+            },
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Workflow Automatico"
+            }
+          ]
+        }
+      },
+      "id": "log-onboarding",
+      "name": "Log Historial",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2848,
+        48
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "content": "## SB-TWIN — Alumno Pagado: Enviar Onboarding\\n\\nGemelo Supabase de `[Airtable] Alumno Pagado - Enviar Onboarding` (id `tAsjIcEV9celCA7y`).\\n\\n**Swaps Airtable → Supabase**\\n- `Crear Inbox Pre-Envio`: HTTP→Airtable `tblyp8NSzdpnTqkPD` → Supabase **create** `inbox`. Campos: `Direccion`→`direccion`(Enviado), `De`→`de`, `Para`→`para`, `Asunto`→`asunto`, `Contenido`→`contenido`, `Fecha`→`fecha`, `Estado`→`estado`(Archivado), `Origen`→`origen`(Automatico), `Alumno:[id]`→`alumno_id`(UUID escalar).\\n- `Actualizar Inbox`: HTTP PATCH→Airtable → Supabase **update** `inbox` WHERE `id = inboxId`. Campos: `messageId`→`message_id`, `threadId`→`thread_id`, `Contenido HTML`→`contenido_html`, `Asunto`→`asunto`.\\n- `Marcar Onboarding Enviado`: HTTP PATCH alumnos → Supabase **update** `alumnos` WHERE `id = alumnoId` SET `onboarding_enviado=true`.\\n- `Log Historial`: Airtable create `tbl3Zkove7j24eCho` → Supabase **create** `historial`. `Descripción Detallada`→`descripcion`, `Alumno:[id]`→`alumno_id`(escalar), `Tipo de Acción`→`tipo_accion`, `Origen del Evento`→`origen_evento`(Workflow Automatico).\\n\\n**FK [0] fixes**\\n- `Alumno: [$json.alumnoId]` (array wrap, Airtable linked) → `alumno_id: {{ $json.alumnoId }}` (UUID escalar) en inbox y historial.\\n- `inboxId` = `id` de la fila creada por `Crear Inbox Pre-Envio` (Supabase create devuelve la fila con `id`). Las dos updates filtran por `id` escalar.\\n\\n**Trigger — sustituido (airtableTrigger → Webhook)**\\n- Path: `sb-alumno-pagado-onboarding` (prefijo `sb-`).\\n- **Supabase DB Webhook a crear (inactivo hasta cutover)**:\\n  - Tabla: `alumnos`  ·  Evento: **UPDATE** (también INSERT por seguridad).\\n  - Condición de disparo: `NEW.estado_general = 'Pagado' AND NEW.onboarding_enviado = false`.\\n  - **Loop-guard**: este workflow escribe `alumnos.onboarding_enviado=true` (Marcar Onboarding Enviado). Ese UPDATE NO debe re-disparar → la condición `onboarding_enviado=false` ya lo evita (tras el envío pasa a true). Aun así, filtrar en la función trigger por `NEW.onboarding_enviado = false AND (OLD.onboarding_enviado IS DISTINCT FROM false OR OLD.estado_general IS DISTINCT FROM 'Pagado')` para no re-disparar en otros UPDATEs de la fila ya enviada.\\n  - Envelope payload esperado por el Webhook: Supabase DB-webhook envía `{ type, table, record, old_record }`. El nodo `Preparar Onboarding` lee `item.json.fields || item.json`; al cutover, mapear `body.record` → raíz (añadir un Set/Code que exponga `record` como item, o ajustar `Preparar Onboarding` para leer `$json.record`). **Flag**: verificar en 1ª ejecución de test el shape del payload.\\n\\n**Verificar al cutover**\\n- Campo `Asunto` se escribe en inbox tanto al crear como al actualizar (paridad con el original).\\n- Coerción boolean `onboarding_enviado=true` (string vs bool) en la 1ª ejecución.\\n- El recId del payload pasa a ser el UUID Supabase del alumno; `alumnoId` fluye como UUID por toda la cadena.",
+        "height": 620,
+        "width": 520
+      },
+      "id": "sticky-note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        240,
+        720
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Alumno Pagado": {
+      "main": [
+        [
+          {
+            "node": "Preparar Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Tiene Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tiene Email?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Crear Inbox Pre-Envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Inbox Pre-Envio": {
+      "main": [
+        [
+          {
+            "node": "Montar Email HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Montar Email HTML": {
+      "main": [
+        [
+          {
+            "node": "Traducir?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traducir?": {
+      "main": [
+        [
+          {
+            "node": "Traducir Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Traducir Email": {
+      "main": [
+        [
+          {
+            "node": "Extraer Traduccion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Traduccion": {
+      "main": [
+        [
+          {
+            "node": "Email Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Inbox",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Inbox": {
+      "main": [
+        [
+          {
+            "node": "Marcar Onboarding Enviado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Onboarding Enviado": {
+      "main": [
+        [
+          {
+            "node": "Log Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Traducir Email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Traducir Email",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "5R7voQ7DIOtsgjDw",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Europe/Madrid"
+  }
+}

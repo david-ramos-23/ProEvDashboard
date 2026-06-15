@@ -17,7 +17,10 @@ interface AirtableAlumnoFields {
   'Estado General'?: EstadoGeneral;
   'Idioma'?: string;
   'Modulo Solicitado'?: string;
+  /** Selección de inscripción del formulario (rollup), p.ej. ["Modules 1 + 2 + 3"] */
   'Modules'?: string[];
+  /** Módulos realmente completados, p.ej. ["1", "2", "3"] */
+  'Modulos Completados'?: string[];
   'Edicion'?: string[];
   'Nombre Edicion'?: string[];
   'Foto de Perfil'?: Array<{ url: string }>;
@@ -59,7 +62,8 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
     estadoGeneral: f['Estado General'] || ESTADO.PRIVADO,
     idioma: (f['Idioma'] === 'Ingles' ? 'Ingles' : 'Espanol'),
     moduloSolicitado: f['Modulo Solicitado'],
-    modulosCompletados: f['Modules'],
+    modulosInscritos: f['Modules'],
+    modulosCompletados: f['Modulos Completados'],
     edicionId: f['Edicion']?.[0],
     edicion: f['Nombre Edicion']?.[0],
     fotoPerfil: f['Foto de Perfil']?.[0]?.url,

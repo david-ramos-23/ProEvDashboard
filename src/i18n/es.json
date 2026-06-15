@@ -73,6 +73,8 @@
     "datosAlumno": "Datos del Alumno",
     "fechaPlazo": "Fecha Plazo",
     "preinscripcion": "Preinscripcion",
+    "modulosInscritos": "Inscrito en",
+    "modulosCompletados": "Completados",
     "ultimaModificacion": "Ultima Modificacion",
     "notasInternas": "Notas Internas",
     "notasPlaceholder": "Notas privadas sobre este alumno...",

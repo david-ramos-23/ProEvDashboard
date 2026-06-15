@@ -1,0 +1,194 @@
+{
+  "name": "[SB-TWIN] [Schedule] Diario 3am - Borrar Eliminados +30 Dias",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 3
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Cada Dia 3am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [256, 336]
+    },
+    {
+      "parameters": {
+        "jsCode": "// PostgREST no puede computar NOW()-30d en el filtro, asi que el cutoff\n// se calcula aqui y se inyecta en el filterString del nodo Supabase.\nconst cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();\nreturn [{ json: { cutoff } }];"
+      },
+      "id": "calc-cutoff",
+      "name": "Calcular Cutoff 30d",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [416, 336]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "inbox",
+        "returnAll": true,
+        "filterType": "string",
+        "filterString": "=estado=eq.Eliminado&updated_at=lt.{{ $json.cutoff }}&select=id,message_id,asunto"
+      },
+      "id": "search-old-deleted",
+      "name": "Buscar Eliminados +30 Dias",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [608, 336],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "check-length",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "check-results",
+      "name": "Hay Registros?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [832, 336]
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "inbox",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        }
+      },
+      "id": "delete-records",
+      "name": "Borrar Registros",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1056, 240],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Preparar datos para log en Historial (Supabase snake_case)\nconst deleted = $input.all();\nconst count = deleted.length;\n\nif (count === 0) {\n  return [{ json: { cleanedUp: 0, timestamp: new Date().toISOString() } }];\n}\n\n// Generar descripción con lista de asuntos eliminados (max 5)\nconst asuntos = deleted.slice(0, 5).map(d => d.json.asunto || '(sin asunto)').join(', ');\nconst descripcion = count <= 5\n  ? `Limpieza automática: ${count} emails eliminados permanentemente (${asuntos})`\n  : `Limpieza automática: ${count} emails eliminados permanentemente (${asuntos}... y ${count - 5} más)`;\n\nreturn [{ json: {\n  cleanedUp: count,\n  timestamp: new Date().toISOString(),\n  descripcion: descripcion\n} }];"
+      },
+      "id": "log-cleanup",
+      "name": "Log Limpieza",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1280, 240]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Automatización"
+            },
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Workflow Automatico"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "={{ $json.descripcion }}"
+            }
+          ]
+        }
+      },
+      "id": "log-historial",
+      "name": "Log Historial",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1504, 240],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "content": "## Twin Supabase — mapeo Airtable → Supabase\n\n**Trigger:** ScheduleTrigger (3am) — NO era airtableTrigger, se preserva tal cual. No requiere DB-Webhook.\n\n**Swaps:**\n- Buscar (Airtable `tblyp8NSzdpnTqkPD`) → Supabase `inbox` getAll.\n- Borrar (Airtable deleteRecord) → Supabase `inbox` delete by `id`.\n- Log Historial (HTTP POST a `tbl3Zkove7j24eCho`) → Supabase `historial` create.\n\n**Mapeo de columnas:**\n- `{Estado}='Eliminado'` → `estado=eq.Eliminado` (enum `estado_inbox` contiene 'Eliminado' ✓)\n- `{Ultima Modificacion}` → **`updated_at`** (no hay columna directa; `updated_at` lo mantiene `trg_inbox_updated`). DECISIÓN: equivalente más cercano al last-modified de Airtable.\n- `messageId`→`message_id`, `Asunto`→`asunto`.\n- Historial: `Tipo de Acción`→`tipo_accion`, `Origen del Evento`→`origen_evento`, `Descripción Detallada`→`descripcion`.\n\n**Cutoff:** PostgREST no computa NOW()-30d en filtro → nodo Code calcula ISO y se inyecta en `updated_at=lt.{{cutoff}}`.\n\n**FK shift:** ninguno relevante (no se indexaba `campo[0]`; el delete usa el escalar `id` UUID de cada fila).\n\n**INCERTIDUMBRE:** `origen_evento` es enum `origen_evento`; el valor 'Workflow Automatico' debe existir en ese enum (live Airtable lo tiene). Verificar en Supabase antes de cutover.",
+        "height": 460,
+        "width": 420
+      },
+      "id": "sticky-mapping",
+      "name": "Mapping Spec",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [256, 560]
+    }
+  ],
+  "connections": {
+    "Cada Dia 3am": {
+      "main": [[{ "node": "Calcular Cutoff 30d", "type": "main", "index": 0 }]]
+    },
+    "Calcular Cutoff 30d": {
+      "main": [[{ "node": "Buscar Eliminados +30 Dias", "type": "main", "index": 0 }]]
+    },
+    "Buscar Eliminados +30 Dias": {
+      "main": [[{ "node": "Hay Registros?", "type": "main", "index": 0 }]]
+    },
+    "Hay Registros?": {
+      "main": [
+        [{ "node": "Borrar Registros", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Borrar Registros": {
+      "main": [[{ "node": "Log Limpieza", "type": "main", "index": 0 }]]
+    },
+    "Log Limpieza": {
+      "main": [[{ "node": "Log Historial", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Madrid",
+    "errorWorkflow": "5R7voQ7DIOtsgjDw",
+    "callerPolicy": "workflowsFromSameOwner"
+  }
+}

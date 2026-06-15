@@ -1,0 +1,204 @@
+{
+  "name": "[SB-TWIN] [Sub] Campaña Email Apertura Publica",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            { "name": "edicionId" }
+          ]
+        }
+      },
+      "id": "execute-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [272, 352]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            { "field": "cronExpression", "expression": "20 12 3 3 *" }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule 3 Mar 12h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [272, 560],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Edicion activa Vol II (Supabase UUID)\n// IMPORTANT: replace with the Supabase UUID of the active edition row.\n// Original Airtable recId was 'recLTGTKislECUVYG'.\nreturn [{ json: { edicionId: 'recLTGTKislECUVYG' } }];"
+      },
+      "id": "simular-input",
+      "name": "Simular Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [512, 560]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alumnos",
+        "returnAll": true,
+        "filterType": "string",
+        "filterString": "or=(estado_general.eq.Finalizado,estado_general.eq.Rechazado)"
+      },
+      "id": "leer-alumnos",
+      "name": "Leer Alumnos Campaña",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [752, 352],
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// MODO PRODUCCION: Enviar a alumnos reales, excluir test users\nconst TEST_MODE = false;\n\n// EdicionId: intentar del workflow padre, fallback del Schedule\nlet edicionId;\ntry {\n  edicionId = $('Execute Workflow Trigger').first().json.edicionId;\n} catch(e) {\n  edicionId = $('Simular Input').first().json.edicionId;\n}\nif (!edicionId) throw new Error('edicionId no recibido');\n\nconst alumnos = $('Leer Alumnos Campa\\u00f1a').all().map(i => i.json);\n\n// Emails compartidos por parejas\nconst sharedEmails = new Set([\n  'laiarouraprat@gmail.com',\n  'emiliogalvezcifuentes3@gmail.com',\n  'andreajulen2019@gmail.com',\n  'vallobas4ever@gmail.com',\n  'chautardcynthia@gmail.com',\n  'mamsalki@gmail.com'\n]);\n\n// FNV-1a hash para token de confirmacion\nfunction makeToken(recordId) {\n  const secret = 'pEv2026-xK9mP2vL7qR8nJ3w';\n  const str = recordId + ':' + secret;\n  let hash = 0x811c9dc5;\n  for (let i = 0; i < str.length; i++) {\n    hash ^= str.charCodeAt(i);\n    hash = Math.imul(hash, 0x01000193);\n  }\n  return (hash >>> 0).toString(16);\n}\n\n// Supabase: columns are scalar (no Airtable lookup-array wrapping).\nconst getField = (record, field) => {\n  const val = record[field];\n  return Array.isArray(val) ? val[0] : (val || '');\n};\n\n// modulos_completados is a Postgres text[]; normalize to array of strings.\nconst getModulos = (record) => {\n  const m = record.modulos_completados;\n  if (Array.isArray(m)) return m.map(x => String(x));\n  if (m == null) return [];\n  return String(m).split(',').map(x => x.trim()).filter(Boolean);\n};\n\nconst isEnglish = (idioma) => {\n  const lang = (idioma || '').toLowerCase();\n  return lang.includes('ingles') || lang.includes('english') || lang.includes('eng');\n};\n\nconst results = [];\n\nfor (const a of alumnos) {\n  // Supabase snake_case scalar columns\n  const em = getField(a, 'email');\n  const nm = getField(a, 'nombre') || a['display_name'] || '';\n  // Excluir TODOS los test users\n  if (em.includes('andara14') || (nm+'').includes('Alumno Ficticio')) continue;\n\n  const estado = a.estado_general;\n\n  // Replica del filterByFormula Airtable: Finalizado solo si NO completo los 3 modulos.\n  if (estado === 'Finalizado') {\n    const mods = getModulos(a).join(',');\n    const has1 = mods.includes('1');\n    const has2 = mods.includes('2');\n    const has3 = mods.includes('3');\n    if (has1 && has2 && has3) continue; // completo los 3 -> excluir\n  } else if (estado !== 'Rechazado') {\n    continue; // solo Finalizado (parcial) o Rechazado\n  }\n\n  const email = em;\n  const nombre = getField(a, 'nombre');\n  const idioma = a.idioma || '';\n  const isShared = sharedEmails.has(email.toLowerCase());\n  const en = isEnglish(idioma);\n\n  let mensaje, grupo;\n\n  if (estado === 'Finalizado') {\n    grupo = 'finalizado';\n    const token = makeToken(a.id);\n    const confirmUrl = `https://hooks.dravaautomations.com/webhook/confirmar-interes?token=${token}&edicion=${edicionId}`;\n\n    if (en) {\n      mensaje = `Public registrations for Professional Evolution Course Vol II are now open. As a student who completed modules in the previous edition, you don't need to fill out the form or submit a video again. If you're interested in participating, confirm your interest using this link: ${confirmUrl}. You'll then be able to choose the module you're interested in.`;\n    } else {\n      mensaje = `Las inscripciones p\\u00fablicas de Professional Evolution Course Vol II ya est\\u00e1n abiertas. Como alumno que completaste m\\u00f3dulos en la edici\\u00f3n anterior, no necesitas rellenar formulario ni enviar video de nuevo. Si te interesa participar, confirma tu inter\\u00e9s en este enlace: ${confirmUrl}. Despu\\u00e9s podr\\u00e1s elegir el m\\u00f3dulo que te interesa.`;\n    }\n  } else {\n    grupo = 'rechazado';\n    const tallyUrl = `https://tally.so/r/vGMKM0?fullname=${encodeURIComponent(nombre)}&email=${encodeURIComponent(email)}&alumnoId=${encodeURIComponent(a.id)}`;\n\n    if (en) {\n      mensaje = `Public registrations for Professional Evolution Course Vol II are now open. You can apply again by filling out the registration form at this link: ${tallyUrl}. The process includes submitting a review video so we can assess your level.`;\n    } else {\n      mensaje = `Las inscripciones p\\u00fablicas para Professional Evolution Course Vol II est\\u00e1n abiertas. Puedes aplicar de nuevo rellenando el formulario de inscripci\\u00f3n en este enlace: ${tallyUrl}. El proceso incluye enviar un video de revisi\\u00f3n para que podamos evaluar tu nivel.`;\n    }\n  }\n\n  if (isShared) {\n    mensaje += en\n      ? ' Important: each student must use a unique email address for their registration.'\n      : ' Importante: cada alumno debe usar un correo electr\\u00f3nico \\u00fanico para su inscripci\\u00f3n.';\n  }\n\n  results.push({ json: {\n    alumnoId: a.id, email, nombre, grupo,\n    tipo: 'informacion', mensaje, estado: 'Pendiente'\n  }});\n}\n\nif (results.length === 0) {\n  return [{ json: { skip: true, reason: 'No alumnos reales encontrados', total: alumnos.length } }];\n}\n\nreturn results;"
+      },
+      "id": "preparar-cola",
+      "name": "Preparar Cola",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 352]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-hay-alumnos",
+      "name": "Hay Alumnos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1184, 352]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "split-batches",
+      "name": "Procesar Uno a Uno",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1408, 240]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "cola_emails",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            { "fieldId": "alumno_id", "fieldValue": "={{ $json.alumnoId }}" },
+            { "fieldId": "tipo", "fieldValue": "={{ $json.tipo }}" },
+            { "fieldId": "mensaje", "fieldValue": "={{ $json.mensaje }}" },
+            { "fieldId": "estado", "fieldValue": "={{ $json.estado }}" }
+          ]
+        }
+      },
+      "id": "crear-cola",
+      "name": "Crear Cola Email",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1632, 144],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "id": "wait-node",
+      "name": "Esperar 2s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1840, 144],
+      "webhookId": "3a62bea1-e7f0-4b5e-87f4-4ee0cc98c19a"
+    },
+    {
+      "parameters": {
+        "content": "## SB-TWIN — Campaña Email Apertura Publica\n\nGemelo Supabase de `[Sub] Campaña Email Apertura Publica` (id `yP0Ehu1fk86ZAJoS`).\n\n**Swaps Airtable → Supabase**\n- `Leer Alumnos Campaña`: Airtable `tblmfv5beVBGOZ2sb` → Supabase `alumnos`. El `filterByFormula` complejo (FIND sobre ARRAYJOIN de Modulos Completados) NO es expresable en PostgREST → se reduce a `or=(estado_general.eq.Finalizado,estado_general.eq.Rechazado)` y el refinamiento \"NO completó los 3 módulos\" se hace en `Preparar Cola`.\n- `Crear Cola Email`: Airtable `tblVqFfucbW5POC5u` → Supabase `cola_emails`. Campos: `Alumno`→`alumno_id` (UUID escalar, ya NO `[arr]`), `Tipo`→`tipo`, `Mensaje`→`mensaje`, `Estado`→`estado`.\n\n**FK [0] fixes**\n- Airtable `Alumno: {{ [$json.alumnoId] }}` (array wrap) → Supabase `alumno_id: {{ $json.alumnoId }}` (escalar).\n- `Preparar Cola` `getField()` ya tolera array/escalar; columnas Supabase leídas como escalares (`email`, `nombre`, `idioma`, `estado_general`). `modulos_completados` se normaliza como text[].\n\n**Trigger**: es `executeWorkflowTrigger` (sub-workflow llamado por el padre `Gestionar Estado Edicion` twin) — se conserva, NO se sustituye por webhook.\n\n**Pendiente al cutover**: `Simular Input` devuelve el recId Airtable original; sustituir por el UUID Supabase de la edición activa.",
+        "height": 420,
+        "width": 460
+      },
+      "id": "sticky-note",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [240, 740]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [[{ "node": "Leer Alumnos Campaña", "type": "main", "index": 0 }]]
+    },
+    "Schedule 3 Mar 12h": {
+      "main": [[{ "node": "Simular Input", "type": "main", "index": 0 }]]
+    },
+    "Simular Input": {
+      "main": [[{ "node": "Leer Alumnos Campaña", "type": "main", "index": 0 }]]
+    },
+    "Leer Alumnos Campaña": {
+      "main": [[{ "node": "Preparar Cola", "type": "main", "index": 0 }]]
+    },
+    "Preparar Cola": {
+      "main": [[{ "node": "Hay Alumnos?", "type": "main", "index": 0 }]]
+    },
+    "Hay Alumnos?": {
+      "main": [
+        [{ "node": "Procesar Uno a Uno", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Procesar Uno a Uno": {
+      "main": [
+        [],
+        [{ "node": "Crear Cola Email", "type": "main", "index": 0 }]
+      ]
+    },
+    "Crear Cola Email": {
+      "main": [[{ "node": "Esperar 2s", "type": "main", "index": 0 }]]
+    },
+    "Esperar 2s": {
+      "main": [[{ "node": "Procesar Uno a Uno", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": "5R7voQ7DIOtsgjDw",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Europe/Madrid"
+  }
+}

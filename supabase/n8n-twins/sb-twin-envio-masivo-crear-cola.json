@@ -1,0 +1,378 @@
+{
+  "name": "[SB-TWIN] [Airtable] Envio Masivo - Crear Cola Individual",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sb-envio-masivo-crear-cola",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "trigger-envio",
+      "name": "Nuevo Envio Pendiente (DB Webhook)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        256,
+        304
+      ],
+      "webhookId": "sb-envio-masivo-crear-cola"
+    },
+    {
+      "parameters": {
+        "jsCode": "// DB-Webhook payload from Supabase: { type, table, record, old_record }.\n// Normalize to the envio row regardless of trigger framing.\nconst body = $json.body || $json;\nconst envio = body.record || body;\nreturn [{ json: envio }];"
+      },
+      "id": "extraer-envio",
+      "name": "Extraer Envio",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "envios_emails",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado",
+              "fieldValue": "Procesando"
+            }
+          ]
+        }
+      },
+      "id": "marcar-procesando",
+      "name": "Marcar Procesando",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        704,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Supabase: the envio row is scalar snake_case. Linked field {Alumnos}\n// (recId array in Airtable) is now the scalar UUID[] column `alumnos_ids`.\nconst envio = $('Extraer Envio').first().json;\nconst alumnoIds = envio.alumnos_ids || [];\nconst mensaje = envio.mensaje || '';\nconst tipo = envio.tipo || 'informacion';\nconst envioId = envio.id;\n// No `nombre` column on envios_emails; use `descripcion` as the human label.\nconst envioNombre = envio.descripcion || 'Envio sin nombre';\n\nif (alumnoIds.length === 0) {\n  throw new Error('El envio no tiene alumnos seleccionados');\n}\n\n// One item per alumno (UUID FK, no longer wrapped in an array).\nreturn alumnoIds.map(alumnoId => ({\n  json: {\n    alumnoId,\n    mensaje,\n    tipo,\n    envioId,\n    envioNombre,\n    totalAlumnos: alumnoIds.length\n  }\n}));"
+      },
+      "id": "expandir-alumnos",
+      "name": "Expandir Alumnos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "cola_emails",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $json.alumnoId }}"
+            },
+            {
+              "fieldId": "mensaje",
+              "fieldValue": "={{ $json.mensaje }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "={{ $json.tipo }}"
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "Pendiente"
+            }
+          ]
+        }
+      },
+      "id": "crear-registro-cola",
+      "name": "Crear Registro Cola",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst envioId = $('Expandir Alumnos').first().json.envioId;\nconst envioNombre = $('Expandir Alumnos').first().json.envioNombre;\nconst totalCreados = items.length;\n\nreturn [{\n  json: {\n    envioId,\n    envioNombre,\n    totalCreados,\n    mensaje: `Se crearon ${totalCreados} registros en Cola de Emails`\n  }\n}];"
+      },
+      "id": "contar-resultados",
+      "name": "Contar Resultados",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "envios_emails",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.envioId }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado",
+              "fieldValue": "Completado"
+            },
+            {
+              "fieldId": "emails_creados",
+              "fieldValue": "={{ $json.totalCreados }}"
+            },
+            {
+              "fieldId": "fecha_completado",
+              "fieldValue": "={{ $now.format('yyyy-MM-dd') }}"
+            }
+          ]
+        }
+      },
+      "id": "marcar-completado",
+      "name": "Marcar Completado",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Workflow Automatico"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Envio Masivo"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "={{ $json.mensaje }}"
+            }
+          ]
+        }
+      },
+      "id": "log-historial",
+      "name": "Log Historial",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "envios_emails",
+        "filterType": "manual",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Extraer Envio').item.json.id }}"
+            }
+          ]
+        },
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado",
+              "fieldValue": "Error"
+            }
+          ]
+        }
+      },
+      "id": "marcar-error",
+      "name": "Marcar Error",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        528
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Twin Supabase — [Airtable] Envio Masivo - Crear Cola Individual\n\n**Original:** `L0d0Nj24XosJI0HB` (airtableTrigger + 3 HTTP PATCH + 2 Airtable nodes).\n\n### Trigger — DB Webhook spec (configurar en Supabase en cutover)\n- **Reemplazo:** airtableTrigger (poll 5min) → n8n **Webhook** POST `sb-envio-masivo-crear-cola`.\n- **Tabla:** `envios_emails`\n- **Evento:** INSERT **y** UPDATE\n- **Condición de disparo (equivale a la fórmula Airtable):** `estado = 'Pendiente' AND mensaje IS NOT NULL AND mensaje <> '' AND array_length(alumnos_ids,1) >= 1`\n- **Payload:** Supabase DB Webhook envía `{ type, table, record, old_record }`; el nodo Code `Extraer Envio` normaliza `body.record`.\n- **LOOP-GUARD:** el flujo **escribe la misma tabla** `envios_emails` (Procesando/Completado/Error). El DB-Webhook **DEBE** excluir esos estados para no re-disparar: condición SOLO `NEW.estado='Pendiente'` (Procesando/Completado/Error nunca re-disparan). En UPDATE añadir `OLD.estado IS DISTINCT FROM NEW.estado` para evitar bucles por cambios en otros campos.\n\n### Swaps Airtable → Supabase\n- Trigger Airtable `tblsh8KaCMQ8KoKeU` → Webhook + tabla `envios_emails`.\n- `Marcar Procesando/Completado/Error` (HTTP PATCH a api.airtable.com) → Supabase **update** por `id`.\n- `Crear Registro Cola` (Airtable create `tblVqFfucbW5POC5u`) → Supabase **create** `cola_emails`.\n- `Log Historial` (Airtable) → Supabase **create** `historial`.\n\n### Mapeo de columnas (snake_case)\n- envios_emails: `Estado`→`estado`, `Mensaje`→`mensaje`, `Tipo`→`tipo`, `Alumnos`(recId[])→`alumnos_ids`(uuid[]), `Emails Creados`→`emails_creados`, `Fecha Completado`→`fecha_completado`.\n- cola_emails: `Alumno`([recId])→**`alumno_id`** (uuid escalar), `Mensaje`→`mensaje`, `Tipo`→`tipo`, `Estado`→`estado`.\n- historial: `Origen del Evento`→`origen_evento` (='Workflow Automatico').\n\n### FK shift\n- `{Alumnos}` era array de recIds → ahora `alumnos_ids` UUID[] (sigue siendo array; se itera igual, sin `[0]`).\n- `Crear Registro Cola` escribía `Alumno: [alumnoId]` (array linked) → ahora `alumno_id` UUID **escalar** (se quita el wrap `[ ]`).\n- `envioNombre`: Airtable `{Nombre}` no existe en `envios_emails` → se usa `descripcion`.\n\n### Columnas DROPEADAS vs original\n- **`Envio` (link cola→envio): NO existe `cola_emails.envio_id` en el schema.** El original linkeaba cada registro de cola con su envio padre; el twin lo OMITE. **INCERTIDUMBRE:** confirmar si se necesita esa trazabilidad antes de cutover (requeriría añadir columna `envio_id` al schema).\n\n### Otras incertidumbres\n- `cola_emails.estado` es enum `estado_email` {Pendiente Aprobacion, Pendiente, Enviando, Enviado, Error}. Original usaba 'Pendiente' → válido.\n- `historial`: original `Log Historial` estaba casi vacío (solo `Origen del Evento`, sin tableId). El twin añade `tipo_accion`+`descripcion` para que el INSERT sea útil; ajustar si se prefiere paridad mínima.\n- `tipo` debe ser un valor del enum `tipo_email`; el original pasaba `Tipo` tal cual con typecast. Verificar valores reales en `envios_emails.tipo`.",
+        "height": 760,
+        "width": 540
+      },
+      "id": "sticky-spec",
+      "name": "DB-Webhook Spec",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2040,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Nuevo Envio Pendiente (DB Webhook)": {
+      "main": [
+        [
+          {
+            "node": "Extraer Envio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Envio": {
+      "main": [
+        [
+          {
+            "node": "Marcar Procesando",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Procesando": {
+      "main": [
+        [
+          {
+            "node": "Expandir Alumnos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expandir Alumnos": {
+      "main": [
+        [
+          {
+            "node": "Crear Registro Cola",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crear Registro Cola": {
+      "main": [
+        [
+          {
+            "node": "Contar Resultados",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Marcar Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contar Resultados": {
+      "main": [
+        [
+          {
+            "node": "Marcar Completado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marcar Completado": {
+      "main": [
+        [
+          {
+            "node": "Log Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Europe/Madrid",
+    "errorWorkflow": "5R7voQ7DIOtsgjDw"
+  },
+  "id": "Hhc5F2Y8UKpYihrb",
+  "active": false
+}

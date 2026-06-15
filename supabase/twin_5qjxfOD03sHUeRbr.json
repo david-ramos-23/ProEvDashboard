@@ -1,0 +1,958 @@
+{
+  "name": "[SB-TWIN] [Stripe] Pago Recibido - Actualizar Alumno a Pagado",
+  "nodes": [
+    {
+      "id": "stripe-trigger-live",
+      "name": "Stripe Trigger LIVE",
+      "type": "n8n-nodes-base.stripeTrigger",
+      "typeVersion": 1,
+      "position": [
+        256,
+        288
+      ],
+      "webhookId": "707c025b-4089-4380-9252-2076a22608f7",
+      "credentials": {
+        "stripeApi": {
+          "id": "pnGQTdM9LjkcFKsY",
+          "name": "Stripe account LIVE"
+        }
+      },
+      "notes": "[SB-TWIN] INACTIVE — last to activate at cutover.\nStripe webhook trigger kept as-is: at cutover the Stripe dashboard webhook must be repointed to THIS workflow's webhook URL (or keep the path identical).\nIdempotency: pago dedup via getAll on pagos.id_sesion_stripe before insert.\nMISSING alumnos cols not used here (alerta_activa, dias_desde_ultimo_evento, display_name, feedback_video, enlace_pago, modules) — no fallback needed.",
+      "parameters": {
+        "events": [
+          "*"
+        ]
+      }
+    },
+    {
+      "id": "stripe-trigger",
+      "name": "Stripe Trigger TEST",
+      "type": "n8n-nodes-base.stripeTrigger",
+      "typeVersion": 1,
+      "position": [
+        256,
+        480
+      ],
+      "webhookId": "d6a7ef80-ae8a-4d1a-9dd9-2fbba8427e03",
+      "credentials": {
+        "stripeApi": {
+          "id": "JmttBG2YayeyKbdq",
+          "name": "Stripe account TEST"
+        }
+      },
+      "disabled": true,
+      "parameters": {
+        "events": [
+          "*"
+        ]
+      }
+    },
+    {
+      "id": "procesar-pago",
+      "name": "Procesar Pago",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        384
+      ],
+      "parameters": {
+        "jsCode": "const event = $input.first().json;\nconst type = event.type || '';\nconst obj = event.data && event.data.object ? event.data.object : {};\n\nconst successTypes = ['checkout.session.completed'];\nconst failureTypes = ['checkout.session.expired', 'charge.failed', 'payment_intent.payment_failed'];\nconst logTypes = ['charge.succeeded', 'charge.refunded', 'charge.updated', 'payment_intent.created', 'payment_intent.succeeded', 'payment_intent.canceled'];\n\nfunction stripePaymentUrl(piId) {\n  return piId ? 'https://dashboard.stripe.com/payments/' + piId : '';\n}\n\nfunction extractEmail(obj, type) {\n  if (type.startsWith('checkout.session')) {\n    return obj.customer_email || (obj.customer_details ? obj.customer_details.email : '') || '';\n  }\n  if (type.startsWith('charge.')) {\n    return obj.receipt_email || (obj.billing_details ? obj.billing_details.email : '') || '';\n  }\n  return obj.receipt_email || '';\n}\n\nif (successTypes.indexOf(type) >= 0) {\n  const session = obj;\n  const customerEmail = extractEmail(session, type);\n  const amountTotal = (session.amount_total || 0) / 100;\n  const currency = (session.currency || 'eur').toUpperCase();\n  const piId = session.payment_intent || '';\n  const metadata = session.metadata || {};\n  return [{ json: { result: 'success', customerEmail, amountTotal, currency, paymentId: piId, paymentUrl: stripePaymentUrl(piId), alumnoId: metadata.alumno_id || '', modulos: metadata.modulos || '', edicion: metadata.edicion || '', stripeSessionId: session.id || '', eventType: type } }];\n}\n\nif (failureTypes.indexOf(type) >= 0) {\n  var customerEmail = extractEmail(obj, type);\n  var failureReason = '';\n  var piId = '';\n  var alumnoId = (obj.metadata || {}).alumno_id || '';\n  if (type === 'checkout.session.expired') { failureReason = 'Checkout session expired'; piId = obj.payment_intent || ''; }\n  else if (type === 'charge.failed') { failureReason = obj.failure_message || obj.failure_code || 'Charge failed'; piId = obj.payment_intent || ''; }\n  else if (type === 'payment_intent.payment_failed') { var lastError = obj.last_payment_error || {}; failureReason = lastError.message || lastError.code || 'Payment failed'; piId = obj.id || ''; }\n  return [{ json: { result: 'failure', customerEmail, failureReason, paymentId: piId, paymentUrl: stripePaymentUrl(piId), alumnoId, eventType: type } }];\n}\n\nif (logTypes.indexOf(type) >= 0) {\n  var piId = obj.payment_intent || obj.id || '';\n  var amount = (obj.amount || obj.amount_received || 0) / 100;\n  var currency = (obj.currency || 'eur').toUpperCase();\n  var customerEmail = extractEmail(obj, type);\n  var description = type;\n  if (type === 'charge.succeeded') description = 'Cargo exitoso: ' + amount + ' ' + currency;\n  if (type === 'charge.refunded') description = 'Reembolso procesado: ' + amount + ' ' + currency;\n  if (type === 'charge.updated') description = 'Cargo actualizado';\n  if (type === 'payment_intent.created') description = 'Intento de pago creado: ' + amount + ' ' + currency;\n  if (type === 'payment_intent.succeeded') description = 'Intento de pago exitoso: ' + amount + ' ' + currency;\n  if (type === 'payment_intent.canceled') description = 'Intento de pago cancelado';\n  return [{ json: { result: 'log', eventType: type, description, customerEmail, paymentId: piId, paymentUrl: stripePaymentUrl(piId), amount, currency } }];\n}\n\nreturn [{ json: { result: 'skip', reason: 'Event type not tracked: ' + type } }];"
+      }
+    },
+    {
+      "id": "switch-resultado",
+      "name": "Resultado Pago",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        704,
+        368
+      ],
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.result }}",
+                    "rightValue": "success",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "60d0fd62-e0f6-43a6-a8ef-1e31ebe9cfd9"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "success"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.result }}",
+                    "rightValue": "failure",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "4ffbb390-1cef-4c6e-9a32-c10e2a312512"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "failure"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.result }}",
+                    "rightValue": "log",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "log-case-001"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "log"
+            }
+          ]
+        },
+        "options": {},
+        "mode": "rules"
+      }
+    },
+    {
+      "id": "buscar-alumno",
+      "name": "Buscar Alumno",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        928,
+        112
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alumnos",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "={{ $json.alumnoId ? 'id=eq.' + $json.alumnoId : 'email=ilike.' + encodeURIComponent($json.customerEmail) }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "id": "actualizar-pagado",
+      "name": "Actualizar a Pagado",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        112
+      ],
+      "parameters": {
+        "operation": "update",
+        "tableId": "alumnos",
+        "filterType": "string",
+        "filterString": "={{ 'id=eq.' + $json.id }}",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado_general",
+              "fieldValue": "Pagado"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "id": "buscar-pago-dup",
+      "name": "Buscar Pago Existente",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        112
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "pagos",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "={{ 'id_sesion_stripe=eq.' + $('Procesar Pago').item.json.stripeSessionId }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "if-pago-dup",
+      "name": "Pago Duplicado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1600,
+        112
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "crear-pago",
+      "name": "Registrar Pago",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        192
+      ],
+      "parameters": {
+        "tableId": "pagos",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $('Buscar Alumno').first().json.id }}"
+            },
+            {
+              "fieldId": "importe",
+              "fieldValue": "={{ $('Procesar Pago').item.json.amountTotal }}"
+            },
+            {
+              "fieldId": "moneda",
+              "fieldValue": "={{ $('Procesar Pago').item.json.currency }}"
+            },
+            {
+              "fieldId": "estado_pago",
+              "fieldValue": "Completado"
+            },
+            {
+              "fieldId": "fecha_pago",
+              "fieldValue": "={{ $now.toISODate() }}"
+            },
+            {
+              "fieldId": "link_pago_stripe",
+              "fieldValue": "={{ $('Procesar Pago').item.json.paymentUrl }}"
+            },
+            {
+              "fieldId": "id_sesion_stripe",
+              "fieldValue": "={{ $('Procesar Pago').item.json.stripeSessionId }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "id": "log-pago",
+      "name": "Log Historial",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        2048,
+        112
+      ],
+      "parameters": {
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $('Buscar Alumno').first().json.id }}"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "=Pago recibido: {{ $('Procesar Pago').item.json.amountTotal }}{{ $('Procesar Pago').item.json.currency }}"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Pago"
+            },
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Webhook"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "buscar-alumno-fallo",
+      "name": "Buscar Alumno Error",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        928,
+        384
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alumnos",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "={{ $json.alumnoId ? 'id=eq.' + $json.alumnoId : 'email=ilike.' + encodeURIComponent($json.customerEmail) }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "id": "actualizar-pago-fallido",
+      "name": "Actualizar Pago Fallido",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        384
+      ],
+      "parameters": {
+        "operation": "update",
+        "tableId": "alumnos",
+        "filterType": "string",
+        "filterString": "={{ 'id=eq.' + $json.id }}",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "estado_general",
+              "fieldValue": "Pago Fallido"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "id": "log-fallo",
+      "name": "Log Error Pago",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        384
+      ],
+      "parameters": {
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $('Buscar Alumno Error').first().json.id }}"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "=Pago fallido: {{ $('Procesar Pago').item.json.failureReason }} ({{ $('Procesar Pago').item.json.eventType }})"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Pago Fallido"
+            },
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Webhook"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "esperar-recuperacion",
+      "name": "Esperar 45min",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1600,
+        384
+      ],
+      "webhookId": "c7e585dc-ce98-4385-8304-6378e67d195c",
+      "parameters": {
+        "amount": 45,
+        "unit": "minutes"
+      }
+    },
+    {
+      "id": "crear-email-recuperacion",
+      "name": "Crear Email Recuperacion",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1824,
+        384
+      ],
+      "parameters": {
+        "tableId": "cola_emails",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $('Buscar Alumno Error').first().json.id }}"
+            },
+            {
+              "fieldId": "tipo",
+              "fieldValue": "recuperacion_pago"
+            },
+            {
+              "fieldId": "mensaje",
+              "fieldValue": "Tu pago no se ha podido procesar. Por favor, vuelve a intentarlo con otro método de pago."
+            },
+            {
+              "fieldId": "estado",
+              "fieldValue": "Pendiente"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      }
+    },
+    {
+      "id": "buscar-alumno-evento",
+      "name": "Buscar Alumno Evento",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        928,
+        576
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alumnos",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "={{ 'email=ilike.' + encodeURIComponent($('Procesar Pago').item.json.customerEmail || 'no-match-placeholder') }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "log-evento-stripe",
+      "name": "Log Evento Stripe",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1152,
+        576
+      ],
+      "parameters": {
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Evento Stripe"
+            },
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Webhook"
+            },
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "={{ $('Procesar Pago').item.json.description + ' | Email: ' + ($('Procesar Pago').item.json.customerEmail || 'N/A') + ' | PI: ' + ($('Procesar Pago').item.json.paymentId || 'N/A') }}"
+            },
+            {
+              "fieldId": "alumno_id",
+              "fieldValue": "={{ $json.id || '' }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "verificar-email-http",
+      "name": "Verificar Email Alumno",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        928,
+        700
+      ],
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "alumnos",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "={{ 'email=ilike.' + encodeURIComponent($('Procesar Pago').item.json.customerEmail) }}"
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "if-alumno-encontrado",
+      "name": "Alumno Encontrado?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1152,
+        700
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $input.all().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "registrar-pago-sin-alumno",
+      "name": "Registrar Pago Sin Alumno",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        700
+      ],
+      "parameters": {
+        "tableId": "pagos",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "importe",
+              "fieldValue": "={{ $('Procesar Pago').item.json.amountTotal }}"
+            },
+            {
+              "fieldId": "moneda",
+              "fieldValue": "={{ $('Procesar Pago').item.json.currency }}"
+            },
+            {
+              "fieldId": "estado_pago",
+              "fieldValue": "Pendiente Verificación"
+            },
+            {
+              "fieldId": "fecha_pago",
+              "fieldValue": "={{ $now.toISODate() }}"
+            },
+            {
+              "fieldId": "link_pago_stripe",
+              "fieldValue": "={{ $('Procesar Pago').item.json.paymentUrl }}"
+            },
+            {
+              "fieldId": "id_sesion_stripe",
+              "fieldValue": "={{ $('Procesar Pago').item.json.stripeSessionId }}"
+            },
+            {
+              "fieldId": "notas_internas",
+              "fieldValue": "=Email Stripe no registrado en sistema: {{ $('Procesar Pago').item.json.customerEmail }} | PI: {{ $('Procesar Pago').item.json.paymentId }}"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "log-alerta-sin-alumno",
+      "name": "Log Alerta Sin Alumno",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        700
+      ],
+      "parameters": {
+        "tableId": "historial",
+        "dataToSend": "defineBelow",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "descripcion",
+              "fieldValue": "=ALERTA: Pago recibido de email no registrado en sistema. Email: {{ $('Procesar Pago').item.json.customerEmail }} | Importe: {{ $('Procesar Pago').item.json.amountTotal }}{{ $('Procesar Pago').item.json.currency }} | PI: {{ $('Procesar Pago').item.json.paymentId }}"
+            },
+            {
+              "fieldId": "tipo_accion",
+              "fieldValue": "Error"
+            },
+            {
+              "fieldId": "origen_evento",
+              "fieldValue": "Webhook"
+            }
+          ]
+        }
+      },
+      "credentials": {
+        "supabaseApi": {
+          "id": "8VXztyOWvaGzChfz",
+          "name": "Supabase ProEv Cloud"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "noop-alumno-existe",
+      "name": "Alumno Ya Existe (NoOp)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        560
+      ],
+      "parameters": {}
+    }
+  ],
+  "connections": {
+    "Stripe Trigger LIVE": {
+      "main": [
+        [
+          {
+            "node": "Procesar Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stripe Trigger TEST": {
+      "main": [
+        [
+          {
+            "node": "Procesar Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Pago": {
+      "main": [
+        [
+          {
+            "node": "Resultado Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resultado Pago": {
+      "main": [
+        [
+          {
+            "node": "Buscar Alumno",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Verificar Email Alumno",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Alumno Error",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Buscar Alumno Evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Alumno": {
+      "main": [
+        [
+          {
+            "node": "Actualizar a Pagado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar a Pagado": {
+      "main": [
+        [
+          {
+            "node": "Buscar Pago Existente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Pago Existente": {
+      "main": [
+        [
+          {
+            "node": "Pago Duplicado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pago Duplicado?": {
+      "main": [
+        [
+          {
+            "node": "Log Historial",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Pago": {
+      "main": [
+        [
+          {
+            "node": "Log Historial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Alumno Error": {
+      "main": [
+        [
+          {
+            "node": "Actualizar Pago Fallido",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Actualizar Pago Fallido": {
+      "main": [
+        [
+          {
+            "node": "Log Error Pago",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Error Pago": {
+      "main": [
+        [
+          {
+            "node": "Esperar 45min",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Esperar 45min": {
+      "main": [
+        [
+          {
+            "node": "Crear Email Recuperacion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Alumno Evento": {
+      "main": [
+        [
+          {
+            "node": "Log Evento Stripe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar Email Alumno": {
+      "main": [
+        [
+          {
+            "node": "Alumno Encontrado?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alumno Encontrado?": {
+      "main": [
+        [
+          {
+            "node": "Alumno Ya Existe (NoOp)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Registrar Pago Sin Alumno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar Pago Sin Alumno": {
+      "main": [
+        [
+          {
+            "node": "Log Alerta Sin Alumno",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
