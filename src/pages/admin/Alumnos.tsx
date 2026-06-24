@@ -143,6 +143,15 @@ export default function AlumnosPage() {
       render: (a) => <StatusBadge status={a.estadoGeneral} type="estado" showIcon />,
     },
     {
+      // Estado de la última revisión de vídeo (rollup distinto del Estado General).
+      // Hace visible 'Revision Necesaria'/'Video no accesible' para que admin actúe.
+      // ponytail: columna ordenable en vez de filtro dedicado — ordenar agrupa los casos.
+      key: 'estadoRevisionReciente', header: 'Estado Vídeo', width: '150px', sortable: true, minWidth: 120,
+      render: (a) => a.estadoRevisionReciente
+        ? <StatusBadge status={a.estadoRevisionReciente} type="revision" />
+        : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
+    },
+    {
       key: 'moduloSolicitado', header: t('alumnos.modulo'), width: '120px', sortable: true, minWidth: 100,
       render: (a) => <span style={{ color: 'var(--color-text-secondary)' }}>{a.moduloSolicitado || '—'}</span>,
     },
