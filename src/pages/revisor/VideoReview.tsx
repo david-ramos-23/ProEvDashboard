@@ -9,6 +9,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatusBadge, ConfirmDialog } from '@/components/shared';
 import { fetchRevisiones, fetchRevisionStats, updateRevision } from '@/data/adapters';
+import { useEdicion } from '@/context/EdicionContext';
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { formatDate, renderStars, timeAgo } from '@/utils/formatters';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -85,6 +86,7 @@ function VideoPlayer({ url }: { url: string }) {
 export default function VideoReviewPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
+  const { selectedNombre } = useEdicion();
   const isMobile = useIsMobile();
   useHighlightRow();
   const [selected, setSelected] = useState<RevisionVideo | null>(null);
@@ -100,17 +102,16 @@ export default function VideoReviewPage() {
   const [confirmAction, setConfirmAction] = useState<{ estado: EstadoRevision; label: string; icon: string; variant: 'success' | 'danger' | 'warning' } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // El panel de revisión es una cola de trabajo: debe mostrar TODOS los videos
-  // pendientes sin importar la edición seleccionada en el filtro global. Filtrar
-  // por edición ocultaba silenciosamente revisiones pendientes de ediciones no
-  // activas (p. ej. alumnos de "Vol I" desaparecían bajo el default "Vol II").
+  // La revisión de vídeo solo aplica a la edición en marcha: tanto la cola de
+  // trabajo como las métricas (KPIs) se filtran por la edición seleccionada en el
+  // contexto global. Las ediciones cerradas no requieren revisión de vídeo.
   const { data: revisiones = [], isLoading } = useQuery({
-    queryKey: ['revisiones', { estado: 'Pendiente' }],
-    queryFn: () => fetchRevisiones({ estado: 'Pendiente' }),
+    queryKey: ['revisiones', { estado: 'Pendiente', edicion: selectedNombre }],
+    queryFn: () => fetchRevisiones({ estado: 'Pendiente', edicionNombre: selectedNombre }),
   });
   const { data: stats = { pendientes: 0, revisadasHoy: 0, total: 0 } } = useQuery({
-    queryKey: ['revision-stats'],
-    queryFn: () => fetchRevisionStats(),
+    queryKey: ['revision-stats', { edicion: selectedNombre }],
+    queryFn: () => fetchRevisionStats(selectedNombre),
   });
 
   function selectRevision(rev: RevisionVideo, autoSelect = false) {
