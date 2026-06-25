@@ -493,7 +493,26 @@ SELECT
   -- Payment metrics
   COALESCE(pago_stats.total_pagos, 0)::INT AS total_pagos,
   COALESCE(pago_stats.importe_total_pagado, 0)::NUMERIC AS importe_total_pagado,
-  pago_stats.fecha_ultimo_pago
+  pago_stats.fecha_ultimo_pago,
+  -- Computed alert fields (always fresh on read; no cron needed in view)
+  COALESCE((now()::date - (SELECT max(h.created_at)::date FROM public.historial h WHERE h.alumno_id = a.id)), 9999) AS dias_desde_ultimo_evento,
+  (now()::date - a.fecha_cambio_estado::date) AS dias_en_estado_actual,
+  -- NOTA cutover: este CASE y la fórmula Airtable "Alerta Activa" (fldWyLnOU9xSQK4Wn)
+  -- deben cambiarse en sincronía. Rama C1 "Preinscrito" pendiente de decisión de negocio
+  -- (ver .claude/handoffs/C1-C2-mejoras-plan.md). Thresholds confirmados 2026-06-25.
+  CASE
+    WHEN a.estado_general <> 'Finalizado'::estado_general
+     AND a.estado_general <> 'Rechazado'::estado_general
+     AND COALESCE((now()::date - (SELECT max(h.created_at)::date FROM public.historial h WHERE h.alumno_id = a.id)), 9999) >= 7
+      THEN '🥶 Alumno Frío'
+    WHEN a.estado_general = 'Pendiente de pago'::estado_general
+     AND (now()::date - a.fecha_cambio_estado::date) >= 5
+      THEN '💳 Pago Pendiente'
+    WHEN a.estado_general = 'En revisión de video'::estado_general
+     AND (now()::date - a.fecha_cambio_estado::date) >= 3
+      THEN '🎥 Video sin Revisar'
+    ELSE ''
+  END AS alerta_activa
 FROM alumnos a
 LEFT JOIN ediciones e ON a.edicion_id = e.id
 LEFT JOIN LATERAL (

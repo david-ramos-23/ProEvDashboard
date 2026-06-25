@@ -30,9 +30,14 @@ stored.
 - **Inferred definition:** human-readable label string (e.g. `"🥶 Alumno Frío"`), empty/NULL when no alert; the twin keys off substrings `Alumno Fr` / `Pago Pendiente` / `Video sin Revisar`.
 - **Evidence:** twin filter `AND({Alerta Activa} != '', {Estado General} != 'Finalizado', {Estado General} != 'Rechazado')`; Code node `if (alerta.includes('Alumno Fr')) ... else if (...'Pago Pendiente') ... else if (...'Video sin Revisar') return []`. Live value seen: `"🥶 Alumno Frío"`.
 - **Approach:** Approach A — `TEXT` column on `alumnos`, recomputed by `refresh_alerta_activa()` (trigger on `historial` + daily cron). View-only fallback provided.
-- **OPEN QUESTIONS:**
-  - **OQ-1 (critical):** The exact Airtable formula is **not readable** (data PAT, no schema scope). I reconstructed only the *labels* and a plausible "Frío = >7 days idle" threshold from the `dias_desde_ultimo_evento` sample. **Confirm:** (a) the precise condition + day thresholds for each of the 3 labels; (b) whether `Alerta Activa` can hold **multiple** labels at once (the twin's if/else-if implies one-at-a-time, but a formula could concatenate); (c) the exact label strings incl. emoji (`🥶 Alumno Frío` confirmed; `Pago Pendiente` / `Video sin Revisar` emoji unconfirmed).
-  - **OQ-1b:** Should the Supabase value include the emoji, or store a clean label and let the twin match plain text? (Twin matches `.includes('Alumno Fr')`, so plain text is safe.)
+- **OPEN QUESTIONS — RESUELTAS (2026-06-25):**
+  - **OQ-1 ✅ CONFIRMADO:** Fórmula Airtable leída directamente (campo `fldWyLnOU9xSQK4Wn`). 3 ramas activas:
+    - `'🥶 Alumno Frío'`: estado ≠ Finalizado/Rechazado AND `dias_desde_ultimo_evento` ≥ 7
+    - `'💳 Pago Pendiente'`: estado = `'Pendiente de pago'` AND `dias_en_estado_actual` ≥ 5
+    - `'🎥 Video sin Revisar'`: estado = `'En revisión de video'` AND `dias_en_estado_actual` ≥ 3
+    - Un valor a la vez (if/else). Emojis confirmados.
+    - Rama C1 `'Preinscrito'` **pendiente de decisión de negocio** — no activar hasta confirmar thresholds y copy (ver `.claude/handoffs/C1-C2-mejoras-plan.md`).
+  - **OQ-1b ✅ CONFIRMADO:** incluir emoji en el valor almacenado (el twin hace `.includes('Alumno Fr')`, `.includes('Pago Pendiente')`, `.includes('Video sin Revisar')`).
 
 ## GAP 2 — `alumnos.dias_desde_ultimo_evento`  *(confidence: MED)*
 - **Inferred definition:** whole days between today and the alumno's most recent `historial` row.

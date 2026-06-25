@@ -5,6 +5,18 @@
 import { RevisionVideo, EstadoRevision } from '@/types';
 import { supabase, withAudit } from './SupabaseClient';
 
+/** Resolve an edición display name to its UUID. The base `alumnos` table only
+ *  exposes `edicion_id`; `edicion_nombre` lives in the alumnos_enriched view. */
+async function resolveEdicionId(nombre: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('ediciones')
+    .select('id')
+    .eq('nombre', nombre)
+    .maybeSingle();
+  if (error) throw new Error(`resolveEdicionId: ${error.message}`);
+  return (data?.id as string | undefined) ?? null;
+}
+
 function mapToRevision(row: Record<string, unknown>): RevisionVideo {
   return {
     id: row.id as string,
@@ -34,13 +46,14 @@ function mapToRevision(row: Record<string, unknown>): RevisionVideo {
 export async function fetchRevisiones(filters?: {
   estado?: EstadoRevision;
   alumnoId?: string;
+  edicionNombre?: string;
 }): Promise<RevisionVideo[]> {
-  // Use a join to get alumno name and estado_general
+  // Inner-join alumnos for name/estado, and to allow filtering by edición (edicion_id)
   let query = supabase
     .from('revisiones_video')
     .select(`
       *,
-      alumnos!inner ( nombre, estado_general )
+      alumnos!inner ( nombre, estado_general, edicion_id )
     `)
     .order('fecha_revision', { ascending: true });
 
@@ -49,6 +62,12 @@ export async function fetchRevisiones(filters?: {
   }
   if (filters?.alumnoId) {
     query = query.eq('alumno_id', filters.alumnoId);
+  }
+  if (filters?.edicionNombre) {
+    // Base alumnos has edicion_id (not edicion_nombre); resolve name -> id and filter the join.
+    const edicionId = await resolveEdicionId(filters.edicionNombre);
+    if (!edicionId) return [];
+    query = query.eq('alumnos.edicion_id', edicionId);
   }
 
   const { data, error } = await query;
@@ -108,24 +127,40 @@ export async function updateRevision(
 }
 
 /** Cuenta revisiones por estado */
-export async function fetchRevisionStats(_edicionNombre?: string): Promise<{
+export async function fetchRevisionStats(edicionNombre?: string): Promise<{
   pendientes: number;
   revisadasHoy: number;
   total: number;
 }> {
-  const { data, error } = await supabase
+  let edicionId: string | null = null;
+  if (edicionNombre) {
+    edicionId = await resolveEdicionId(edicionNombre);
+    if (!edicionId) return { pendientes: 0, revisadasHoy: 0, total: 0 };
+  }
+
+  let query = supabase
     .from('revisiones_video')
-    .select('estado_revision, fecha_revision');
+    .select(
+      edicionId
+        ? 'estado_revision, fecha_revision, alumnos!inner(edicion_id)'
+        : 'estado_revision, fecha_revision'
+    );
+  if (edicionId) {
+    query = query.eq('alumnos.edicion_id', edicionId);
+  }
+  const { data, error } = await query;
   if (error) throw new Error(`fetchRevisionStats: ${error.message}`);
 
+  // Dynamic select string defeats supabase-js's literal parser typing; cast to the runtime shape.
+  const rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
   const today = new Date().toISOString().split('T')[0];
   let pendientes = 0;
   let revisadasHoy = 0;
 
-  (data || []).forEach((r: Record<string, unknown>) => {
+  rows.forEach((r) => {
     if (r.estado_revision === 'Pendiente') pendientes++;
     if ((r.fecha_revision as string)?.startsWith(today)) revisadasHoy++;
   });
 
-  return { pendientes, revisadasHoy, total: (data || []).length };
+  return { pendientes, revisadasHoy, total: rows.length };
 }
