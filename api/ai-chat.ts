@@ -148,11 +148,12 @@ const tools = [
     type: 'function',
     function: {
       name: 'list_cola_emails',
-      description: 'List email queue (cola de emails). Optionally filter by estado.',
+      description: 'List email queue (cola de emails). Optionally filter by estado or tipo.',
       parameters: {
         type: 'object',
         properties: {
           estado: { type: 'string', description: 'Pendiente Aprobacion, Pendiente, Enviado, Error' },
+          tipo: { type: 'string', description: 'informacion, recordatorio, seguimiento, seguimiento_frio, bienvenida, felicitacion, urgente, disculpa' },
           limit: { type: 'number', description: 'Max results (default 10)' },
         },
       },
@@ -274,7 +275,10 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       case 'list_cola_emails': {
         const url = new URL(`${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${TABLES.COLA_EMAILS}`);
         url.searchParams.set('maxRecords', String(Number(input.limit) || 10));
-        if (input.estado) url.searchParams.set('filterByFormula', `{Estado} = '${sanitizeForFormula(input.estado)}'`);
+        const colaFilterParts: string[] = [];
+        if (input.estado) colaFilterParts.push(`{Estado} = '${sanitizeForFormula(input.estado)}'`);
+        if (input.tipo) colaFilterParts.push(`LOWER({Tipo}) = '${sanitizeForFormula(String(input.tipo).toLowerCase())}'`);
+        if (colaFilterParts.length) url.searchParams.set('filterByFormula', colaFilterParts.length > 1 ? `AND(${colaFilterParts.join(', ')})` : colaFilterParts[0]);
         const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${AIRTABLE_PAT}` } });
         const data = await res.json();
         return JSON.stringify((data.records || []).map((r: Record<string, unknown>) => ({ id: r.id, ...(r.fields as object) })));
