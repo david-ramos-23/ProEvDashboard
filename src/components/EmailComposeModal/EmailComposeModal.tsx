@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import React, { useEffect, useRef, useState, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getSession } from '@/auth/AuthService';
@@ -27,6 +27,8 @@ export function EmailComposeModal({
   const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const pickerBtnRef = useRef<HTMLButtonElement>(null);
+  const [pickerPortalStyle, setPickerPortalStyle] = useState<React.CSSProperties>({});
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
@@ -123,6 +125,10 @@ export function EmailComposeModal({
   useEffect(() => {
     if (!pickerOpen) return;
     function handleOutside(e: MouseEvent) {
+      const target = e.target as Node;
+      if (
+        pickerBtnRef.current && pickerBtnRef.current.contains(target)
+      ) return;
       if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
         setPickerOpen(false);
       }
@@ -236,24 +242,33 @@ export function EmailComposeModal({
                   </label>
                   <div ref={pickerRef} style={{ position: 'relative' }}>
                     <button
+                      ref={pickerBtnRef}
                       id="compose-alumno-trigger"
                       type="button"
-                      className={styles.pickerInput}
+                      className={styles.input}
                       style={{
                         width: '100%',
                         textAlign: 'left',
                         cursor: 'pointer',
                         color: composeAlumnoNombre ? 'var(--color-text-primary)' : 'var(--color-text-muted, var(--color-text-secondary))',
                       }}
-                      onClick={() => { setPickerOpen((o) => !o); if (!pickerOpen) setPickerSearch(''); }}
+                      onClick={() => {
+                        const willOpen = !pickerOpen;
+                        if (willOpen && pickerBtnRef.current) {
+                          const rect = pickerBtnRef.current.getBoundingClientRect();
+                          setPickerPortalStyle({ position: 'fixed', top: rect.bottom + 4, left: rect.left, width: rect.width, zIndex: 1100 });
+                          setPickerSearch('');
+                        }
+                        setPickerOpen(willOpen);
+                      }}
                       disabled={modalState === 'sending'}
                       aria-haspopup="listbox"
                       aria-expanded={pickerOpen}
                     >
                       {composeAlumnoNombre || t('emailCompose.searchAlumno')}
                     </button>
-                    {pickerOpen && (
-                      <div className={styles.pickerDropdown}>
+                    {pickerOpen && createPortal(
+                      <div ref={pickerRef} className={styles.pickerDropdown} style={pickerPortalStyle}>
                         <div className={styles.pickerSearchWrapper}>
                           <input
                             autoFocus
@@ -284,7 +299,8 @@ export function EmailComposeModal({
                             </button>
                           ))}
                         </div>
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
                   {!composeAlumnoId && (

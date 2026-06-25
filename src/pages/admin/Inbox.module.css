@@ -358,6 +358,70 @@
   border-left-color: var(--color-accent-primary);
 }
 
+/* ── Gmail-like row layout ── */
+
+.listItemRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  width: 100%;
+  min-width: 0;
+}
+
+.listItemAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  flex-shrink: 0;
+  margin-top: 1px;
+  opacity: 0.85;
+}
+
+.listItemMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.listItemContactUnread {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.listItemSubjectRow {
+  display: flex;
+  align-items: baseline;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.listItemSnippetInline {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.listItemBadges {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+  margin-top: 2px;
+}
+
+/* ── End Gmail-like layout ── */
+
 .listItemTop {
   display: flex;
   justify-content: space-between;
@@ -394,11 +458,12 @@
 }
 
 .listItemContact {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 
 .listItemSnippet {

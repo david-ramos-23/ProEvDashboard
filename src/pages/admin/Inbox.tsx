@@ -218,7 +218,7 @@ const COLA_TABS: { key: ColaTab; label: string; icon: string; estado: EstadoEmai
   { key: 'enviados',   label: 'Enviados',    icon: '✅', estado: 'Enviado' },
   { key: 'errores',    label: 'Errores',     icon: '❌', estado: 'Error' },
 ];
-const TIPOS_EMAIL = ['disculpa', 'informacion', 'recordatorio', 'seguimiento', 'bienvenida', 'felicitacion', 'urgente'];
+const TIPOS_EMAIL = ['disculpa', 'informacion', 'recordatorio', 'seguimiento', 'seguimiento_frio', 'bienvenida', 'felicitacion', 'urgente'];
 
 function ColaSection() {
   const queryClient = useQueryClient();
@@ -317,7 +317,7 @@ function ColaSection() {
           <button key={tipo} className={`btn-sm ${filtroTipo === tipo ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setFiltroTipo(filtroTipo === tipo ? '' : tipo)}
             style={{ textTransform: 'capitalize' }}>
-            {tipo}
+            {tipo.replace(/_/g, ' ')}
           </button>
         ))}
         {filtroTipo && (
@@ -558,24 +558,29 @@ export default function InboxPage() {
                       style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
                       onClick={() => selectEmail(email)}
                     >
-                      <div className={styles.listItemTop}>
-                        <span className={`${styles.listItemSubject} ${isUnread ? styles.listItemSubjectUnread : ''}`} title={email.asunto || '(sin asunto)'}>
-                          {email.asunto || '(sin asunto)'}
-                        </span>
-                        <span className={styles.listItemTime}>{timeAgo(email.fecha || email.createdTime)}</span>
+                      <div className={styles.listItemRow}>
+                        <div className={styles.listItemAvatar} aria-hidden="true">
+                          {((email.de || email.para || '?').charAt(0)).toUpperCase()}
+                        </div>
+                        <div className={styles.listItemMain}>
+                          <div className={styles.listItemTop}>
+                            <span className={`${styles.listItemContact} ${isUnread ? styles.listItemContactUnread : ''}`}>
+                              {email.direccion === 'Recibido' ? (email.de || '—') : (email.para || '—')}
+                            </span>
+                            <span className={styles.listItemTime}>{timeAgo(email.fecha || email.createdTime)}</span>
+                          </div>
+                          <div className={styles.listItemSubjectRow}>
+                            <span className={`${styles.listItemSubject} ${isUnread ? styles.listItemSubjectUnread : ''}`} title={email.asunto || '(sin asunto)'}>
+                              {email.asunto || '(sin asunto)'}
+                            </span>
+                            {email.resumenIA && <span className={styles.listItemSnippetInline}> — {email.resumenIA}</span>}
+                          </div>
+                          <div className={styles.listItemBadges}>
+                            <StatusBadge status={email.estado} />
+                            {email.origen === 'Manual' && <StatusBadge status="Manual" type="origin" />}
+                          </div>
+                        </div>
                       </div>
-                      <div className={styles.listItemBottom}>
-                        <span className={styles.listItemContact}>
-                          {email.direccion === 'Recibido' ? email.de : email.para}
-                        </span>
-                        <StatusBadge status={email.estado} />
-                        {email.origen === 'Manual' && (
-                          <StatusBadge status="Manual" type="origin" />
-                        )}
-                      </div>
-                      {email.resumenIA && (
-                        <div className={styles.listItemSnippet} title={email.resumenIA}>{email.resumenIA}</div>
-                      )}
                     </button>
                   );
                 })
