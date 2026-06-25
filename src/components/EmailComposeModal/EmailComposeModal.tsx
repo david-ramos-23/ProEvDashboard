@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery } from '@tanstack/react-query';
 import { getSession } from '@/auth/AuthService';
 import { fetchAlumnos } from '@/data/adapters';
@@ -25,6 +26,10 @@ export function EmailComposeModal({
 }: EmailComposeModalProps) {
   const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
 
   const [composeMode, setComposeMode] = useState<'template' | 'quick'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateKey | ''>('');
@@ -50,6 +55,8 @@ export function EmailComposeModal({
       setComposeMode('template');
       setComposeAlumnoId('');
       setComposeAlumnoNombre('');
+      setPickerOpen(false);
+      setPickerSearch('');
       const key = initialTemplateKey ?? '';
       setSelectedTemplate(key);
       if (key && EMAIL_TEMPLATES[key]) {
@@ -105,6 +112,18 @@ export function EmailComposeModal({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, modalState, onClose]);
 
+  // Close picker dropdown on outside click
+  useEffect(() => {
+    if (!pickerOpen) return;
+    function handleOutside(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [pickerOpen]);
+
   function handleTemplateChange(key: TemplateKey | '') {
     setSelectedTemplate(key);
     if (key && EMAIL_TEMPLATES[key]) {
@@ -148,9 +167,20 @@ export function EmailComposeModal({
     }
   }
 
+  const filteredPickerOptions = alumnosForPicker
+    .filter((a) => {
+      if (!pickerSearch) return true;
+      const q = pickerSearch.toLowerCase();
+      return (
+        String(a.nombre || '').toLowerCase().includes(q) ||
+        String(a.email || '').toLowerCase().includes(q)
+      );
+    })
+    .slice(0, 50);
+
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className={styles.overlay} onClick={modalState !== 'sending' ? onClose : undefined}>
       <div
         ref={panelRef}
@@ -194,32 +224,62 @@ export function EmailComposeModal({
               </div>
               {isPickerMode ? (
                 <div className={styles.pickerField}>
-                  <label htmlFor="compose-alumno-picker" className={styles.label}>
+                  <label htmlFor="compose-alumno-trigger" className={styles.label}>
                     {t('emailCompose.alumnoLabel')}
                   </label>
-                  <input
-                    id="compose-alumno-picker"
-                    type="text"
-                    list="compose-alumno-list"
-                    className={styles.pickerInput}
-                    placeholder={t('emailCompose.searchAlumno')}
-                    value={composeAlumnoNombre}
-                    onChange={(e) => {
-                      const name = e.target.value;
-                      setComposeAlumnoNombre(name);
-                      const match = alumnosForPicker.find((a) => a.nombre === name);
-                      setComposeAlumnoId(match?.id ?? '');
-                    }}
-                    disabled={modalState === 'sending'}
-                    aria-required="true"
-                    aria-describedby="compose-alumno-hint"
-                    required
-                  />
-                  <datalist id="compose-alumno-list">
-                    {alumnosForPicker.map((a) => (
-                      <option key={a.id} value={a.nombre ?? ''} />
-                    ))}
-                  </datalist>
+                  <div ref={pickerRef} style={{ position: 'relative' }}>
+                    <button
+                      id="compose-alumno-trigger"
+                      type="button"
+                      className={styles.pickerInput}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        color: composeAlumnoNombre ? 'var(--color-text-primary)' : 'var(--color-text-muted, var(--color-text-secondary))',
+                      }}
+                      onClick={() => { setPickerOpen((o) => !o); if (!pickerOpen) setPickerSearch(''); }}
+                      disabled={modalState === 'sending'}
+                      aria-haspopup="listbox"
+                      aria-expanded={pickerOpen}
+                    >
+                      {composeAlumnoNombre || t('emailCompose.searchAlumno')}
+                    </button>
+                    {pickerOpen && (
+                      <div className={styles.pickerDropdown}>
+                        <div className={styles.pickerSearchWrapper}>
+                          <input
+                            autoFocus
+                            type="text"
+                            className={styles.pickerSearch}
+                            value={pickerSearch}
+                            onChange={(e) => setPickerSearch(e.target.value)}
+                            placeholder={t('emailCompose.searchAlumno')}
+                          />
+                        </div>
+                        <div className={styles.pickerList}>
+                          {filteredPickerOptions.length === 0 ? (
+                            <div className={styles.pickerEmpty}>Sin resultados</div>
+                          ) : filteredPickerOptions.map((a) => (
+                            <button
+                              key={a.id}
+                              type="button"
+                              className={styles.pickerOption}
+                              onClick={() => {
+                                setComposeAlumnoId(a.id ?? '');
+                                setComposeAlumnoNombre(a.nombre ?? a.email ?? '');
+                                setPickerOpen(false);
+                                setPickerSearch('');
+                              }}
+                            >
+                              <span className={styles.pickerOptionName}>{a.nombre}</span>
+                              <span className={styles.pickerOptionEmail}>{a.email}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   {!composeAlumnoId && (
                     <span id="compose-alumno-hint" className={styles.fieldHint}>
                       {t('emailCompose.selectAlumnoFirst')}
@@ -303,6 +363,7 @@ export function EmailComposeModal({
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

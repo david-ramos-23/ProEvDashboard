@@ -175,7 +175,7 @@ export default function AlumnoDetailPage() {
         </button>
         <button
           type="button"
-          className={styles.backBtn}
+          className={styles.composeBtn}
           onClick={() => setIsComposeOpen(true)}
           aria-label={t('emailCompose.title')}
         >
@@ -206,7 +206,7 @@ export default function AlumnoDetailPage() {
           </div>
           <div className={styles.quickStat}>
             <span className={styles.quickLabel}>{t('alumnos.idioma')}</span>
-            <span className={styles.quickValue}>{alumno.idioma === 'Ingles' ? '🇬🇧 EN' : '🇪🇸 ES'}</span>
+            <span className={styles.quickValue}>{alumno.idioma === 'Ingles' ? '🇬🇧' : '🇪🇸'}</span>
           </div>
           <div className={styles.quickStat}>
             <span className={styles.quickLabel}>{t('alumnos.engagementCol')}</span>

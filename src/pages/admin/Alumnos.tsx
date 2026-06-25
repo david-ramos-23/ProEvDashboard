@@ -149,7 +149,9 @@ export default function AlumnosPage() {
       key: 'estadoRevisionReciente', header: 'Estado Vídeo', width: '150px', sortable: true, minWidth: 120,
       render: (a) => a.estadoRevisionReciente
         ? <StatusBadge status={a.estadoRevisionReciente} type="revision" />
-        : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
+        : a.estadoGeneral === 'En revisión de video'
+          ? <StatusBadge status="Pendiente" type="revision" />
+          : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
     },
     {
       key: 'moduloSolicitado', header: t('alumnos.modulo'), width: '120px', sortable: true, minWidth: 100,

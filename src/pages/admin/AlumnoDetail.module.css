@@ -26,6 +26,26 @@
   text-decoration: underline;
 }
 
+.composeBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm, 6px);
+  padding: 8px var(--space-md, 16px);
+  min-height: 44px;
+  background: var(--color-accent-primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  width: fit-content;
+}
+.composeBtn:hover { opacity: 0.85; }
+
 .saveBar {
   display: flex;
   gap: var(--space-sm);

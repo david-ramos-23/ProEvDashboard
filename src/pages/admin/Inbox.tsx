@@ -417,6 +417,12 @@ export default function InboxPage() {
     if (isMobile) setShowDetail(true);
   }
 
+  useEffect(() => {
+    if (!isMobile && selectedId === null && sorted.length > 0) {
+      setSelectedId(sorted[0].id);
+    }
+  }, [sorted, selectedId, isMobile]);
+
   const directionTabs: { key: DirectionTab; label: string }[] = [
     { key: 'Recibido', label: t('inbox.recibidos') },
     { key: 'Enviado', label: t('inbox.enviados') },
@@ -565,7 +571,7 @@ export default function InboxPage() {
                       onClick={() => selectEmail(email)}
                     >
                       <div className={styles.listItemTop}>
-                        <span className={`${styles.listItemSubject} ${isUnread ? styles.listItemSubjectUnread : ''}`}>
+                        <span className={`${styles.listItemSubject} ${isUnread ? styles.listItemSubjectUnread : ''}`} title={email.asunto || '(sin asunto)'}>
                           {email.asunto || '(sin asunto)'}
                         </span>
                         <span className={styles.listItemTime}>{timeAgo(email.fecha || email.createdTime)}</span>
@@ -580,7 +586,7 @@ export default function InboxPage() {
                         )}
                       </div>
                       {email.resumenIA && (
-                        <div className={styles.listItemSnippet}>{email.resumenIA}</div>
+                        <div className={styles.listItemSnippet} title={email.resumenIA}>{email.resumenIA}</div>
                       )}
                     </button>
                   );
