@@ -7,6 +7,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
+import { CORS_ORIGIN_OPEN } from '../_lib/cors';
 
 const MAGIC_LINK_SECRET = process.env.MAGIC_LINK_SECRET;
 if (!MAGIC_LINK_SECRET) {
@@ -59,11 +60,8 @@ function verifyToken(token: string): { email: string } | null {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS
-  const allowedOrigins = ['https://dashboard-eight-jade-69.vercel.app', 'https://proev-dashboard.dravaautomations.com', 'http://localhost:5173', 'http://localhost:4173'];
-  const reqOrigin = req.headers['origin'] as string | undefined;
-  const corsOrigin = reqOrigin && allowedOrigins.some(o => reqOrigin.startsWith(o)) ? reqOrigin : allowedOrigins[0];
-  res.setHeader('Access-Control-Allow-Origin', corsOrigin);
+  // CORS — literal from server env only, no user input
+  res.setHeader('Access-Control-Allow-Origin', CORS_ORIGIN_OPEN);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();

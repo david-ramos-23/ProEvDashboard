@@ -44,7 +44,9 @@ Los 9 `airtableTrigger` se reemplazaron por nodos Webhook (path `sb-…`). Crear
 Webhook por cada uno → nodo Webhook del twin. **Loop-guard obligatorio** en los que escriben su propia
 tabla (la condición de disparo excluye el valor que el flujo escribe). Specs en los sticky notes de cada
 twin. Tablas/eventos: `inbox` UPDATE (#3,#6,#10), `alumnos` UPDATE (#14,#17), `cola_emails` INSERT/UPDATE
-(#19), `envios_emails` INSERT/UPDATE (#18), `inscripciones` INSERT (#21).
+(#19), `envios_emails` INSERT/UPDATE (#18), `inscripciones` INSERT (#21),
+`revisiones_video` UPDATE cuando `estado_revision` cambia a `'Revision Necesaria'`
+(workflow C3 `Bsmd5DcKXCG244wN` — usa `airtableTrigger` hoy; necesita este webhook al cutover).
 
 ### B. Gaps de schema Supabase (añadir ANTES de activar los workflows que los usan)
 - ❌ **Tabla `inscripciones` no existe** (form-intake) — bloquea #21. Crearla, o que el form haga POST directo al webhook.
