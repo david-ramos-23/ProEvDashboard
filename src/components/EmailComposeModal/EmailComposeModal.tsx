@@ -112,6 +112,13 @@ export function EmailComposeModal({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, modalState, onClose]);
 
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
   // Close picker dropdown on outside click
   useEffect(() => {
     if (!pickerOpen) return;

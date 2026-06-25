@@ -354,7 +354,7 @@ Contexto de página actual: ${pageContext || 'Dashboard principal'}`;
         headers: {
           'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://dashboard-eight-jade-69.vercel.app',
+          'HTTP-Referer': 'https://proev-dashboard.dravaautomations.com',
           'X-Title': 'ProEv Dashboard Assistant',
         },
         body: JSON.stringify({

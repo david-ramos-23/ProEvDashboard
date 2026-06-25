@@ -5,7 +5,7 @@
  * Cola: DataTable with approval flow (unchanged)
  */
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DOMPurify from 'dompurify';
 import { StatusBadge, SkeletonBlock, DataTable, Column, ConfirmDialog } from '@/components/shared';
@@ -218,7 +218,7 @@ const COLA_TABS: { key: ColaTab; label: string; icon: string; estado: EstadoEmai
   { key: 'enviados',   label: 'Enviados',    icon: '✅', estado: 'Enviado' },
   { key: 'errores',    label: 'Errores',     icon: '❌', estado: 'Error' },
 ];
-const TIPOS_EMAIL = ['informacion', 'recordatorio', 'seguimiento', 'bienvenida', 'alerta'];
+const TIPOS_EMAIL = ['disculpa', 'informacion', 'recordatorio', 'seguimiento', 'bienvenida', 'felicitacion', 'urgente'];
 
 function ColaSection() {
   const queryClient = useQueryClient();
@@ -311,7 +311,7 @@ function ColaSection() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center' }}>
         <button className={`btn-sm ${!filtroTipo ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroTipo('')}>Todos</button>
         {TIPOS_EMAIL.map(tipo => (
           <button key={tipo} className={`btn-sm ${filtroTipo === tipo ? 'btn-primary' : 'btn-ghost'}`}
@@ -320,6 +320,14 @@ function ColaSection() {
             {tipo}
           </button>
         ))}
+        {filtroTipo && (
+          <button className="btn-ghost btn-sm" onClick={() => setFiltroTipo('')} style={{ marginLeft: 'auto' }}>
+            Limpiar filtros
+          </button>
+        )}
+        <span style={{ marginLeft: filtroTipo ? 0 : 'auto', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+          {colaEmails.length} {colaEmails.length === 1 ? 'email' : 'emails'}
+        </span>
       </div>
 
       <DataTable
@@ -362,20 +370,8 @@ export default function InboxPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [search, setSearch] = useState('');
-  const [estadoDropdownOpen, setEstadoDropdownOpen] = useState(false);
-  const estadoRef = useRef<HTMLDivElement>(null);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const isAdmin = getSession()?.role === 'admin';
-
-  // Close estado dropdown on outside click
-  useEffect(() => {
-    if (!estadoDropdownOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (estadoRef.current && !estadoRef.current.contains(e.target as Node)) setEstadoDropdownOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [estadoDropdownOpen]);
 
   const queryFilters = buildQueryFilters(dirTab, atencionOnly);
 
@@ -488,31 +484,18 @@ export default function InboxPage() {
                 ))}
               </div>
 
-              {/* Estado dropdown + search row */}
+              {/* Estado pills + search row */}
               <div className={styles.filterControls}>
-                <div ref={estadoRef} className={styles.estadoDropdown}>
-                  <button
-                    className={`${styles.estadoBtn} ${estadoFilter ? styles.estadoBtnActive : ''}`}
-                    onClick={() => setEstadoDropdownOpen(o => !o)}
-                  >
-                    {estadoFilter || 'Estado'}
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                  {estadoDropdownOpen && (
-                    <div className={styles.estadoMenu}>
-                      {estadoOptions.map(opt => (
-                        <button
-                          key={opt.key}
-                          className={`${styles.estadoMenuItem} ${estadoFilter === opt.key ? styles.estadoMenuItemActive : ''}`}
-                          onClick={() => { setEstadoFilter(opt.key); setEstadoDropdownOpen(false); }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
+                  {estadoOptions.map(opt => (
+                    <button
+                      key={opt.key}
+                      className={`btn-sm ${estadoFilter === opt.key ? 'btn-primary' : 'btn-ghost'}`}
+                      onClick={() => setEstadoFilter(opt.key)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
                 <div className={styles.searchWrap}>
                   <span className={styles.searchIcon}>🔍</span>
@@ -534,6 +517,11 @@ export default function InboxPage() {
                     onClick={() => setAtencionOnly(o => !o)}
                   >
                     ⚠️ {atencionCount} {t('inbox.requiereAtencion')}
+                  </button>
+                )}
+                {estadoFilter && (
+                  <button className="btn-ghost btn-sm" onClick={() => setEstadoFilter('')}>
+                    Limpiar
                   </button>
                 )}
                 {!isLoading && (
