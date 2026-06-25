@@ -173,14 +173,6 @@ export default function AlumnoDetailPage() {
         <button className={styles.backBtn} onClick={() => navigate('/admin/alumnos')}>
           ← {t('common.back')}
         </button>
-        <button
-          type="button"
-          className={styles.composeBtn}
-          onClick={() => setIsComposeOpen(true)}
-          aria-label={t('emailCompose.title')}
-        >
-          ✉ {t('emailCompose.title')}
-        </button>
         <div className={styles.headerInfo}>
           <div className={styles.avatar}>
             {alumno.fotoPerfil ? (
@@ -197,6 +189,14 @@ export default function AlumnoDetailPage() {
               <StatusBadge status={alumno.estadoGeneral} type="estado" showIcon />
             </div>
           </div>
+          <button
+            type="button"
+            className={styles.composeBtn}
+            onClick={() => setIsComposeOpen(true)}
+            aria-label={t('emailCompose.title')}
+          >
+            ✉ {t('emailCompose.title')}
+          </button>
         </div>
         {/* Métricas rápidas */}
         <div className={styles.quickStats}>
