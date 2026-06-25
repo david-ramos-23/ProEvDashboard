@@ -108,10 +108,12 @@ export default function VideoReviewPage() {
   const { data: revisiones = [], isLoading } = useQuery({
     queryKey: ['revisiones', { estado: 'Pendiente', edicion: selectedNombre }],
     queryFn: () => fetchRevisiones({ estado: 'Pendiente', edicionNombre: selectedNombre }),
+    enabled: !!selectedNombre,
   });
   const { data: stats = { pendientes: 0, revisadasHoy: 0, total: 0 } } = useQuery({
     queryKey: ['revision-stats', { edicion: selectedNombre }],
     queryFn: () => fetchRevisionStats(selectedNombre),
+    enabled: !!selectedNombre,
   });
 
   function selectRevision(rev: RevisionVideo, autoSelect = false) {
@@ -125,6 +127,13 @@ export default function VideoReviewPage() {
 
   // Auto-select first revision when data loads (don't show detail on mobile)
   const hasAutoSelected = useRef(false);
+
+  // Reset selection when edition changes so the detail pane never shows a stale revision (PR#4 P1).
+  useEffect(() => {
+    setSelected(null);
+    hasAutoSelected.current = false;
+  }, [selectedNombre]);
+
   useEffect(() => {
     if (revisiones.length > 0 && !hasAutoSelected.current) {
       hasAutoSelected.current = true;
