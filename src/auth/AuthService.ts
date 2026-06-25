@@ -217,6 +217,11 @@ export async function loginWithGoogle(credential: string): Promise<AuthResult> {
 export async function sendMagicLink(email: string): Promise<{ success: boolean; error?: string }> {
   const normalized = email.toLowerCase().trim();
 
+  // ponytail: skip API in non-production — avoids Vercel Deployment Protection + Resend sandbox limits
+  if (window.location.hostname !== 'proev-dashboard.dravaautomations.com') {
+    return devFallbackSendMagicLink(normalized);
+  }
+
   try {
     const res = await fetch('/api/auth/send-magic-link', {
       method: 'POST',
@@ -232,9 +237,13 @@ export async function sendMagicLink(email: string): Promise<{ success: boolean; 
       return devFallbackSendMagicLink(normalized);
     }
 
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       return { success: false, error: data.error || 'Error al enviar el enlace' };
+    }
+    if (data.devLink) {
+      // ponytail: preview mode — navigate directly, no email needed
+      window.location.href = data.devLink;
     }
     return { success: true };
   } catch {
