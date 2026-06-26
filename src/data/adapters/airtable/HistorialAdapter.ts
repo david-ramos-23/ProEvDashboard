@@ -47,7 +47,7 @@ export async function fetchHistorial(options?: {
   const records = await listRecords<AirtableHistorialFields>(AIRTABLE_TABLES.HISTORIAL, {
     filterByFormula: formulas.length > 0 ? formulas[0] : undefined,
     sort: [{ field: 'ID', direction: 'desc' }],
-    maxRecords: options?.maxRecords || 50,
+    maxRecords: options?.alumnoId ? undefined : (options?.maxRecords || 50),
   });
 
   const historials = records.map(mapToHistorial);

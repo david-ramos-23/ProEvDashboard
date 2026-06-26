@@ -268,7 +268,10 @@ function ColaSection() {
   async function handleBatchEliminar() {
     setBatchDeleting(true);
     try {
-      await Promise.all([...colaSelectedIds].map(id => eliminarEmail(id)));
+      // Sequential with small delay to respect Airtable's ~5 req/s rate limit
+      for (const id of colaSelectedIds) {
+        await eliminarEmail(id);
+      }
       await queryClient.invalidateQueries({ queryKey: ['cola-emails'] });
       setColaSelectedIds(new Set());
     } finally {

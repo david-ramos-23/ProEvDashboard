@@ -41,6 +41,8 @@ export async function fetchColaEmails(filters?: { estado?: EstadoEmail; estados?
     formulas.push(`{Estado} = '${sanitizeForFormula(filters.estado)}'`);
   }
   if (filters?.tipo) formulas.push(`LOWER({Tipo}) = '${sanitizeForFormula(filters.tipo.toLowerCase())}'`);
+  // Always exclude soft-deleted emails
+  formulas.push(`{Estado} != 'Eliminado'`);
 
   const filterByFormula = formulas.length > 1
     ? `AND(${formulas.join(', ')})`

@@ -52,7 +52,6 @@ export default function PagosPage() {
       const q = busqueda.toLowerCase();
       result = result.filter(p =>
         (p.alumnoNombre || '').toLowerCase().includes(q) ||
-        (p.idSesionStripe || '').toLowerCase().includes(q) ||
         (p.mesPago || '').toLowerCase().includes(q)
       );
     }
