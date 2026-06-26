@@ -816,3 +816,40 @@
     width: 100% !important;
   }
 }
+
+.listItemWrapper {
+  position: relative;
+}
+.listItemQuickActions {
+  position: absolute;
+  right: var(--space-sm, 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  gap: 4px;
+  z-index: 1;
+}
+.listItemWrapper:hover .listItemQuickActions {
+  display: flex;
+}
+.listItemActionBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-sm);
+  transition: background var(--transition-fast, 150ms), color var(--transition-fast, 150ms);
+}
+.listItemActionBtn:hover {
+  background: var(--color-accent-primary-glow);
+  color: var(--color-accent-primary);
+  border-color: rgba(12, 90, 69, 0.3);
+}

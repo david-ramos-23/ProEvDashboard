@@ -223,16 +223,14 @@ const TIPOS_EMAIL = ['disculpa', 'informacion', 'recordatorio', 'seguimiento', '
 function ColaSection() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
-  const [colaTab, setColaTab] = useState<ColaTab>('pendientes');
+  const [filtroEstados, setFiltroEstados] = useState<EstadoEmail[]>([]);
   const [filtroTipo, setFiltroTipo] = useState('');
   const [approving, setApproving] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  const activeEstado = COLA_TABS.find(t => t.key === colaTab)!.estado;
-
   const { data: colaEmails = [], isLoading } = useQuery({
-    queryKey: ['cola-emails', { estado: activeEstado, tipo: filtroTipo || undefined }],
-    queryFn: () => fetchColaEmails({ estado: activeEstado, tipo: filtroTipo || undefined }),
+    queryKey: ['cola-emails', { estados: filtroEstados, tipo: filtroTipo || undefined }],
+    queryFn: () => fetchColaEmails({ estados: filtroEstados.length > 0 ? filtroEstados : undefined, tipo: filtroTipo || undefined }),
   });
 
   async function handleAprobar(id: string) {
@@ -274,7 +272,7 @@ function ColaSection() {
         render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
       },
     ];
-    if (colaTab === 'pendientes') {
+    if (filtroEstados.length === 0 || filtroEstados.includes(ESTADO_EMAIL.PENDIENTE_APROBACION)) {
       cols.push({
         key: 'actions', header: '', width: '100px', hideable: false,
         render: (e) => (
@@ -289,26 +287,27 @@ function ColaSection() {
       });
     }
     return cols;
-  }, [colaTab, approving, t]);
+  }, [filtroEstados, approving, t]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-      <div style={{ display: 'flex', gap: 'var(--space-xs)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-xs)' }}>
-        {COLA_TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setColaTab(tab.key)}
-            className={styles.filterBtn}
-            style={{
-              background: colaTab === tab.key ? 'var(--color-accent-primary-glow)' : 'transparent',
-              borderColor: colaTab === tab.key ? 'rgba(12, 90, 69, 0.3)' : 'transparent',
-              color: colaTab === tab.key ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)',
-              borderRadius: '8px 8px 0 0',
-            }}
-          >
-            <span>{tab.icon}</span> {tab.label}
-          </button>
-        ))}
+      <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-xs)' }}>
+        <button className={`btn-sm ${filtroEstados.length === 0 ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroEstados([])}>Todos</button>
+        {COLA_TABS.map(tab => {
+          const active = filtroEstados.includes(tab.estado);
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setFiltroEstados(prev => active ? prev.filter(e => e !== tab.estado) : [...prev, tab.estado])}
+              className={`btn-sm ${active ? 'btn-primary' : 'btn-ghost'}`}
+            >
+              <span>{tab.icon}</span> {tab.label}
+            </button>
+          );
+        })}
+        {filtroEstados.length > 0 && (
+          <button className="btn-ghost btn-sm" onClick={() => setFiltroEstados([])} style={{ marginLeft: 'auto' }}>Limpiar</button>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -335,7 +334,7 @@ function ColaSection() {
         columns={columns}
         data={colaEmails}
         isLoading={isLoading}
-        emptyMessage={`No hay emails en "${COLA_TABS.find(t => t.key === colaTab)!.label}"`}
+        emptyMessage="No hay emails con los filtros seleccionados"
         emptyIcon="📧"
       />
 
@@ -552,36 +551,49 @@ export default function InboxPage() {
                   const isUnread = email.estado === 'Nuevo';
                   const isSelected = selectedId === email.id;
                   return (
-                    <button
-                      key={email.id}
-                      className={`${styles.listItem} ${isSelected ? styles.listItemActive : ''} ${isUnread ? styles.listItemUnread : ''} ${email.requiereAtencion ? styles.listItemAlert : ''}`}
-                      style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
-                      onClick={() => selectEmail(email)}
-                    >
-                      <div className={styles.listItemRow}>
-                        <div className={styles.listItemAvatar} aria-hidden="true">
-                          {((email.de || email.para || '?').charAt(0)).toUpperCase()}
+                    <div key={email.id} className={styles.listItemWrapper}>
+                      <button
+                        className={`${styles.listItem} ${isSelected ? styles.listItemActive : ''} ${isUnread ? styles.listItemUnread : ''} ${email.requiereAtencion ? styles.listItemAlert : ''}`}
+                        style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
+                        onClick={() => selectEmail(email)}
+                      >
+                        <div className={styles.listItemRow}>
+                          <div className={styles.listItemAvatar} aria-hidden="true">
+                            {((email.de || email.para || '?').charAt(0)).toUpperCase()}
+                          </div>
+                          <div className={styles.listItemMain}>
+                            <div className={styles.listItemTop}>
+                              <span className={`${styles.listItemContact} ${isUnread ? styles.listItemContactUnread : ''}`}>
+                                {email.direccion === 'Recibido' ? (email.de || '—') : (email.para || '—')}
+                              </span>
+                              <span className={styles.listItemTime}>{timeAgo(email.fecha || email.createdTime)}</span>
+                            </div>
+                            <div className={styles.listItemSubjectRow}>
+                              <span className={`${styles.listItemSubject} ${isUnread ? styles.listItemSubjectUnread : ''}`} title={email.asunto || '(sin asunto)'}>
+                                {email.asunto || '(sin asunto)'}
+                              </span>
+                              {email.resumenIA && <span className={styles.listItemSnippetInline}> — {email.resumenIA}</span>}
+                            </div>
+                            <div className={styles.listItemBadges}>
+                              <StatusBadge status={email.estado} />
+                              {email.origen === 'Manual' && <StatusBadge status="Manual" type="origin" />}
+                            </div>
+                          </div>
                         </div>
-                        <div className={styles.listItemMain}>
-                          <div className={styles.listItemTop}>
-                            <span className={`${styles.listItemContact} ${isUnread ? styles.listItemContactUnread : ''}`}>
-                              {email.direccion === 'Recibido' ? (email.de || '—') : (email.para || '—')}
-                            </span>
-                            <span className={styles.listItemTime}>{timeAgo(email.fecha || email.createdTime)}</span>
-                          </div>
-                          <div className={styles.listItemSubjectRow}>
-                            <span className={`${styles.listItemSubject} ${isUnread ? styles.listItemSubjectUnread : ''}`} title={email.asunto || '(sin asunto)'}>
-                              {email.asunto || '(sin asunto)'}
-                            </span>
-                            {email.resumenIA && <span className={styles.listItemSnippetInline}> — {email.resumenIA}</span>}
-                          </div>
-                          <div className={styles.listItemBadges}>
-                            <StatusBadge status={email.estado} />
-                            {email.origen === 'Manual' && <StatusBadge status="Manual" type="origin" />}
-                          </div>
-                        </div>
+                      </button>
+                      <div className={styles.listItemQuickActions}>
+                        {email.estado !== 'Leido' && (
+                          <button title="Marcar leído" className={styles.listItemActionBtn}
+                            onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Leido' } }); }}>
+                            ✓
+                          </button>
+                        )}
+                        <button title="Archivar" className={styles.listItemActionBtn}
+                          onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Archivado' } }); }}>
+                          ↓
+                        </button>
                       </div>
-                    </button>
+                    </div>
                   );
                 })
               )}

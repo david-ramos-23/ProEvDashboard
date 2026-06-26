@@ -32,9 +32,14 @@ function mapToColaEmail(record: AirtableRecord<AirtableColaEmailFields>): ColaEm
   };
 }
 
-export async function fetchColaEmails(filters?: { estado?: EstadoEmail; tipo?: string }): Promise<ColaEmail[]> {
+export async function fetchColaEmails(filters?: { estado?: EstadoEmail; estados?: EstadoEmail[]; tipo?: string }): Promise<ColaEmail[]> {
   const formulas: string[] = [];
-  if (filters?.estado) formulas.push(`{Estado} = '${sanitizeForFormula(filters.estado)}'`);
+  if (filters?.estados?.length) {
+    const parts = filters.estados.map(e => `{Estado} = '${sanitizeForFormula(e)}'`);
+    formulas.push(parts.length > 1 ? `OR(${parts.join(', ')})` : parts[0]);
+  } else if (filters?.estado) {
+    formulas.push(`{Estado} = '${sanitizeForFormula(filters.estado)}'`);
+  }
   if (filters?.tipo) formulas.push(`LOWER({Tipo}) = '${sanitizeForFormula(filters.tipo.toLowerCase())}'`);
 
   const filterByFormula = formulas.length > 1
