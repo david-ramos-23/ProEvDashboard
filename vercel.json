@@ -1,4 +1,7 @@
 {
+  "functions": {
+    "api/ai-chat.ts": { "maxDuration": 30 }
+  },
   "buildCommand": "npx vite build",
   "outputDirectory": "dist",
   "framework": "vite",

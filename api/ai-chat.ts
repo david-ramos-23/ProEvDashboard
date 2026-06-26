@@ -332,18 +332,16 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
             m[k] = (m[k] || 0) + 1; return m;
           }, {});
 
-        // Alumnos — edition-scoped if requested
+        // Run all 4 table fetches in parallel
         const alumnosFilter = input.edicion
           ? `FIND(',${sanitizeForFormula(String(input.edicion))},', ',' & ARRAYJOIN({Edicion}, ',') & ',')`
           : undefined;
-        const alumnos = await fetchAllPages(TABLES.ALUMNOS, ['Estado General'], alumnosFilter);
-
-        // Cola emails — global
-        const cola = await fetchAllPages(TABLES.COLA_EMAILS, ['Estado']);
-        // Inbox — global (fetch Estado + Requiere Atencion)
-        const inbox = await fetchAllPages(TABLES.INBOX, ['Estado', 'Requiere Atencion']);
-        // Revisiones — global
-        const revisiones = await fetchAllPages(TABLES.REVISIONES, ['Estado de Revisión']);
+        const [alumnos, cola, inbox, revisiones] = await Promise.all([
+          fetchAllPages(TABLES.ALUMNOS, ['Estado General'], alumnosFilter),
+          fetchAllPages(TABLES.COLA_EMAILS, ['Estado']),
+          fetchAllPages(TABLES.INBOX, ['Estado', 'Requiere Atencion']),
+          fetchAllPages(TABLES.REVISIONES, ['Estado de Revisión']),
+        ]);
 
         const alumnosByEstado = countBy(alumnos, 'Estado General');
         const revisionesByEstado = countBy(revisiones, 'Estado de Revisión');
