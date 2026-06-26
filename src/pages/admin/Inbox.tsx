@@ -5,7 +5,7 @@
  * Cola: DataTable with approval flow (unchanged)
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DOMPurify from 'dompurify';
 import { StatusBadge, SkeletonBlock, DataTable, Column, ConfirmDialog } from '@/components/shared';
@@ -365,6 +365,9 @@ export default function InboxPage() {
   const [section, setSection] = useState<SectionType>('bandeja');
   const [dirTab, setDirTab] = useState<DirectionTab>('Recibido');
   const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>('');
+  const [listWidth, setListWidth] = useState(380);
+  const splitViewRef = useRef<HTMLDivElement>(null);
+  const isDraggingDiv = useRef(false);
   const [atencionOnly, setAtencionOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -391,7 +394,11 @@ export default function InboxPage() {
   const sorted = useMemo(() => {
     // Always exclude deleted emails
     let list = emails.filter(e => e.estado !== 'Eliminado');
-    if (estadoFilter) list = list.filter(e => e.estado === estadoFilter);
+    if (estadoFilter) {
+      list = list.filter(e => e.estado === estadoFilter);
+    } else {
+      list = list.filter(e => e.estado !== 'Archivado');
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(e =>
@@ -417,6 +424,21 @@ export default function InboxPage() {
       setSelectedId(sorted[0].id);
     }
   }, [sorted, selectedId, isMobile]);
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!isDraggingDiv.current || !splitViewRef.current) return;
+      const rect = splitViewRef.current.getBoundingClientRect();
+      setListWidth(Math.max(240, Math.min(600, e.clientX - rect.left)));
+    }
+    function onUp() { isDraggingDiv.current = false; }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, []);
 
   const directionTabs: { key: DirectionTab; label: string }[] = [
     { key: 'Recibido', label: t('inbox.recibidos') },
@@ -465,9 +487,9 @@ export default function InboxPage() {
 
       {/* Bandeja section — split panel */}
       {section === 'bandeja' && (
-        <div className={styles.splitView}>
+        <div className={styles.splitView} ref={splitViewRef}>
           {/* Left: email list */}
-          <div className={`${styles.listPanel} ${isMobile && showDetail ? styles.mobileHidden : ''}`}>
+          <div className={`${styles.listPanel} ${isMobile && showDetail ? styles.mobileHidden : ''}`} style={!isMobile ? { width: listWidth, flexShrink: 0 } : undefined}>
             {/* Filters */}
             <div className={styles.listFilters}>
               {/* Segmented tabs: Recibidos | Enviados | Sin responder */}
@@ -600,6 +622,12 @@ export default function InboxPage() {
             </div>
           </div>
 
+          {!isMobile && (
+            <div
+              className={styles.resizeDivider}
+              onMouseDown={e => { e.preventDefault(); isDraggingDiv.current = true; }}
+            />
+          )}
           {/* Right: detail panel */}
           <div className={`${styles.detailPanel} ${isMobile && !showDetail ? styles.mobileHidden : ''}`}>
             <DetailPanel
