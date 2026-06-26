@@ -30,6 +30,10 @@ const AIRTABLE_BASE_ID = process.env.AIRTABLE_BASE_ID;
 const AIRTABLE_BASE_URL = 'https://api.airtable.com/v0';
 const COLA_EMAILS_TABLE = 'tblVqFfucbW5POC5u';
 
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const USE_SUPABASE = process.env.DATA_SOURCE === 'supabase';
+
 const ALLOWED_ORIGINS = [
   'https://dashboard-eight-jade-69.vercel.app',
   'https://proev-dashboard.dravaautomations.com',
@@ -108,7 +112,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // Write to Airtable Cola de Emails
+  // Write to Cola de Emails — route by DATA_SOURCE env var
+  if (USE_SUPABASE) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return res.status(500).json({ error: 'Server misconfigured: missing Supabase credentials' });
+    }
+    try {
+      const sbRes = await fetch(`${SUPABASE_URL}/rest/v1/cola_emails`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          apikey: SUPABASE_SERVICE_ROLE_KEY,
+          'Content-Type': 'application/json',
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify({
+          alumno_id: alumnoRecordId,
+          ...(isQuickMode ? {} : { tipo: templateKey }),
+          mensaje,
+          ...(asunto ? { asunto } : {}),
+          estado: 'Pendiente',
+          ...(origen ? { origen } : {}),
+        }),
+      });
+      const sbData = await sbRes.json() as Array<{ id: string }> | { message: string };
+      if (!sbRes.ok) {
+        const errMsg = !Array.isArray(sbData) ? ((sbData as { message: string }).message ?? 'Supabase error') : 'Supabase error';
+        return res.status(500).json({ error: errMsg });
+      }
+      const recordId = Array.isArray(sbData) ? sbData[0]?.id : undefined;
+      return res.status(200).json({ id: recordId });
+    } catch {
+      return res.status(500).json({ error: 'Failed to create email record in Supabase' });
+    }
+  }
+
   try {
     const airtableRes = await fetch(
       `${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${COLA_EMAILS_TABLE}`,
