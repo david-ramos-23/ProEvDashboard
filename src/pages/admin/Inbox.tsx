@@ -22,7 +22,6 @@ import styles from './Inbox.module.css';
 
 type SectionType = 'bandeja' | 'cola';
 type DirectionTab = 'Recibido' | 'Enviado';
-type EstadoFilter = '' | 'Nuevo' | 'Leido' | 'Respondido' | 'Archivado';
 
 function buildQueryFilters(tab: DirectionTab, atencionOnly: boolean) {
   const filters: Record<string, unknown> = {};
@@ -364,7 +363,7 @@ export default function InboxPage() {
 
   const [section, setSection] = useState<SectionType>('bandeja');
   const [dirTab, setDirTab] = useState<DirectionTab>('Recibido');
-  const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>('');
+  const [showArchived, setShowArchived] = useState(false);
   const [listWidth, setListWidth] = useState(380);
   const splitViewRef = useRef<HTMLDivElement>(null);
   const isDraggingDiv = useRef(false);
@@ -392,13 +391,10 @@ export default function InboxPage() {
   });
 
   const sorted = useMemo(() => {
-    // Always exclude deleted emails
     let list = emails.filter(e => e.estado !== 'Eliminado');
-    if (estadoFilter) {
-      list = list.filter(e => e.estado === estadoFilter);
-    } else {
-      list = list.filter(e => e.estado !== 'Archivado');
-    }
+    list = showArchived
+      ? list.filter(e => e.estado === 'Archivado')
+      : list.filter(e => e.estado !== 'Archivado');
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(e =>
@@ -408,7 +404,7 @@ export default function InboxPage() {
       );
     }
     return sortEmails(list);
-  }, [emails, estadoFilter, search]);
+  }, [emails, showArchived, search]);
 
   const atencionCount = useMemo(() => emails.filter(e => e.requiereAtencion).length, [emails]);
 
@@ -445,13 +441,6 @@ export default function InboxPage() {
     { key: 'Enviado', label: t('inbox.enviados') },
   ];
 
-  const estadoOptions: { key: EstadoFilter; label: string }[] = [
-    { key: '', label: 'Todos' },
-    { key: 'Nuevo', label: 'Nuevo' },
-    { key: 'Leido', label: 'Leído' },
-    { key: 'Respondido', label: 'Respondido' },
-    { key: 'Archivado', label: 'Archivado' },
-  ];
 
   return (
     <div className={`animate-fadeIn ${styles.page}`}>
@@ -505,19 +494,14 @@ export default function InboxPage() {
                 ))}
               </div>
 
-              {/* Estado pills + search row */}
+              {/* Search + archive toggle row */}
               <div className={styles.filterControls}>
-                <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
-                  {estadoOptions.map(opt => (
-                    <button
-                      key={opt.key}
-                      className={`btn-sm ${estadoFilter === opt.key ? 'btn-primary' : 'btn-ghost'}`}
-                      onClick={() => setEstadoFilter(opt.key)}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
+                <button
+                  className={`btn-sm ${showArchived ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setShowArchived(o => !o)}
+                >
+                  📁 Archivados
+                </button>
                 <div className={styles.searchWrap}>
                   <span className={styles.searchIcon}>🔍</span>
                   <input
@@ -538,11 +522,6 @@ export default function InboxPage() {
                     onClick={() => setAtencionOnly(o => !o)}
                   >
                     ⚠️ {atencionCount} {t('inbox.requiereAtencion')}
-                  </button>
-                )}
-                {estadoFilter && (
-                  <button className="btn-ghost btn-sm" onClick={() => setEstadoFilter('')}>
-                    Limpiar
                   </button>
                 )}
                 {!isLoading && (
@@ -613,6 +592,10 @@ export default function InboxPage() {
                         <button title="Archivar" className={styles.listItemActionBtn}
                           onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Archivado' } }); }}>
                           ↓
+                        </button>
+                        <button title="Eliminar" className={styles.listItemActionBtn}
+                          onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Eliminado' } }); }}>
+                          🗑
                         </button>
                       </div>
                     </div>
