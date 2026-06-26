@@ -24,7 +24,7 @@ export function DropdownMenu({ open, onClose, triggerRef, children, width = 240,
     let left = rightEdge - width;
     if (left < 8) left = 8;
     if (left + width > window.innerWidth - 8) left = window.innerWidth - width - 8;
-    setPos({ top: triggerRect.bottom + 6 + window.scrollY, left });
+    setPos({ top: triggerRect.bottom + 6, left });
   }, [open, triggerRef, width, alignRef]);
 
   // Set aria-expanded on trigger

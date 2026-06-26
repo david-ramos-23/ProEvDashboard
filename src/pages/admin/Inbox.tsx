@@ -22,7 +22,6 @@ import styles from './Inbox.module.css';
 
 type SectionType = 'bandeja' | 'cola';
 type DirectionTab = 'Recibido' | 'Enviado';
-type EstadoFilter = '' | 'Nuevo' | 'Leido' | 'Respondido' | 'Archivado';
 
 function buildQueryFilters(tab: DirectionTab, atencionOnly: boolean) {
   const filters: Record<string, unknown> = {};
@@ -218,22 +217,31 @@ const COLA_TABS: { key: ColaTab; label: string; icon: string; estado: EstadoEmai
   { key: 'enviados',   label: 'Enviados',    icon: '✅', estado: 'Enviado' },
   { key: 'errores',    label: 'Errores',     icon: '❌', estado: 'Error' },
 ];
-const TIPOS_EMAIL = ['informacion', 'recordatorio', 'seguimiento', 'bienvenida', 'alerta'];
+const TIPOS_EMAIL = ['disculpa', 'informacion', 'recordatorio', 'seguimiento', 'seguimiento_frio', 'bienvenida', 'felicitacion', 'urgente'];
 
 function ColaSection() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
-  const [colaTab, setColaTab] = useState<ColaTab>('pendientes');
+  const [filtroEstados, setFiltroEstados] = useState<EstadoEmail[]>([]);
   const [filtroTipo, setFiltroTipo] = useState('');
+  const [colaSearch, setColaSearch] = useState('');
   const [approving, setApproving] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
-  const activeEstado = COLA_TABS.find(t => t.key === colaTab)!.estado;
-
   const { data: colaEmails = [], isLoading } = useQuery({
-    queryKey: ['cola-emails', { estado: activeEstado, tipo: filtroTipo || undefined }],
-    queryFn: () => fetchColaEmails({ estado: activeEstado, tipo: filtroTipo || undefined }),
+    queryKey: ['cola-emails', { estados: filtroEstados, tipo: filtroTipo || undefined }],
+    queryFn: () => fetchColaEmails({ estados: filtroEstados.length > 0 ? filtroEstados : undefined, tipo: filtroTipo || undefined }),
   });
+
+  const filteredCola = useMemo(() => {
+    if (!colaSearch.trim()) return colaEmails;
+    const q = colaSearch.toLowerCase();
+    return colaEmails.filter(e =>
+      e.alumnoNombre?.toLowerCase().includes(q) ||
+      e.asunto?.toLowerCase().includes(q) ||
+      e.tipo?.toLowerCase().includes(q),
+    );
+  }, [colaEmails, colaSearch]);
 
   async function handleAprobar(id: string) {
     setApproving(id);
@@ -274,10 +282,10 @@ function ColaSection() {
         render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
       },
     ];
-    if (colaTab === 'pendientes') {
+    if (filtroEstados.length === 0 || filtroEstados.includes(ESTADO_EMAIL.PENDIENTE_APROBACION)) {
       cols.push({
         key: 'actions', header: '', width: '100px', hideable: false,
-        render: (e) => (
+        render: (e) => e.estado === ESTADO_EMAIL.PENDIENTE_APROBACION ? (
           <button
             className="btn-success btn-sm"
             onClick={(ev) => { ev.stopPropagation(); setConfirmId(e.id); }}
@@ -285,49 +293,58 @@ function ColaSection() {
           >
             {approving === e.id ? '...' : t('common.approve')}
           </button>
-        ),
+        ) : null,
       });
     }
     return cols;
-  }, [colaTab, approving, t]);
+  }, [filtroEstados, approving, t]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-      <div style={{ display: 'flex', gap: 'var(--space-xs)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-xs)' }}>
-        {COLA_TABS.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setColaTab(tab.key)}
-            className={styles.filterBtn}
-            style={{
-              background: colaTab === tab.key ? 'var(--color-accent-primary-glow)' : 'transparent',
-              borderColor: colaTab === tab.key ? 'rgba(12, 90, 69, 0.3)' : 'transparent',
-              color: colaTab === tab.key ? 'var(--color-accent-primary)' : 'var(--color-text-secondary)',
-              borderRadius: '8px 8px 0 0',
-            }}
-          >
-            <span>{tab.icon}</span> {tab.label}
-          </button>
-        ))}
+      <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-xs)' }}>
+        <button className={`btn-sm ${filtroEstados.length === 0 ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroEstados([])}>Todos</button>
+        {COLA_TABS.map(tab => {
+          const active = filtroEstados.includes(tab.estado);
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setFiltroEstados(prev => active ? prev.filter(e => e !== tab.estado) : [...prev, tab.estado])}
+              className={`btn-sm ${active ? 'btn-primary' : 'btn-ghost'}`}
+            >
+              <span>{tab.icon}</span> {tab.label}
+            </button>
+          );
+        })}
+        {filtroEstados.length > 0 && (
+          <button className="btn-ghost btn-sm" onClick={() => setFiltroEstados([])} style={{ marginLeft: 'auto' }}>Limpiar</button>
+        )}
       </div>
 
-      <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center' }}>
         <button className={`btn-sm ${!filtroTipo ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroTipo('')}>Todos</button>
         {TIPOS_EMAIL.map(tipo => (
           <button key={tipo} className={`btn-sm ${filtroTipo === tipo ? 'btn-primary' : 'btn-ghost'}`}
             onClick={() => setFiltroTipo(filtroTipo === tipo ? '' : tipo)}
             style={{ textTransform: 'capitalize' }}>
-            {tipo}
+            {tipo.replace(/_/g, ' ')}
           </button>
         ))}
+        {filtroTipo && (
+          <button className="btn-ghost btn-sm" onClick={() => setFiltroTipo('')} style={{ marginLeft: 'auto' }}>
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       <DataTable
         tableId="inbox-cola"
         columns={columns}
-        data={colaEmails}
+        data={filteredCola}
+        searchValue={colaSearch}
+        onSearchChange={setColaSearch}
+        title={`${filteredCola.length} ${filteredCola.length === 1 ? 'email' : 'emails'}`}
         isLoading={isLoading}
-        emptyMessage={`No hay emails en "${COLA_TABS.find(t => t.key === colaTab)!.label}"`}
+        emptyMessage="No hay emails con los filtros seleccionados"
         emptyIcon="📧"
       />
 
@@ -357,25 +374,16 @@ export default function InboxPage() {
 
   const [section, setSection] = useState<SectionType>('bandeja');
   const [dirTab, setDirTab] = useState<DirectionTab>('Recibido');
-  const [estadoFilter, setEstadoFilter] = useState<EstadoFilter>('');
+  const [showArchived, setShowArchived] = useState(false);
+  const [listWidth, setListWidth] = useState(380);
+  const splitViewRef = useRef<HTMLDivElement>(null);
+  const isDraggingDiv = useRef(false);
   const [atencionOnly, setAtencionOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [search, setSearch] = useState('');
-  const [estadoDropdownOpen, setEstadoDropdownOpen] = useState(false);
-  const estadoRef = useRef<HTMLDivElement>(null);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
   const isAdmin = getSession()?.role === 'admin';
-
-  // Close estado dropdown on outside click
-  useEffect(() => {
-    if (!estadoDropdownOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (estadoRef.current && !estadoRef.current.contains(e.target as Node)) setEstadoDropdownOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [estadoDropdownOpen]);
 
   const queryFilters = buildQueryFilters(dirTab, atencionOnly);
 
@@ -394,9 +402,10 @@ export default function InboxPage() {
   });
 
   const sorted = useMemo(() => {
-    // Always exclude deleted emails
     let list = emails.filter(e => e.estado !== 'Eliminado');
-    if (estadoFilter) list = list.filter(e => e.estado === estadoFilter);
+    list = showArchived
+      ? list.filter(e => e.estado === 'Archivado')
+      : list.filter(e => e.estado !== 'Archivado');
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(e =>
@@ -406,29 +415,44 @@ export default function InboxPage() {
       );
     }
     return sortEmails(list);
-  }, [emails, estadoFilter, search]);
+  }, [emails, showArchived, search]);
 
   const atencionCount = useMemo(() => emails.filter(e => e.requiereAtencion).length, [emails]);
 
   const selectedEmail = sorted.find(e => e.id === selectedId) || null;
 
   function selectEmail(email: InboxEmail) {
+    if (!isMobile && selectedId === email.id) { setSelectedId(null); return; }
     setSelectedId(email.id);
     if (isMobile) setShowDetail(true);
   }
+
+  useEffect(() => {
+    if (!isMobile && sorted.length > 0 && (selectedId === null || !sorted.some(e => e.id === selectedId))) {
+      setSelectedId(sorted[0].id);
+    }
+  }, [sorted, selectedId, isMobile]);
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!isDraggingDiv.current || !splitViewRef.current) return;
+      const rect = splitViewRef.current.getBoundingClientRect();
+      setListWidth(Math.max(240, Math.min(600, e.clientX - rect.left)));
+    }
+    function onUp() { isDraggingDiv.current = false; }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, []);
 
   const directionTabs: { key: DirectionTab; label: string }[] = [
     { key: 'Recibido', label: t('inbox.recibidos') },
     { key: 'Enviado', label: t('inbox.enviados') },
   ];
 
-  const estadoOptions: { key: EstadoFilter; label: string }[] = [
-    { key: '', label: 'Todos' },
-    { key: 'Nuevo', label: 'Nuevo' },
-    { key: 'Leido', label: 'Leído' },
-    { key: 'Respondido', label: 'Respondido' },
-    { key: 'Archivado', label: 'Archivado' },
-  ];
 
   return (
     <div className={`animate-fadeIn ${styles.page}`}>
@@ -464,9 +488,9 @@ export default function InboxPage() {
 
       {/* Bandeja section — split panel */}
       {section === 'bandeja' && (
-        <div className={styles.splitView}>
+        <div className={styles.splitView} ref={splitViewRef}>
           {/* Left: email list */}
-          <div className={`${styles.listPanel} ${isMobile && showDetail ? styles.mobileHidden : ''}`}>
+          <div className={`${styles.listPanel} ${isMobile && showDetail ? styles.mobileHidden : ''}`} style={!isMobile && selectedId ? { width: listWidth, flexShrink: 0 } : undefined}>
             {/* Filters */}
             <div className={styles.listFilters}>
               {/* Segmented tabs: Recibidos | Enviados | Sin responder */}
@@ -482,32 +506,14 @@ export default function InboxPage() {
                 ))}
               </div>
 
-              {/* Estado dropdown + search row */}
+              {/* Search + archive toggle row */}
               <div className={styles.filterControls}>
-                <div ref={estadoRef} className={styles.estadoDropdown}>
-                  <button
-                    className={`${styles.estadoBtn} ${estadoFilter ? styles.estadoBtnActive : ''}`}
-                    onClick={() => setEstadoDropdownOpen(o => !o)}
-                  >
-                    {estadoFilter || 'Estado'}
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-                  {estadoDropdownOpen && (
-                    <div className={styles.estadoMenu}>
-                      {estadoOptions.map(opt => (
-                        <button
-                          key={opt.key}
-                          className={`${styles.estadoMenuItem} ${estadoFilter === opt.key ? styles.estadoMenuItemActive : ''}`}
-                          onClick={() => { setEstadoFilter(opt.key); setEstadoDropdownOpen(false); }}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <button
+                  className={`btn-sm ${showArchived ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setShowArchived(o => !o)}
+                >
+                  📁 Archivados
+                </button>
                 <div className={styles.searchWrap}>
                   <span className={styles.searchIcon}>🔍</span>
                   <input
@@ -558,39 +564,67 @@ export default function InboxPage() {
                   const isUnread = email.estado === 'Nuevo';
                   const isSelected = selectedId === email.id;
                   return (
-                    <button
-                      key={email.id}
-                      className={`${styles.listItem} ${isSelected ? styles.listItemActive : ''} ${isUnread ? styles.listItemUnread : ''} ${email.requiereAtencion ? styles.listItemAlert : ''}`}
-                      style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
-                      onClick={() => selectEmail(email)}
-                    >
-                      <div className={styles.listItemTop}>
-                        <span className={`${styles.listItemSubject} ${isUnread ? styles.listItemSubjectUnread : ''}`}>
-                          {email.asunto || '(sin asunto)'}
-                        </span>
-                        <span className={styles.listItemTime}>{timeAgo(email.fecha || email.createdTime)}</span>
-                      </div>
-                      <div className={styles.listItemBottom}>
-                        <span className={styles.listItemContact}>
-                          {email.direccion === 'Recibido' ? email.de : email.para}
-                        </span>
-                        <StatusBadge status={email.estado} />
-                        {email.origen === 'Manual' && (
-                          <StatusBadge status="Manual" type="origin" />
+                    <div key={email.id} className={styles.listItemWrapper}>
+                      <button
+                        className={`${styles.listItem} ${isSelected ? styles.listItemActive : ''} ${isUnread ? styles.listItemUnread : ''} ${email.requiereAtencion ? styles.listItemAlert : ''}`}
+                        style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
+                        onClick={() => selectEmail(email)}
+                      >
+                        <div className={styles.listItemRow}>
+                          <div className={styles.listItemAvatar} aria-hidden="true">
+                            {((email.de || email.para || '?').charAt(0)).toUpperCase()}
+                          </div>
+                          <div className={styles.listItemMain}>
+                            <div className={styles.listItemTop}>
+                              <span className={`${styles.listItemContact} ${isUnread ? styles.listItemContactUnread : ''}`}>
+                                {email.direccion === 'Recibido' ? (email.de || '—') : (email.para || '—')}
+                              </span>
+                              <span className={styles.listItemTime}>{timeAgo(email.fecha || email.createdTime)}</span>
+                            </div>
+                            <div className={styles.listItemSubjectRow}>
+                              <span className={`${styles.listItemSubject} ${isUnread ? styles.listItemSubjectUnread : ''}`} title={email.asunto || '(sin asunto)'}>
+                                {email.asunto || '(sin asunto)'}
+                              </span>
+                              {email.resumenIA && <span className={styles.listItemSnippetInline}> — {email.resumenIA}</span>}
+                            </div>
+                            <div className={styles.listItemBadges}>
+                              <StatusBadge status={email.estado} />
+                              {email.origen === 'Manual' && <StatusBadge status="Manual" type="origin" />}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                      <div className={styles.listItemQuickActions}>
+                        {email.estado !== 'Leido' && (
+                          <button title="Marcar leído" className={styles.listItemActionBtn}
+                            onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Leido' } }); }}>
+                            ✓
+                          </button>
                         )}
+                        <button title="Archivar" className={styles.listItemActionBtn}
+                          onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Archivado' } }); }}>
+                          ↓
+                        </button>
+                        <button title="Eliminar" className={styles.listItemActionBtn}
+                          onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Eliminado' } }); }}>
+                          🗑
+                        </button>
                       </div>
-                      {email.resumenIA && (
-                        <div className={styles.listItemSnippet}>{email.resumenIA}</div>
-                      )}
-                    </button>
+                    </div>
                   );
                 })
               )}
             </div>
           </div>
 
+          {!isMobile && selectedId !== null && (
+            <div
+              className={styles.resizeDivider}
+              onMouseDown={e => { e.preventDefault(); isDraggingDiv.current = true; }}
+            />
+          )}
           {/* Right: detail panel */}
-          <div className={`${styles.detailPanel} ${isMobile && !showDetail ? styles.mobileHidden : ''}`}>
+          <div className={`${styles.detailPanel} ${(isMobile && !showDetail) || (!isMobile && !selectedId) ? styles.mobileHidden : ''}`}>
             <DetailPanel
               email={selectedEmail}
               onUpdate={(id, updates) => updateMutation.mutate({ id, updates })}
@@ -603,8 +637,8 @@ export default function InboxPage() {
 
       <EmailComposeModal
         open={isComposeOpen}
-        alumnoRecordId={selectedEmail?.alumnoId ?? ''}
-        alumnoNombre={selectedEmail?.alumnoNombre ?? ''}
+        alumnoRecordId=""
+        alumnoNombre=""
         onClose={() => setIsComposeOpen(false)}
       />
     </div>

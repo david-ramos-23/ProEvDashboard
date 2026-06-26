@@ -75,13 +75,14 @@ const tools = [
     type: 'function',
     function: {
       name: 'search_alumnos',
-      description: 'Search and list alumnos from the ProEv system. Returns name, email, estado, módulo, engagement score.',
+      description: 'Search and list alumnos. Returns name, email, estado, módulo, engagement score. For counts/totals call obtener_estadisticas instead.',
       parameters: {
         type: 'object',
         properties: {
           search: { type: 'string', description: 'Search by name or email (optional)' },
           estado: { type: 'string', description: 'Filter by estado: Preinscrito, En revision de video, Aprobado, Rechazado, Pendiente de pago, Reserva, Pagado, Finalizado, Plazo Vencido, Pago Fallido, Privado' },
-          limit: { type: 'number', description: 'Max results (default 10, max 50)' },
+          edicion: { type: 'string', description: 'Filter by edition name: "Vol I" or "Vol II". If omitted, returns all editions.' },
+          limit: { type: 'number', description: 'Max results (default 10, max 50). Does not return ALL alumnos — use obtener_estadisticas for totals.' },
         },
       },
     },
@@ -148,11 +149,12 @@ const tools = [
     type: 'function',
     function: {
       name: 'list_cola_emails',
-      description: 'List email queue (cola de emails). Optionally filter by estado.',
+      description: 'List email queue (cola de emails). Optionally filter by estado or tipo.',
       parameters: {
         type: 'object',
         properties: {
           estado: { type: 'string', description: 'Pendiente Aprobacion, Pendiente, Enviado, Error' },
+          tipo: { type: 'string', description: 'informacion, recordatorio, seguimiento, seguimiento_frio, bienvenida, felicitacion, urgente, disculpa' },
           limit: { type: 'number', description: 'Max results (default 10)' },
         },
       },
@@ -170,6 +172,19 @@ const tools = [
           estado: { type: 'string', description: 'New estado value' },
         },
         required: ['id', 'estado'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'obtener_estadisticas',
+      description: 'Get exact counts for the dashboard. Always call this for any "cuántos", "total", "número de" question. Returns precise aggregated numbers, never partial lists.',
+      parameters: {
+        type: 'object',
+        properties: {
+          edicion: { type: 'string', description: 'Edition name to scope alumno counts: "Vol I" or "Vol II". If omitted, counts all editions globally.' },
+        },
       },
     },
   },
@@ -201,18 +216,17 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
           const s = sanitizeForFormula(input.search);
           formulas.push(`OR(FIND(LOWER('${s}'), LOWER({Nombre})), FIND(LOWER('${s}'), LOWER({Email})))`);
         }
+        if (input.edicion) {
+          const eName = sanitizeForFormula(input.edicion);
+          formulas.push(`FIND(',${eName},', ',' & ARRAYJOIN({Edicion}, ',') & ',')`);
+        }
         const filterByFormula = formulas.length > 1
           ? `AND(${formulas.join(', ')})`
           : formulas[0];
-        const params: Record<string, string> = {
-          maxRecords: String(Math.min(Number(input.limit) || 10, 50)),
-          'fields[]': 'Nombre',
-          sort: JSON.stringify([{ field: 'Ultima Modificacion', direction: 'desc' }]),
-        };
-        if (filterByFormula) params.filterByFormula = filterByFormula;
-        // Fetch multiple fields
         const url = new URL(`${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${TABLES.ALUMNOS}`);
         url.searchParams.set('maxRecords', String(Math.min(Number(input.limit) || 10, 50)));
+        url.searchParams.set('sort[0][field]', 'Ultima Modificacion');
+        url.searchParams.set('sort[0][direction]', 'desc');
         if (filterByFormula) url.searchParams.set('filterByFormula', filterByFormula);
         ['Nombre', 'Email', 'Estado General', 'Modulo Solicitado', 'Engagement Score'].forEach(f =>
           url.searchParams.append('fields[]', f)
@@ -274,7 +288,10 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       case 'list_cola_emails': {
         const url = new URL(`${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${TABLES.COLA_EMAILS}`);
         url.searchParams.set('maxRecords', String(Number(input.limit) || 10));
-        if (input.estado) url.searchParams.set('filterByFormula', `{Estado} = '${sanitizeForFormula(input.estado)}'`);
+        const colaFilterParts: string[] = [];
+        if (input.estado) colaFilterParts.push(`{Estado} = '${sanitizeForFormula(input.estado)}'`);
+        if (input.tipo) colaFilterParts.push(`LOWER({Tipo}) = '${sanitizeForFormula(String(input.tipo).toLowerCase())}'`);
+        if (colaFilterParts.length) url.searchParams.set('filterByFormula', colaFilterParts.length > 1 ? `AND(${colaFilterParts.join(', ')})` : colaFilterParts[0]);
         const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${AIRTABLE_PAT}` } });
         const data = await res.json();
         return JSON.stringify((data.records || []).map((r: Record<string, unknown>) => ({ id: r.id, ...(r.fields as object) })));
@@ -288,6 +305,58 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
       case 'approve_email': {
         const data = await airtablePatch(TABLES.COLA_EMAILS, String(input.id), { 'Estado': 'Pendiente' });
         return JSON.stringify({ approved: true, id: data.id });
+      }
+
+      case 'obtener_estadisticas': {
+        // ponytail: cola/inbox/revisiones stay global (match dashboard KPIs). Per-edition
+        // scope for those would need fetchAlumnoIdsByEdicion resolution — add if needed.
+        const fetchAllPages = async (tableId: string, fields?: string[], filter?: string) => {
+          let records: Record<string, unknown>[] = [];
+          let offset: string | undefined;
+          do {
+            const url = new URL(`${AIRTABLE_BASE_URL}/${AIRTABLE_BASE_ID}/${tableId}`);
+            url.searchParams.set('pageSize', '100');
+            if (offset) url.searchParams.set('offset', offset);
+            if (fields) fields.forEach(f => url.searchParams.append('fields[]', f));
+            if (filter) url.searchParams.set('filterByFormula', filter);
+            const r = await fetch(url.toString(), { headers: { Authorization: `Bearer ${AIRTABLE_PAT}` } });
+            const d = await r.json() as { records?: Record<string, unknown>[]; offset?: string };
+            records = records.concat(d.records || []);
+            offset = d.offset;
+          } while (offset);
+          return records;
+        };
+        const countBy = (recs: Record<string, unknown>[], field: string) =>
+          recs.reduce((m: Record<string, number>, r) => {
+            const k = String((r as Record<string, Record<string, unknown>>).fields?.[field] ?? '(vacío)');
+            m[k] = (m[k] || 0) + 1; return m;
+          }, {});
+
+        // Alumnos — edition-scoped if requested
+        const alumnosFilter = input.edicion
+          ? `FIND(',${sanitizeForFormula(String(input.edicion))},', ',' & ARRAYJOIN({Edicion}, ',') & ',')`
+          : undefined;
+        const alumnos = await fetchAllPages(TABLES.ALUMNOS, ['Estado General'], alumnosFilter);
+
+        // Cola emails — global
+        const cola = await fetchAllPages(TABLES.COLA_EMAILS, ['Estado']);
+        // Inbox — global (fetch Estado + Requiere Atencion)
+        const inbox = await fetchAllPages(TABLES.INBOX, ['Estado', 'Requiere Atencion']);
+        // Revisiones — global
+        const revisiones = await fetchAllPages(TABLES.REVISIONES, ['Estado de Revisión']);
+
+        return JSON.stringify({
+          edicion_filtrada: input.edicion || 'todas',
+          alumnos: { total: alumnos.length, por_estado: countBy(alumnos, 'Estado General') },
+          cola_emails: { total: cola.length, por_estado: countBy(cola, 'Estado') },
+          inbox: {
+            total: inbox.length,
+            requiere_atencion: inbox.filter(r => (r as Record<string, Record<string, unknown>>).fields?.['Requiere Atencion'] === true).length,
+            por_estado: countBy(inbox, 'Estado'),
+          },
+          revisiones: { total: revisiones.length, por_estado: countBy(revisiones, 'Estado de Revisión') },
+          nota_pagos: 'La tabla Pagos tiene solo 7 registros (uso interno/manual). Para datos de ingresos consulta el rollup Importe Total Pagado en cada alumno.',
+        });
       }
 
       default:
@@ -315,9 +384,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Server misconfigured: missing API credentials' });
   }
 
-  const { messages, pageContext } = req.body as {
+  const { messages, pageContext, edicion } = req.body as {
     messages: Array<{ role: string; content: string }>;
     pageContext?: string;
+    edicion?: string;
   };
 
   if (!messages?.length) return res.status(400).json({ error: 'messages required' });
@@ -335,9 +405,17 @@ Tienes acceso a datos reales del sistema mediante herramientas (tools). Puedes:
 
 Para acciones de escritura (update_alumno_estado, approve_email), confirma siempre con el usuario antes de ejecutarlas, a menos que ya te haya dado instrucción explícita.
 
+IMPORTANTE — recuento y cifras exactas:
+- Para cualquier pregunta de "cuántos", "total", "número de" o similar, llama SIEMPRE a obtener_estadisticas. NUNCA inferir totales a partir de listas parciales.
+- Hay dos ediciones: "Vol I" (edición antigua, 108 alumnos) y "Vol II" (edición activa actual).
+- La edición seleccionada actualmente en el dashboard es: ${edicion || 'Vol II'}.
+- Cuando el usuario no especifique edición, usa la edición seleccionada y dile cuál usaste.
+- Datos de la cola de emails, inbox y revisiones son globales (todas las ediciones).
+
 Responde siempre en el mismo idioma que el usuario (español o inglés). Sé conciso y directo.
 
-Contexto de página actual: ${pageContext || 'Dashboard principal'}`;
+Contexto de página actual: ${pageContext || 'Dashboard principal'}
+Edición activa en el dashboard: ${edicion || 'Vol II'}`;
 
   try {
     // Agentic loop using OpenAI-compatible format (OpenRouter)
@@ -354,7 +432,7 @@ Contexto de página actual: ${pageContext || 'Dashboard principal'}`;
         headers: {
           'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://dashboard-eight-jade-69.vercel.app',
+          'HTTP-Referer': 'https://proev-dashboard.dravaautomations.com',
           'X-Title': 'ProEv Dashboard Assistant',
         },
         body: JSON.stringify({

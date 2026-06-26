@@ -36,6 +36,7 @@ export type TipoEmail =
   | 'informacion'
   | 'recordatorio'
   | 'seguimiento'
+  | 'seguimiento_frio'
   | 'bienvenida'
   | 'felicitacion'
   | 'urgente';

@@ -50,8 +50,10 @@ interface LoginProps {
 }
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+// ponytail: Google OAuth requires exact domain — hide on preview/local; magic link covers QA needs
+const IS_PROD_HOST = window.location.hostname === 'proev-dashboard.dravaautomations.com';
 
-const IS_DEV = import.meta.env.DEV;
+const IS_DEV = import.meta.env.DEV || !IS_PROD_HOST;
 
 export default function LoginPage({
   onGoogleLogin,
@@ -83,7 +85,7 @@ export default function LoginPage({
 
   // ── Initialize Google GSI ─────────────────────────────────────────────────
   useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return;
+    if (!GOOGLE_CLIENT_ID || !IS_PROD_HOST) return;
 
     const initGoogle = () => {
       if (!window.google?.accounts?.id) return;
@@ -245,7 +247,7 @@ export default function LoginPage({
               </button>
             </form>
 
-            {GOOGLE_CLIENT_ID && (
+            {GOOGLE_CLIENT_ID && IS_PROD_HOST && (
               <>
                 <div className={styles.divider}>
                   <span className={styles.dividerLine} />

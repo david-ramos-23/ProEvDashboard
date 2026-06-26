@@ -18,6 +18,8 @@ function mapToInbox(row: Record<string, unknown>): InboxEmail {
     estado: (row.estado as InboxEmail['estado']) || 'Nuevo',
     fecha: row.fecha as string | undefined,
     alumnoId: row.alumno_id as string | undefined,
+    alumnoNombre: row.alumno_nombre as string | undefined,
+    origen: row.origen as string | undefined,
     messageId: row.message_id as string | undefined,
     threadId: row.thread_id as string | undefined,
     resumenIA: row.resumen_ia as string | undefined,

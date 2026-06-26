@@ -43,8 +43,7 @@
    ============================ */
 
 .splitView {
-  display: grid;
-  grid-template-columns: 380px 1fr;
+  display: flex;
   gap: 0;
   min-height: 600px;
   background: var(--color-bg-card);
@@ -317,7 +316,7 @@
   gap: 3px;
   width: 100%;
   text-align: left;
-  padding: var(--space-sm) var(--space-md);
+  padding: calc(var(--space-sm, 8px) + 4px) var(--space-md, 16px);
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--color-border);
@@ -358,6 +357,70 @@
   border-left-color: var(--color-accent-primary);
 }
 
+/* ── Gmail-like row layout ── */
+
+.listItemRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  width: 100%;
+  min-width: 0;
+}
+
+.listItemAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-accent-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  flex-shrink: 0;
+  margin-top: 1px;
+  opacity: 0.85;
+}
+
+.listItemMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.listItemContactUnread {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.listItemSubjectRow {
+  display: flex;
+  align-items: baseline;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.listItemSnippetInline {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.listItemBadges {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: center;
+  margin-top: 2px;
+}
+
+/* ── End Gmail-like layout ── */
+
 .listItemTop {
   display: flex;
   justify-content: space-between;
@@ -394,11 +457,12 @@
 }
 
 .listItemContact {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 
 .listItemSnippet {
@@ -413,7 +477,21 @@
 
 /* ── Right panel: detail ── */
 
+.resizeDivider {
+  width: 4px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: var(--color-border);
+  transition: background 150ms;
+}
+.resizeDivider:hover,
+.resizeDivider:active {
+  background: var(--color-accent-primary);
+}
+
 .detailPanel {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -750,4 +828,41 @@
   .searchInput {
     width: 100% !important;
   }
+}
+
+.listItemWrapper {
+  position: relative;
+}
+.listItemQuickActions {
+  position: absolute;
+  right: var(--space-sm, 8px);
+  top: 50%;
+  transform: translateY(-50%);
+  display: none;
+  align-items: center;
+  gap: 4px;
+  z-index: 1;
+}
+.listItemWrapper:hover .listItemQuickActions {
+  display: flex;
+}
+.listItemActionBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-sm);
+  transition: background var(--transition-fast, 150ms), color var(--transition-fast, 150ms);
+}
+.listItemActionBtn:hover {
+  background: var(--color-accent-primary-glow);
+  color: var(--color-accent-primary);
+  border-color: rgba(12, 90, 69, 0.3);
 }

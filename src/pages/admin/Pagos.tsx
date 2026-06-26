@@ -5,12 +5,13 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, Column } from '@/components/shared';
-import { fetchPagos, fetchPagoStats } from '@/data/adapters';
+import { fetchPagos } from '@/data/adapters';
 import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
 import { ESTADO_PAGO } from '@/utils/constants';
 import { useEdicion } from '@/context/EdicionContext';
+import { resolveEdicionByDate } from '@/lib/resolveEdicion';
 
 const ESTADOS_PAGO: EstadoPago[] = [
   ESTADO_PAGO.PENDIENTE, ESTADO_PAGO.PAGADO, ESTADO_PAGO.FALLIDO, ESTADO_PAGO.REEMBOLSADO,
@@ -18,22 +19,45 @@ const ESTADOS_PAGO: EstadoPago[] = [
 
 export default function PagosPage() {
   const { t } = useTranslation();
-  const { selectedNombre } = useEdicion();
+  const { selectedNombre, ediciones } = useEdicion();
   const [filtroEstado, setFiltroEstado] = useState<EstadoPago | ''>('');
 
   const { data: pagos = [], isLoading } = useQuery({
-    queryKey: ['pagos', { estado: filtroEstado || undefined, edicion: selectedNombre }],
-    queryFn: () => fetchPagos({ estado: filtroEstado || undefined, edicionNombre: selectedNombre }),
+    queryKey: ['pagos'],
+    queryFn: () => fetchPagos({}),
   });
-  const { data: stats } = useQuery({
-    queryKey: ['pago-stats', { edicion: selectedNombre }],
-    queryFn: () => fetchPagoStats(selectedNombre),
-  });
+
+  // Infer each payment's edition by date window; then filter client-side.
+  // This avoids leaking payments of multi-edition alumnos across editions.
+  const pagosEdicion = useMemo(() => {
+    if (!selectedNombre) return pagos;
+    // null date (Pendiente sin fecha) → edition can't be inferred → show in all editions
+    return pagos.filter(p => {
+      const ed = resolveEdicionByDate(p.fechaPago, ediciones);
+      return ed === selectedNombre || !p.fechaPago;
+    });
+  }, [pagos, ediciones, selectedNombre]);
+  const stats = useMemo(() => ({
+    totalRecaudado: pagosEdicion.filter(p => p.estadoPago === 'Pagado').reduce((s, p) => s + (p.importe || 0), 0),
+    pagosCompletados: pagosEdicion.filter(p => p.estadoPago === 'Pagado').length,
+    pagosFallidos: pagosEdicion.filter(p => p.estadoPago === 'Fallido').length,
+    pagosReembolsados: pagosEdicion.filter(p => p.estadoPago === 'Reembolsado').length,
+  }), [pagosEdicion]);
+  const pagosFiltrados = useMemo(() => (
+    filtroEstado ? pagosEdicion.filter(p => p.estadoPago === filtroEstado) : pagosEdicion
+  ), [pagosEdicion, filtroEstado]);
 
   const columns = useMemo<Column<Pago>[]>(() => [
     {
       key: 'alumnoNombre', header: t('alumnos.alumno'), width: '180px', sortable: true, minWidth: 120,
       render: (p) => <span style={{ fontWeight: 500 }}>{p.alumnoNombre || '—'}</span>,
+    },
+    {
+      key: 'id', header: 'Edición', width: '140px', minWidth: 100,
+      render: (p) => {
+        const nombre = resolveEdicionByDate(p.fechaPago, ediciones);
+        return <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{nombre ?? '—'}</span>;
+      },
     },
     {
       key: 'importe', header: t('pagos.importe'), width: '120px', sortable: true, minWidth: 80,
@@ -53,13 +77,13 @@ export default function PagosPage() {
         <a href={p.linkRecibo} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem' }}>Ver →</a>
       ) : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
     },
-  ], [t]);
+  ], [t, ediciones]);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
       {/* KPIs */}
       <KPIGrid columns={4}>
-        {!stats ? (
+        {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => <KPICardSkeleton key={i} />)
         ) : (
           <>
@@ -88,12 +112,12 @@ export default function PagosPage() {
           </button>
         )}
         <span style={{ marginLeft: 'auto', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-          {pagos.length} pago{pagos.length !== 1 ? 's' : ''}
+          {pagosFiltrados.length} pago{pagosFiltrados.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {/* Tabla */}
-      <DataTable tableId="pagos" title={t('nav.pagos')} columns={columns} data={pagos} isLoading={isLoading} emptyMessage={t('pagos.sinPagos')} emptyIcon="💳" />
+      <DataTable tableId="pagos" title={t('nav.pagos')} columns={columns} data={pagosFiltrados} isLoading={isLoading} emptyMessage={t('pagos.sinPagos')} emptyIcon="💳" />
     </div>
   );
 }

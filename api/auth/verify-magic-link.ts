@@ -7,7 +7,9 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
-import { CORS_ORIGIN_OPEN } from '../_lib/cors';
+// ponytail: inlined to avoid Vercel subdirectory bundling issue with _lib imports
+const CORS_ORIGIN_OPEN = process.env.VERCEL_ENV === 'production'
+  ? 'https://proev-dashboard.dravaautomations.com' : '*';
 
 const MAGIC_LINK_SECRET = process.env.MAGIC_LINK_SECRET;
 if (!MAGIC_LINK_SECRET) {

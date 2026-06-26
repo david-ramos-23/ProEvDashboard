@@ -167,7 +167,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
   { label: 'Alumnos', path: '/admin/alumnos', icon: '👥' },
   { label: 'Pagos', path: '/admin/pagos', icon: '💰' },
-  { label: 'Emails', path: '/admin/inbox', icon: '📬', badge: 'comingSoon' },
+  { label: 'Emails', path: '/admin/inbox', icon: '📬' },
   { label: 'Ediciones', path: '/admin/ediciones', icon: '📅' },
   { label: 'Revisión Videos', path: '/revisor/videos', icon: '🎬' },
   { label: 'Audit Trail', path: '/admin/audit', icon: '📋' },
@@ -179,7 +179,7 @@ export const REVISOR_NAV: NavItem[] = [
   { label: 'Pagos', path: '/admin/pagos', icon: '💰' },
   { label: 'Ediciones', path: '/admin/ediciones', icon: '📅' },
   { label: 'Revisión Videos', path: '/revisor/videos', icon: '🎬' },
-  { label: 'Aprobar Emails', path: '/revisor/emails', icon: '✉️', badge: 'comingSoon' },
+  { label: 'Aprobar Emails', path: '/revisor/emails', icon: '✉️' },
 ];
 
 // ============================================================

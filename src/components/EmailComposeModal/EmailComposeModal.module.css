@@ -22,7 +22,9 @@
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   box-shadow: var(--shadow-md);
   animation: slideIn 250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -43,6 +45,9 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md, 16px);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .fieldGroup {
@@ -119,6 +124,11 @@
   justify-content: flex-end;
   gap: var(--space-sm, 8px);
   margin-top: var(--space-sm, 8px);
+  position: sticky;
+  bottom: 0;
+  background: var(--color-bg-primary);
+  padding-top: var(--space-sm, 8px);
+  border-top: 1px solid var(--color-border, #e2e8f0);
 }
 
 .cancelButton {
@@ -321,4 +331,80 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-muted);
   margin-top: var(--space-xs);
+}
+
+/* Searchable combobox picker */
+.pickerDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg, 0 4px 20px rgba(0, 0, 0, 0.15));
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.pickerSearchWrapper {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+}
+
+.pickerSearch {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 6px;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+}
+
+.pickerSearch:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+}
+
+.pickerList {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.pickerOption {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  transition: background var(--transition-fast, 150ms);
+}
+
+.pickerOption:hover {
+  background: var(--color-bg-secondary, #f1f5f9);
+}
+
+.pickerOptionName {
+  font-weight: 500;
+}
+
+.pickerOptionEmail {
+  margin-left: 6px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.pickerEmpty {
+  padding: 12px;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
 }

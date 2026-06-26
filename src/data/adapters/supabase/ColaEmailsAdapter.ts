@@ -19,7 +19,7 @@ function mapToColaEmail(row: Record<string, unknown>): ColaEmail {
   };
 }
 
-export async function fetchColaEmails(filters?: { estado?: EstadoEmail; tipo?: string }): Promise<ColaEmail[]> {
+export async function fetchColaEmails(filters?: { estado?: EstadoEmail; estados?: EstadoEmail[]; tipo?: string }): Promise<ColaEmail[]> {
   let query = supabase
     .from('cola_emails')
     .select(`
@@ -29,7 +29,9 @@ export async function fetchColaEmails(filters?: { estado?: EstadoEmail; tipo?: s
     .order('updated_at', { ascending: false })
     .limit(100);
 
-  if (filters?.estado) {
+  if (filters?.estados?.length) {
+    query = query.in('estado', filters.estados);
+  } else if (filters?.estado) {
     query = query.eq('estado', filters.estado);
   }
   if (filters?.tipo) {
