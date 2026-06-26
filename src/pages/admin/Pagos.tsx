@@ -5,7 +5,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, Column } from '@/components/shared';
-import { fetchPagos, fetchPagoStats } from '@/data/adapters';
+import { fetchPagos } from '@/data/adapters';
 import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
@@ -37,10 +37,12 @@ export default function PagosPage() {
       return ed === selectedNombre || ed === null;
     });
   }, [pagos, ediciones, selectedNombre]);
-  const { data: stats } = useQuery({
-    queryKey: ['pago-stats', { edicion: selectedNombre }],
-    queryFn: () => fetchPagoStats(selectedNombre),
-  });
+  const stats = useMemo(() => ({
+    totalRecaudado: pagosFiltrados.filter(p => p.estadoPago === 'Pagado').reduce((s, p) => s + (p.importe || 0), 0),
+    pagosCompletados: pagosFiltrados.filter(p => p.estadoPago === 'Pagado').length,
+    pagosFallidos: pagosFiltrados.filter(p => p.estadoPago === 'Fallido').length,
+    pagosReembolsados: pagosFiltrados.filter(p => p.estadoPago === 'Reembolsado').length,
+  }), [pagosFiltrados]);
 
   const columns = useMemo<Column<Pago>[]>(() => [
     {
@@ -78,7 +80,7 @@ export default function PagosPage() {
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
       {/* KPIs */}
       <KPIGrid columns={4}>
-        {!stats ? (
+        {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => <KPICardSkeleton key={i} />)
         ) : (
           <>

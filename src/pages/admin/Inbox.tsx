@@ -413,7 +413,7 @@ export default function InboxPage() {
   }
 
   useEffect(() => {
-    if (!isMobile && selectedId === null && sorted.length > 0) {
+    if (!isMobile && sorted.length > 0 && (selectedId === null || !sorted.some(e => e.id === selectedId))) {
       setSelectedId(sorted[0].id);
     }
   }, [sorted, selectedId, isMobile]);
