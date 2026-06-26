@@ -224,6 +224,7 @@ function ColaSection() {
   const { t } = useTranslation();
   const [filtroEstados, setFiltroEstados] = useState<EstadoEmail[]>([]);
   const [filtroTipo, setFiltroTipo] = useState('');
+  const [colaSearch, setColaSearch] = useState('');
   const [approving, setApproving] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
@@ -231,6 +232,16 @@ function ColaSection() {
     queryKey: ['cola-emails', { estados: filtroEstados, tipo: filtroTipo || undefined }],
     queryFn: () => fetchColaEmails({ estados: filtroEstados.length > 0 ? filtroEstados : undefined, tipo: filtroTipo || undefined }),
   });
+
+  const filteredCola = useMemo(() => {
+    if (!colaSearch.trim()) return colaEmails;
+    const q = colaSearch.toLowerCase();
+    return colaEmails.filter(e =>
+      e.alumnoNombre?.toLowerCase().includes(q) ||
+      e.asunto?.toLowerCase().includes(q) ||
+      e.tipo?.toLowerCase().includes(q),
+    );
+  }, [colaEmails, colaSearch]);
 
   async function handleAprobar(id: string) {
     setApproving(id);
@@ -323,15 +334,15 @@ function ColaSection() {
             Limpiar filtros
           </button>
         )}
-        <span style={{ marginLeft: filtroTipo ? 0 : 'auto', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
-          {colaEmails.length} {colaEmails.length === 1 ? 'email' : 'emails'}
-        </span>
       </div>
 
       <DataTable
         tableId="inbox-cola"
         columns={columns}
-        data={colaEmails}
+        data={filteredCola}
+        searchValue={colaSearch}
+        onSearchChange={setColaSearch}
+        title={`${filteredCola.length} ${filteredCola.length === 1 ? 'email' : 'emails'}`}
         isLoading={isLoading}
         emptyMessage="No hay emails con los filtros seleccionados"
         emptyIcon="📧"
@@ -411,6 +422,7 @@ export default function InboxPage() {
   const selectedEmail = sorted.find(e => e.id === selectedId) || null;
 
   function selectEmail(email: InboxEmail) {
+    if (!isMobile && selectedId === email.id) { setSelectedId(null); return; }
     setSelectedId(email.id);
     if (isMobile) setShowDetail(true);
   }
@@ -478,7 +490,7 @@ export default function InboxPage() {
       {section === 'bandeja' && (
         <div className={styles.splitView} ref={splitViewRef}>
           {/* Left: email list */}
-          <div className={`${styles.listPanel} ${isMobile && showDetail ? styles.mobileHidden : ''}`} style={!isMobile ? { width: listWidth, flexShrink: 0 } : undefined}>
+          <div className={`${styles.listPanel} ${isMobile && showDetail ? styles.mobileHidden : ''}`} style={!isMobile && selectedId ? { width: listWidth, flexShrink: 0 } : undefined}>
             {/* Filters */}
             <div className={styles.listFilters}>
               {/* Segmented tabs: Recibidos | Enviados | Sin responder */}
@@ -605,14 +617,14 @@ export default function InboxPage() {
             </div>
           </div>
 
-          {!isMobile && (
+          {!isMobile && selectedId !== null && (
             <div
               className={styles.resizeDivider}
               onMouseDown={e => { e.preventDefault(); isDraggingDiv.current = true; }}
             />
           )}
           {/* Right: detail panel */}
-          <div className={`${styles.detailPanel} ${isMobile && !showDetail ? styles.mobileHidden : ''}`}>
+          <div className={`${styles.detailPanel} ${(isMobile && !showDetail) || (!isMobile && !selectedId) ? styles.mobileHidden : ''}`}>
             <DetailPanel
               email={selectedEmail}
               onUpdate={(id, updates) => updateMutation.mutate({ id, updates })}

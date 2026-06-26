@@ -286,10 +286,6 @@
    ============================ */
 
 @media (max-width: 767px) {
-  .videoBg {
-    display: none;
-  }
-
   .container {
     background: linear-gradient(135deg, #0a0a0a 0%, #0C5A45 100%);
   }
