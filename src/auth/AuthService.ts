@@ -217,8 +217,8 @@ export async function loginWithGoogle(credential: string): Promise<AuthResult> {
 export async function sendMagicLink(email: string): Promise<{ success: boolean; error?: string }> {
   const normalized = email.toLowerCase().trim();
 
-  // ponytail: skip API in non-production — avoids Vercel Deployment Protection + Resend sandbox limits
-  if (window.location.hostname !== 'proev-dashboard.dravaautomations.com') {
+  // ponytail: only skip API in local Vite dev server — Vercel previews should hit the real API
+  if (import.meta.env.DEV) {
     return devFallbackSendMagicLink(normalized);
   }
 

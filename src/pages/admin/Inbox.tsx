@@ -625,8 +625,8 @@ export default function InboxPage() {
 
       <EmailComposeModal
         open={isComposeOpen}
-        alumnoRecordId={selectedEmail?.alumnoId ?? ''}
-        alumnoNombre={selectedEmail?.alumnoNombre ?? ''}
+        alumnoRecordId=""
+        alumnoNombre=""
         onClose={() => setIsComposeOpen(false)}
       />
     </div>
