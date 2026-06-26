@@ -27,7 +27,8 @@ export async function fetchColaEmails(filters?: { estado?: EstadoEmail; estados?
       alumnos ( nombre )
     `)
     .order('updated_at', { ascending: false })
-    .limit(100);
+    .limit(100)
+    .neq('estado', 'Eliminado');
 
   if (filters?.estados?.length) {
     query = query.in('estado', filters.estados);
