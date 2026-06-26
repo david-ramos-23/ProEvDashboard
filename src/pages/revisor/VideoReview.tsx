@@ -91,6 +91,7 @@ export default function VideoReviewPage() {
   useHighlightRow();
   const [selected, setSelected] = useState<RevisionVideo | null>(null);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [revisionMode, setRevisionMode] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -404,7 +405,7 @@ export default function VideoReviewPage() {
                 </button>
                 <button
                   className={styles.actionBtn + ' ' + styles.actionRevision}
-                  onClick={() => setConfirmAction({ estado: 'Revision Necesaria', label: t('videoReview.revisionNecesaria'), icon: '🔄', variant: 'warning' })}
+                  onClick={() => { setRevisionMode(true); setIsComposeOpen(true); }}
                   disabled={isSaving}
                 >
                   {t('videoReview.revisionNecesaria')}
@@ -438,7 +439,13 @@ export default function VideoReviewPage() {
         open={isComposeOpen}
         alumnoRecordId={selected?.alumnoId ?? ''}
         alumnoNombre={selected?.alumnoNombre ?? ''}
-        onClose={() => setIsComposeOpen(false)}
+        onClose={() => { setIsComposeOpen(false); setRevisionMode(false); }}
+        initialTemplateKey={revisionMode ? 'libre' : undefined}
+        onAfterSend={revisionMode ? () => handleSave('Revision Necesaria') : undefined}
+        skipAction={revisionMode ? {
+          label: 'Solo cambiar estado',
+          onSkip: () => { setIsComposeOpen(false); setRevisionMode(false); handleSave('Revision Necesaria'); },
+        } : undefined}
       />
     </div>
   );

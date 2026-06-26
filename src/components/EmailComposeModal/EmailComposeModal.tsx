@@ -15,6 +15,8 @@ interface EmailComposeModalProps {
   alumnoNombre?: string;
   onClose: () => void;
   initialTemplateKey?: TemplateKey;
+  onAfterSend?: () => void;
+  skipAction?: { label: string; onSkip: () => void };
 }
 
 export function EmailComposeModal({
@@ -23,6 +25,8 @@ export function EmailComposeModal({
   alumnoNombre = '',
   onClose,
   initialTemplateKey,
+  onAfterSend,
+  skipAction,
 }: EmailComposeModalProps) {
   const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -166,6 +170,7 @@ export function EmailComposeModal({
       });
       if (response.ok) {
         setModalState('success');
+        onAfterSend?.();
       } else {
         setModalState('error');
       }
@@ -358,6 +363,18 @@ export function EmailComposeModal({
               </div>
               {modalState === 'error' && (
                 <p className={styles.errorMessage} role="alert">{t('emailCompose.errorMessage')}</p>
+              )}
+              {skipAction && (
+                <p className={styles.skipHint}>
+                  <button
+                    type="button"
+                    className={styles.skipLink}
+                    onClick={skipAction.onSkip}
+                    disabled={modalState === 'sending'}
+                  >
+                    {skipAction.label}
+                  </button>
+                </p>
               )}
               <div className={styles.actions}>
                 <button

@@ -408,3 +408,25 @@
   color: var(--color-text-secondary);
   font-size: 0.8125rem;
 }
+
+.skipHint {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+  margin: 0 0 var(--space-sm, 0.5rem);
+}
+
+.skipLink {
+  background: none;
+  border: none;
+  color: var(--color-accent-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: inherit;
+  padding: 0;
+}
+
+.skipLink:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
