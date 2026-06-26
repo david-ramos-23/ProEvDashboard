@@ -275,7 +275,7 @@ function ColaSection() {
     if (filtroEstados.length === 0 || filtroEstados.includes(ESTADO_EMAIL.PENDIENTE_APROBACION)) {
       cols.push({
         key: 'actions', header: '', width: '100px', hideable: false,
-        render: (e) => (
+        render: (e) => e.estado === ESTADO_EMAIL.PENDIENTE_APROBACION ? (
           <button
             className="btn-success btn-sm"
             onClick={(ev) => { ev.stopPropagation(); setConfirmId(e.id); }}
@@ -283,7 +283,7 @@ function ColaSection() {
           >
             {approving === e.id ? '...' : t('common.approve')}
           </button>
-        ),
+        ) : null,
       });
     }
     return cols;

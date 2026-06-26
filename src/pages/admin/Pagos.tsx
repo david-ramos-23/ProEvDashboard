@@ -23,13 +23,13 @@ export default function PagosPage() {
   const [filtroEstado, setFiltroEstado] = useState<EstadoPago | ''>('');
 
   const { data: pagos = [], isLoading } = useQuery({
-    queryKey: ['pagos', { estado: filtroEstado || undefined }],
-    queryFn: () => fetchPagos({ estado: filtroEstado || undefined }),
+    queryKey: ['pagos'],
+    queryFn: () => fetchPagos({}),
   });
 
   // Infer each payment's edition by date window; then filter client-side.
   // This avoids leaking payments of multi-edition alumnos across editions.
-  const pagosFiltrados = useMemo(() => {
+  const pagosEdicion = useMemo(() => {
     if (!selectedNombre) return pagos;
     // null date (Pendiente sin fecha) → edition can't be inferred → show in all editions
     return pagos.filter(p => {
@@ -38,11 +38,14 @@ export default function PagosPage() {
     });
   }, [pagos, ediciones, selectedNombre]);
   const stats = useMemo(() => ({
-    totalRecaudado: pagosFiltrados.filter(p => p.estadoPago === 'Pagado').reduce((s, p) => s + (p.importe || 0), 0),
-    pagosCompletados: pagosFiltrados.filter(p => p.estadoPago === 'Pagado').length,
-    pagosFallidos: pagosFiltrados.filter(p => p.estadoPago === 'Fallido').length,
-    pagosReembolsados: pagosFiltrados.filter(p => p.estadoPago === 'Reembolsado').length,
-  }), [pagosFiltrados]);
+    totalRecaudado: pagosEdicion.filter(p => p.estadoPago === 'Pagado').reduce((s, p) => s + (p.importe || 0), 0),
+    pagosCompletados: pagosEdicion.filter(p => p.estadoPago === 'Pagado').length,
+    pagosFallidos: pagosEdicion.filter(p => p.estadoPago === 'Fallido').length,
+    pagosReembolsados: pagosEdicion.filter(p => p.estadoPago === 'Reembolsado').length,
+  }), [pagosEdicion]);
+  const pagosFiltrados = useMemo(() => (
+    filtroEstado ? pagosEdicion.filter(p => p.estadoPago === filtroEstado) : pagosEdicion
+  ), [pagosEdicion, filtroEstado]);
 
   const columns = useMemo<Column<Pago>[]>(() => [
     {
