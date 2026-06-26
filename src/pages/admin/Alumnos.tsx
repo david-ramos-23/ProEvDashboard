@@ -5,7 +5,7 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { DataTable, StatusBadge, Column, DropdownMenu } from '@/components/shared';
+import { DataTable, StatusBadge, Column, DropdownMenu, PageHeader } from '@/components/shared';
 import { fetchAlumnos } from '@/data/adapters';
 import { Alumno, EstadoGeneral } from '@/types';
 import { timeAgo } from '@/utils/formatters';
@@ -205,6 +205,8 @@ export default function AlumnosPage() {
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+      <PageHeader title={t('alumnos.title')} count={filtered.length} />
+
       {/* Filtro por estado (configurable chips with drag & drop) */}
       <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap', alignItems: 'center' }}>
         {chipOrder.filter(est => visibleChips.has(est)).map((est, idx) => (
@@ -225,7 +227,7 @@ export default function AlumnosPage() {
           <button
             className="btn-sm btn-ghost"
             onClick={() => setFiltrosEstado(new Set())}
-            style={{ color: 'var(--color-accent-danger)', borderColor: 'rgba(220,38,38,0.2)' }}
+            style={{ color: 'var(--color-accent-danger)', borderColor: 'color-mix(in srgb, var(--color-accent-danger) 20%, transparent)' }}
           >
             Limpiar filtros
           </button>
@@ -282,8 +284,7 @@ export default function AlumnosPage() {
 
       {/* Tabla */}
       <DataTable
-        tableId="alumnos"
-        title={`${t('nav.alumnos')} (${filtered.length})`}
+        tableId="alumnos"
         columns={columns}
         data={filtered}
         isLoading={isLoading}

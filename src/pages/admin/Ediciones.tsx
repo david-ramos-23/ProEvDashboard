@@ -4,12 +4,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KPICardSkeleton, SkeletonBlock, DataTable, Column, StatusBadge } from '@/components/shared';
+import { KPICardSkeleton, SkeletonBlock, DataTable, Column, StatusBadge, PageHeader } from '@/components/shared';
 import { fetchEdiciones, updateEdicion } from '@/data/adapters';
 import { fetchModulos } from '@/data/adapters';
 import { Edicion, Modulo } from '@/types';
 import { formatDate } from '@/utils/formatters';
-import { EDITION_ESTADO_COLORS } from '@/utils/constants';
 import { useTranslation } from '@/i18n';
 
 /** Animated progress bar that fills from 0 to target width on mount */
@@ -54,7 +53,9 @@ export default function EdicionesPage() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
 
-  const { data: ediciones = [], isLoading: edicionesLoading } = useQuery({
+  const [mutationError, setMutationError] = useState<string | null>(null);
+
+  const { data: ediciones = [], isLoading: edicionesLoading, isError: edicionesError } = useQuery({
     queryKey: ['ediciones'],
     queryFn: fetchEdiciones,
   });
@@ -76,6 +77,7 @@ export default function EdicionesPage() {
       await queryClient.invalidateQueries({ queryKey: ['ediciones'] });
     } catch (err) {
       console.error('Error activando edicion:', err);
+      setMutationError((err instanceof Error ? err.message : null) || 'Error al activar la edicion');
     }
   }
 
@@ -85,6 +87,7 @@ export default function EdicionesPage() {
       await queryClient.invalidateQueries({ queryKey: ['ediciones'] });
     } catch (err) {
       console.error('Error finalizando edicion:', err);
+      setMutationError((err instanceof Error ? err.message : null) || 'Error al finalizar la edicion');
     }
   }
 
@@ -99,22 +102,7 @@ export default function EdicionesPage() {
     },
     {
       key: 'estado', header: t('alumnos.estado'), width: '140px', sortable: true, minWidth: 100,
-      render: (e) => {
-        const color = EDITION_ESTADO_COLORS[e.estado] || 'var(--color-text-muted)';
-        return (
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            padding: '2px 10px', borderRadius: 9999,
-            fontSize: '0.75rem', fontWeight: 500,
-            color,
-            background: `color-mix(in srgb, ${color} 12%, transparent)`,
-            border: `1px solid color-mix(in srgb, ${color} 25%, transparent)`,
-          }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
-            {e.estado}
-          </span>
-        );
-      },
+      render: (e) => <StatusBadge status={e.estado} type="edicion" />,
     },
     {
       key: 'fechaInicioInscripcion', header: t('ediciones.inscripciones'), width: '200px',
@@ -142,6 +130,15 @@ export default function EdicionesPage() {
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
+      {(edicionesError || mutationError) && (
+        <div role="alert" style={{ padding: "var(--space-md)", background: "color-mix(in srgb, var(--color-accent-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-accent-danger) 30%, transparent)", borderRadius: "var(--radius-md)", color: "var(--color-accent-danger)", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-md)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>{mutationError || 'Error al cargar las ediciones. Comprueba tu conexion.'}</span>
+          {mutationError && (
+            <button onClick={() => setMutationError(null)} aria-label="Cerrar" style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontSize: "1rem", lineHeight: 1, padding: "0 0 0 var(--space-sm)" }}>✕</button>
+          )}
+        </div>
+      )}
+      <PageHeader title={t('nav.ediciones') || 'Ediciones'} />
       {/* Info edición activa */}
       {edicionesLoading ? (
         <div className="card">

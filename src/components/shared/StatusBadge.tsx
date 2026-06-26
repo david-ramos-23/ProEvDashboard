@@ -1,9 +1,9 @@
 import { memo } from 'react';
-import { ESTADO_COLORS, ESTADO_ICONS, REVISION_COLORS, PAGO_COLORS, EMAIL_COLORS, ORIGEN_COLORS } from '@/utils/constants';
+import { ESTADO_COLORS, ESTADO_ICONS, REVISION_COLORS, PAGO_COLORS, EMAIL_COLORS, ORIGEN_COLORS, EDITION_ESTADO_COLORS } from '@/utils/constants';
 import { EstadoGeneral, EstadoRevision, EstadoPago, EstadoEmail } from '@/types';
 import styles from './Shared.module.css';
 
-type StatusType = 'estado' | 'revision' | 'pago' | 'email' | 'origin';
+type StatusType = 'estado' | 'revision' | 'pago' | 'email' | 'origin' | 'edicion';
 
 interface StatusBadgeProps {
   status: string;
@@ -18,6 +18,7 @@ function getStatusColor(status: string, type: StatusType): string {
     case 'pago': return PAGO_COLORS[status as EstadoPago] || 'var(--color-text-muted)';
     case 'email': return EMAIL_COLORS[status as EstadoEmail] || 'var(--color-text-muted)';
     case 'origin': return ORIGEN_COLORS[status] || 'var(--color-text-muted)';
+    case 'edicion': return EDITION_ESTADO_COLORS[status] || 'var(--color-text-muted)';
     default: return 'var(--color-text-muted)';
   }
 }

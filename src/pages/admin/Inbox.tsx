@@ -103,7 +103,7 @@ function DetailPanel({ email, onUpdate, isPending, onBack }: DetailPanelProps) {
       <div className={styles.detailHeader}>
         <div className={styles.detailHeaderTop}>
           <h2 className={styles.detailSubject}>{email.asunto || '(sin asunto)'}</h2>
-          <StatusBadge status={email.estado} />
+          <StatusBadge status={email.estado} type="email" />
           {email.origen === 'Manual' && (
             <StatusBadge status="Manual" type="origin" />
           )}
@@ -688,7 +688,7 @@ export default function InboxPage() {
                               {email.resumenIA && <span className={styles.listItemSnippetInline}> — {email.resumenIA}</span>}
                             </div>
                             <div className={styles.listItemBadges}>
-                              <StatusBadge status={email.estado} />
+                              <StatusBadge status={email.estado} type="email" />
                               {email.origen === 'Manual' && <StatusBadge status="Manual" type="origin" />}
                             </div>
                           </div>

@@ -15,3 +15,6 @@ export { DropdownMenu } from './DropdownMenu';
 export { ConfirmDialog } from './ConfirmDialog';
 export { LoadingSpinner } from './LoadingSpinner';
 export { ScrollToTop } from './ScrollToTop';
+export { PageHeader } from './PageHeader';
+export { FilterBar } from './FilterBar';
+export type { FilterOption } from './FilterBar';

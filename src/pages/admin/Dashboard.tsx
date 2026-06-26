@@ -6,7 +6,7 @@ import { useMemo, useCallback, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatCard, DataTable, Column } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatCard, DataTable, Column, PageHeader } from '@/components/shared';
 import { fetchDashboardStats } from '@/data/adapters';
 import { fetchPagosPorMes } from '@/data/adapters';
 import { fetchHistorial } from '@/data/adapters';
@@ -60,7 +60,7 @@ export default function DashboardPage() {
 
   const { selectedNombre } = useEdicion();
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useQuery({
     queryKey: ['dashboard-stats', { edicionNombre: selectedNombre || undefined }],
     queryFn: () => fetchDashboardStats({ edicionNombre: selectedNombre || undefined }),
   });
@@ -117,6 +117,12 @@ export default function DashboardPage() {
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
+      {statsError && (
+        <div role="alert" style={{ padding: "var(--space-md)", background: "color-mix(in srgb, var(--color-accent-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-accent-danger) 30%, transparent)", borderRadius: "var(--radius-md)", color: "var(--color-accent-danger)", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-md)" }}>
+          Error al cargar el dashboard. Comprueba tu conexion e intentalo de nuevo.
+        </div>
+      )}
+      <PageHeader title={t('nav.dashboard')} />
       {/* KPIs navegables */}
       <KPIGrid columns={3}>
         {statsLoading || !stats ? (

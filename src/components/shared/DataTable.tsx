@@ -250,13 +250,26 @@ export function DataTable<T extends { id: string }>({
         {title && <h3 className={styles.tableTitle}>{title}</h3>}
         <div className={styles.tableActions}>
           {onSearchChange && (
-            <input
-              type="text"
-              className={styles.searchInput}
-              placeholder={searchPlaceholder}
-              value={searchValue || ''}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
+            <div className={styles.searchWrap}>
+              <span className={styles.searchIcon} aria-hidden="true">🔍</span>
+              <input
+                type="text"
+                className={styles.searchInput}
+                placeholder={searchPlaceholder}
+                value={searchValue || ''}
+                onChange={(e) => onSearchChange(e.target.value)}
+              />
+              {searchValue && (
+                <button
+                  type="button"
+                  className={styles.searchClear}
+                  onClick={() => onSearchChange('')}
+                  aria-label="Limpiar búsqueda"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           )}
           {actions}
           {!isMobile && hasHideableColumns && (

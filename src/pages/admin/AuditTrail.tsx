@@ -5,7 +5,7 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { DataTable, Column } from '@/components/shared';
+import { DataTable, Column, PageHeader } from '@/components/shared';
 import { fetchRecentAudit } from '@/data/adapters';
 import type { AuditEntry } from '@/data/adapters';
 import { useTranslation } from '@/i18n';
@@ -73,7 +73,7 @@ export default function AuditTrailPage() {
   const [filtroTabla, setFiltroTabla] = useState('');
   const [filtroAccion, setFiltroAccion] = useState('');
 
-  const { data: entries = [], isLoading } = useQuery({
+  const { data: entries = [], isLoading, isError } = useQuery({
     queryKey: ['audit-trail', 200],
     queryFn: () => fetchRecentAudit(200),
   });
@@ -166,7 +166,13 @@ export default function AuditTrailPage() {
 
   return (
     <div className={styles.container}>
+      <PageHeader title={t('nav.auditTrail') || 'Registro de Actividad'} count={filtered.length} />
       {/* Stats */}
+      {isError && (
+        <div role="alert" style={{ padding: "var(--space-md)", background: "color-mix(in srgb, var(--color-accent-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-accent-danger) 30%, transparent)", borderRadius: "var(--radius-md)", color: "var(--color-accent-danger)", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-md)" }}>
+          Error al cargar el audit trail. Comprueba tu conexion e intentalo de nuevo.
+        </div>
+      )}
       <div className={styles.statsRow}>
         <div className={styles.statCard}>
           <span className={styles.statValue}>{stats.inserts}</span>
@@ -215,6 +221,7 @@ export default function AuditTrailPage() {
 
       {/* Table */}
       <DataTable
+        tableId="audit-trail"
         data={filtered}
         columns={columns}
         isLoading={isLoading}

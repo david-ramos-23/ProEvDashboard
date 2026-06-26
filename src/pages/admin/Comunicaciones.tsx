@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Comunicaciones — Gestión de emails con tabs para cola, aprobación, inbox.
  */
 
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { DataTable, StatusBadge, Column } from '@/components/shared';
+import { DataTable, StatusBadge, Column, PageHeader, FilterBar } from '@/components/shared';
 import { fetchColaEmails, aprobarEmail } from '@/data/adapters';
 import { ColaEmail, EstadoEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
@@ -97,32 +97,14 @@ export default function ComunicacionesPage() {
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 'var(--space-xs)', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-xs)' }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: '8px 16px',
-              background: activeTab === tab.key ? 'var(--color-accent-primary-glow)' : 'transparent',
-              border: activeTab === tab.key ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
-              borderRadius: '8px 8px 0 0',
-              color: activeTab === tab.key ? 'var(--color-accent-primary-hover)' : 'var(--color-text-secondary)',
-              cursor: 'pointer',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              fontFamily: 'var(--font-family)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 150ms ease',
-            }}
-          >
-            <span>{tab.icon}</span> {tab.label}
-          </button>
-        ))}
-      </div>
+      <PageHeader title="Comunicaciones" />
+      <FilterBar
+        filters={[{
+          options: tabs.map(tab => ({ value: tab.key, label: `${tab.icon} ${tab.label}` })),
+          value: activeTab,
+          onChange: (v) => setActiveTab(v as TabType),
+        }]}
+      />
 
       {/* Filtros por tipo */}
       <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
@@ -140,7 +122,7 @@ export default function ComunicacionesPage() {
         columns={columns}
         data={emails}
         isLoading={isLoading}
-        emptyMessage={`${t('comunicaciones.sinEmails')} ${activeTab}`}
+        emptyMessage={t('comunicaciones.sinEmails')}
         emptyIcon="📧"
       />
     </div>

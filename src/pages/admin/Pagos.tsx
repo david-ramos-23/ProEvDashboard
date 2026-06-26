@@ -4,7 +4,7 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, Column } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, Column, PageHeader } from '@/components/shared';
 import { fetchPagos } from '@/data/adapters';
 import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
@@ -23,7 +23,7 @@ export default function PagosPage() {
   const [filtrosEstado, setFiltrosEstado] = useState<Set<EstadoPago>>(new Set());
   const [busqueda, setBusqueda] = useState('');
 
-  const { data: pagos = [], isLoading } = useQuery({
+  const { data: pagos = [], isLoading, isError } = useQuery({
     queryKey: ['pagos'],
     queryFn: () => fetchPagos({}),
   });
@@ -92,7 +92,12 @@ export default function PagosPage() {
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-      {/* KPIs */}
+      <PageHeader title={t('nav.pagos')} count={pagosFiltrados.length} />
+      {isError && (
+        <div role="alert" style={{ padding: "var(--space-md)", background: "color-mix(in srgb, var(--color-accent-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-accent-danger) 30%, transparent)", borderRadius: "var(--radius-md)", color: "var(--color-accent-danger)", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-md)" }}>
+          Error al cargar los pagos. Comprueba tu conexion e intentalo de nuevo.
+        </div>
+      )}
       <KPIGrid columns={4}>
         {isLoading ? (
           Array.from({ length: 4 }).map((_, i) => <KPICardSkeleton key={i} />)
@@ -138,7 +143,6 @@ export default function PagosPage() {
       {/* Tabla */}
       <DataTable
         tableId="pagos"
-        title={t('nav.pagos')}
         columns={columns}
         data={pagosFiltrados}
         isLoading={isLoading}
@@ -146,7 +150,7 @@ export default function PagosPage() {
         emptyIcon="💳"
         searchValue={busqueda}
         onSearchChange={setBusqueda}
-        searchPlaceholder="Buscar alumno, sesión..."
+        searchPlaceholder={t('alumnos.searchPlaceholder')}
       />
     </div>
   );

@@ -24,7 +24,8 @@
     "comunicaciones": "Comunicaciones",
     "ediciones": "Ediciones",
     "videoReview": "Revision Videos",
-    "emailApproval": "Aprobar Emails"
+    "emailApproval": "Aprobar Emails",
+    "auditTrail": "Registro de Actividad"
   },
   "login": {
     "title": "ProEv Dashboard",
