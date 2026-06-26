@@ -75,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Env guard
-  if (!AIRTABLE_PAT || !AIRTABLE_BASE_ID) {
+  if (!USE_SUPABASE && (!AIRTABLE_PAT || !AIRTABLE_BASE_ID)) {
     return res.status(500).json({ error: 'Server misconfigured: missing Airtable credentials' });
   }
 
