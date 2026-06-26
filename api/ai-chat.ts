@@ -149,7 +149,7 @@ const tools = [
     type: 'function',
     function: {
       name: 'list_cola_emails',
-      description: 'List email queue (cola de emails). Optionally filter by estado or tipo.',
+      description: 'List a SAMPLE of email queue records (capped at limit, default 10). Use only to inspect individual email content. For totals and counts, ALWAYS use obtener_estadisticas instead.',
       parameters: {
         type: 'object',
         properties: {
@@ -345,17 +345,32 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
         // Revisiones — global
         const revisiones = await fetchAllPages(TABLES.REVISIONES, ['Estado de Revisión']);
 
+        const alumnosByEstado = countBy(alumnos, 'Estado General');
+        const revisionesByEstado = countBy(revisiones, 'Estado de Revisión');
+        const colaByEstado = countBy(cola, 'Estado');
         return JSON.stringify({
           edicion_filtrada: input.edicion || 'todas',
-          alumnos: { total: alumnos.length, por_estado: countBy(alumnos, 'Estado General') },
-          cola_emails: { total: cola.length, por_estado: countBy(cola, 'Estado') },
-          inbox: {
-            total: inbox.length,
-            requiere_atencion: inbox.filter(r => (r as Record<string, Record<string, unknown>>).fields?.['Requiere Atencion'] === true).length,
-            por_estado: countBy(inbox, 'Estado'),
-          },
-          revisiones: { total: revisiones.length, por_estado: countBy(revisiones, 'Estado de Revisión') },
-          nota_pagos: 'La tabla Pagos tiene solo 7 registros (uso interno/manual). Para datos de ingresos consulta el rollup Importe Total Pagado en cada alumno.',
+          // Alumnos (scoped by edition if requested)
+          alumnos_total: alumnos.length,
+          alumnos_aprobados: alumnosByEstado['Aprobado'] || 0,
+          alumnos_en_revision_video: alumnosByEstado['En revisión de video'] || 0,
+          alumnos_pendiente_pago: alumnosByEstado['Pendiente de pago'] || 0,
+          alumnos_rechazados: alumnosByEstado['Rechazado'] || 0,
+          alumnos_finalizados: alumnosByEstado['Finalizado'] || 0,
+          alumnos_por_estado: alumnosByEstado,
+          // Cola de emails (siempre global)
+          cola_emails_total: cola.length,
+          cola_emails_pendientes_aprobacion: colaByEstado['Pendiente Aprobacion'] || 0,
+          cola_emails_enviados: colaByEstado['Enviado'] || 0,
+          // Inbox (siempre global)
+          inbox_total: inbox.length,
+          inbox_requiere_atencion: inbox.filter(r => (r as Record<string, Record<string, unknown>>).fields?.['Requiere Atencion'] === true).length,
+          // Revisiones de video (siempre global — NOTA: son registros de revisión, no alumnos)
+          revisiones_total: revisiones.length,
+          revisiones_pendientes: revisionesByEstado['Pendiente'] || 0,
+          revisiones_aprobadas: revisionesByEstado['Aprobado'] || 0,
+          revisiones_rechazadas: revisionesByEstado['Rechazado'] || 0,
+          nota_pagos: 'Tabla Pagos tiene solo 7 registros (manual). Para ingresos usa Importe Total Pagado en alumnos.',
         });
       }
 
@@ -405,8 +420,9 @@ Tienes acceso a datos reales del sistema mediante herramientas (tools). Puedes:
 
 Para acciones de escritura (update_alumno_estado, approve_email), confirma siempre con el usuario antes de ejecutarlas, a menos que ya te haya dado instrucción explícita.
 
-IMPORTANTE — recuento y cifras exactas:
-- Para cualquier pregunta de "cuántos", "total", "número de" o similar, llama SIEMPRE a obtener_estadisticas. NUNCA inferir totales a partir de listas parciales.
+REGLA CRÍTICA — recuento y cifras exactas:
+- Para CUALQUIER pregunta de "cuántos", "total", "cuántas", "número de" o similar: llama PRIMERO a obtener_estadisticas. NUNCA uses list_cola_emails, search_alumnos ni list_revisiones para responder totales.
+- obtener_estadisticas devuelve campos con nombre explícito (alumnos_aprobados, cola_emails_pendientes_aprobacion, revisiones_pendientes…). Usa SIEMPRE el campo exacto, no sumes ni interpretes por_estado.
 - Hay dos ediciones: "Vol I" (edición antigua, 108 alumnos) y "Vol II" (edición activa actual).
 - La edición seleccionada actualmente en el dashboard es: ${edicion || 'Vol II'}.
 - Cuando el usuario no especifique edición, usa la edición seleccionada y dile cuál usaste.
