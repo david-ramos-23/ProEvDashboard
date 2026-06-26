@@ -122,8 +122,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const baseUrl = `${proto}://${host}`;
   const magicLink = `${baseUrl}/login?token=${token}`;
 
-  // ponytail: Resend sandbox only delivers to the account owner's email — bypass in non-prod
-  if (process.env.VERCEL_ENV !== 'production') {
+  // ponytail: devLink only in local dev (no VERCEL_ENV) — never expose tokens on preview/production
+  if (!process.env.VERCEL_ENV) {
     return res.status(200).json({ success: true, devLink: magicLink });
   }
 
