@@ -262,7 +262,7 @@ export function EmailComposeModal({
                       {composeAlumnoNombre || t('emailCompose.searchAlumno')}
                     </button>
                     {pickerOpen && createPortal(
-                      <div ref={pickerRef} className={styles.pickerDropdown} style={pickerPortalStyle}>
+                      <div ref={pickerRef} className={styles.pickerDropdown} style={pickerPortalStyle} onClick={e => e.stopPropagation()}>
                         <div className={styles.pickerSearchWrapper}>
                           <input
                             autoFocus
