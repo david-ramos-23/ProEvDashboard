@@ -34,7 +34,7 @@ export default function PagosPage() {
     // null date (Pendiente sin fecha) → edition can't be inferred → show in all editions
     return pagos.filter(p => {
       const ed = resolveEdicionByDate(p.fechaPago, ediciones);
-      return ed === selectedNombre || ed === null;
+      return ed === selectedNombre || !p.fechaPago;
     });
   }, [pagos, ediciones, selectedNombre]);
   const stats = useMemo(() => ({
