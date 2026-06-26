@@ -6,11 +6,12 @@
  */
 
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DOMPurify from 'dompurify';
 import { StatusBadge, SkeletonBlock, DataTable, Column, ConfirmDialog } from '@/components/shared';
 import { fetchInbox, updateInboxEmail } from '@/data/adapters';
-import { fetchColaEmails, aprobarEmail } from '@/data/adapters';
+import { fetchColaEmails, aprobarEmail, eliminarEmail } from '@/data/adapters';
 import { InboxEmail, ColaEmail, EstadoEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
@@ -223,25 +224,31 @@ function ColaSection() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
   const [filtroEstados, setFiltroEstados] = useState<EstadoEmail[]>([]);
-  const [filtroTipo, setFiltroTipo] = useState('');
+  const [filtrosTipo, setFiltrosTipo] = useState<Set<string>>(new Set());
   const [colaSearch, setColaSearch] = useState('');
   const [approving, setApproving] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [colaSelectedIds, setColaSelectedIds] = useState<Set<string>>(new Set());
+  const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false);
+  const [batchDeleting, setBatchDeleting] = useState(false);
 
   const { data: colaEmails = [], isLoading } = useQuery({
-    queryKey: ['cola-emails', { estados: filtroEstados, tipo: filtroTipo || undefined }],
-    queryFn: () => fetchColaEmails({ estados: filtroEstados.length > 0 ? filtroEstados : undefined, tipo: filtroTipo || undefined }),
+    queryKey: ['cola-emails', { estados: filtroEstados }],
+    queryFn: () => fetchColaEmails({ estados: filtroEstados.length > 0 ? filtroEstados : undefined }),
   });
 
   const filteredCola = useMemo(() => {
-    if (!colaSearch.trim()) return colaEmails;
+    let result = colaEmails;
+    if (filtrosTipo.size > 0) result = result.filter(e => filtrosTipo.has(e.tipo));
+    if (!colaSearch.trim()) return result;
     const q = colaSearch.toLowerCase();
-    return colaEmails.filter(e =>
+    return result.filter(e =>
       e.alumnoNombre?.toLowerCase().includes(q) ||
       e.asunto?.toLowerCase().includes(q) ||
       e.tipo?.toLowerCase().includes(q),
     );
-  }, [colaEmails, colaSearch]);
+  }, [colaEmails, colaSearch, filtrosTipo]);
 
   async function handleAprobar(id: string) {
     setApproving(id);
@@ -250,6 +257,22 @@ function ColaSection() {
       await queryClient.invalidateQueries({ queryKey: ['cola-emails'] });
     } finally {
       setApproving(null);
+    }
+  }
+
+  async function handleEliminar(id: string) {
+    await eliminarEmail(id);
+    await queryClient.invalidateQueries({ queryKey: ['cola-emails'] });
+  }
+
+  async function handleBatchEliminar() {
+    setBatchDeleting(true);
+    try {
+      await Promise.all([...colaSelectedIds].map(id => eliminarEmail(id)));
+      await queryClient.invalidateQueries({ queryKey: ['cola-emails'] });
+      setColaSelectedIds(new Set());
+    } finally {
+      setBatchDeleting(false);
     }
   }
 
@@ -265,7 +288,14 @@ function ColaSection() {
       },
       {
         key: 'asunto', header: 'Asunto / Mensaje',
-        render: (e) => <span style={{ fontSize: '0.8125rem' }}>{e.asunto || e.descripcion || e.mensaje?.slice(0, 80) || '—'}</span>,
+        render: (e) => {
+          const texto = e.asunto || e.descripcion || e.mensaje || '—';
+          return (
+            <span title={texto} style={{ fontSize: '0.8125rem', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>
+              {texto}
+            </span>
+          );
+        },
       },
       {
         key: 'origen', header: 'Origen', width: '90px', minWidth: 70,
@@ -282,16 +312,34 @@ function ColaSection() {
         render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
       },
     ];
+    // Delete column — always visible
+    cols.push({
+      key: 'delete' as keyof ColaEmail, header: '', width: '44px', hideable: false,
+      render: (e) => (
+        <button
+          className="btn-ghost btn-sm"
+          onClick={(ev) => { ev.stopPropagation(); setDeleteConfirmId(e.id); }}
+          aria-label="Eliminar email"
+          title="Eliminar"
+          style={{ color: 'var(--color-accent-danger)', padding: '4px 6px' }}
+        >
+          🗑
+        </button>
+      ),
+    });
     if (filtroEstados.length === 0 || filtroEstados.includes(ESTADO_EMAIL.PENDIENTE_APROBACION)) {
       cols.push({
-        key: 'actions', header: '', width: '100px', hideable: false,
+        key: 'actions' as keyof ColaEmail, header: '', width: '52px', hideable: false,
         render: (e) => e.estado === ESTADO_EMAIL.PENDIENTE_APROBACION ? (
           <button
             className="btn-success btn-sm"
             onClick={(ev) => { ev.stopPropagation(); setConfirmId(e.id); }}
             disabled={approving === e.id}
+            aria-label={t('common.approve')}
+            title={t('common.approve')}
+            style={{ padding: '4px 8px', fontSize: '1rem', lineHeight: 1 }}
           >
-            {approving === e.id ? '...' : t('common.approve')}
+            {approving === e.id ? '⏳' : '✅'}
           </button>
         ) : null,
       });
@@ -321,16 +369,17 @@ function ColaSection() {
       </div>
 
       <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center' }}>
-        <button className={`btn-sm ${!filtroTipo ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroTipo('')}>Todos</button>
+        <button className={`btn-sm ${filtrosTipo.size === 0 ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltrosTipo(new Set())}>Todos</button>
         {TIPOS_EMAIL.map(tipo => (
-          <button key={tipo} className={`btn-sm ${filtroTipo === tipo ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setFiltroTipo(filtroTipo === tipo ? '' : tipo)}
+          <button key={tipo}
+            className={`btn-sm ${filtrosTipo.has(tipo) ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setFiltrosTipo(prev => { const next = new Set(prev); next.has(tipo) ? next.delete(tipo) : next.add(tipo); return next; })}
             style={{ textTransform: 'capitalize' }}>
             {tipo.replace(/_/g, ' ')}
           </button>
         ))}
-        {filtroTipo && (
-          <button className="btn-ghost btn-sm" onClick={() => setFiltroTipo('')} style={{ marginLeft: 'auto' }}>
+        {filtrosTipo.size > 0 && (
+          <button className="btn-ghost btn-sm" onClick={() => setFiltrosTipo(new Set())} style={{ marginLeft: 'auto' }}>
             Limpiar filtros
           </button>
         )}
@@ -346,6 +395,27 @@ function ColaSection() {
         isLoading={isLoading}
         emptyMessage="No hay emails con los filtros seleccionados"
         emptyIcon="📧"
+        selectable
+        selectedIds={colaSelectedIds}
+        onSelectionChange={setColaSelectedIds}
+        actions={colaSelectedIds.size > 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', padding: '4px 8px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+              {colaSelectedIds.size} seleccionado{colaSelectedIds.size !== 1 ? 's' : ''}
+            </span>
+            <button
+              className="btn-sm btn-ghost"
+              style={{ color: 'var(--color-accent-danger)', borderColor: 'rgba(220,38,38,0.2)' }}
+              onClick={() => setBatchDeleteConfirm(true)}
+              disabled={batchDeleting}
+            >
+              {batchDeleting ? '⏳' : '🗑'} Borrar
+            </button>
+            <button className="btn-sm btn-ghost" onClick={() => setColaSelectedIds(new Set())}>
+              ✕
+            </button>
+          </div>
+        ) : undefined}
       />
 
       <ConfirmDialog
@@ -361,6 +431,29 @@ function ColaSection() {
         }}
         onCancel={() => setConfirmId(null)}
       />
+      <ConfirmDialog
+        open={!!deleteConfirmId}
+        title="Eliminar email"
+        message={colaEmails.find(e => e.id === deleteConfirmId)?.alumnoNombre ? `¿Eliminar email de ${colaEmails.find(e => e.id === deleteConfirmId)?.alumnoNombre}?` : '¿Eliminar este email?'}
+        icon="🗑"
+        confirmLabel="Eliminar"
+        variant="danger"
+        onConfirm={() => {
+          if (deleteConfirmId) handleEliminar(deleteConfirmId);
+          setDeleteConfirmId(null);
+        }}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
+      <ConfirmDialog
+        open={batchDeleteConfirm}
+        title="Borrar selección"
+        message={`¿Eliminar ${colaSelectedIds.size} email${colaSelectedIds.size !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`}
+        icon="🗑"
+        confirmLabel={batchDeleting ? 'Borrando...' : `Borrar ${colaSelectedIds.size}`}
+        variant="danger"
+        onConfirm={() => { setBatchDeleteConfirm(false); handleBatchEliminar(); }}
+        onCancel={() => setBatchDeleteConfirm(false)}
+      />
     </div>
   );
 }
@@ -372,7 +465,11 @@ export default function InboxPage() {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
 
-  const [section, setSection] = useState<SectionType>('bandeja');
+  const [searchParams] = useSearchParams();
+  const [section, setSection] = useState<SectionType>(() => {
+    const s = searchParams.get('section');
+    return s === 'cola' ? 'cola' : 'bandeja';
+  });
   const [dirTab, setDirTab] = useState<DirectionTab>('Recibido');
   const [showArchived, setShowArchived] = useState(false);
   const [listWidth, setListWidth] = useState(380);

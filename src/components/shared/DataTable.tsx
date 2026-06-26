@@ -27,6 +27,9 @@ interface DataTableProps<T> {
   searchPlaceholder?: string;
   actions?: ReactNode;
   tableId?: string;
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
 type SortDir = 'asc' | 'desc';
@@ -76,6 +79,9 @@ export function DataTable<T extends { id: string }>({
   searchPlaceholder = 'Buscar...',
   actions,
   tableId,
+  selectable,
+  selectedIds,
+  onSelectionChange,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -301,6 +307,19 @@ export function DataTable<T extends { id: string }>({
           <table ref={tableRef} className={styles.table} style={{ tableLayout: Object.keys(colWidths).length > 0 ? 'fixed' : undefined }}>
             <thead>
               <tr>
+                {selectable && (
+                  <th style={{ width: '40px', minWidth: 40, textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Seleccionar todo"
+                      checked={sortedData.length > 0 && sortedData.every(item => selectedIds?.has(item.id))}
+                      onChange={(e) => {
+                        if (!onSelectionChange) return;
+                        onSelectionChange(e.target.checked ? new Set(sortedData.map(i => i.id)) : new Set());
+                      }}
+                    />
+                  </th>
+                )}
                 {visibleColumns.map((col) => (
                   <th
                     key={col.key}
@@ -326,6 +345,7 @@ export function DataTable<T extends { id: string }>({
               {isLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={`skeleton-${i}`}>
+                    {selectable && <td><div className={styles.skeletonCell} style={{ width: 20 }} /></td>}
                     {visibleColumns.map((col, j) => (
                       <td key={col.key}>
                         <div className={styles.skeletonCell} style={{ width: SKELETON_WIDTHS[(i * visibleColumns.length + j) % SKELETON_WIDTHS.length] }} />
@@ -335,7 +355,7 @@ export function DataTable<T extends { id: string }>({
                 ))
               ) : sortedData.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleColumns.length}>
+                  <td colSpan={visibleColumns.length + (selectable ? 1 : 0)}>
                     <div className={styles.emptyState}>
                       <div className={styles.emptyIcon}>{emptyIcon}</div>
                       <div className={styles.emptyText}>{emptyMessage}</div>
@@ -351,6 +371,21 @@ export function DataTable<T extends { id: string }>({
                     style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
                     onClick={() => onRowClick?.(item)}
                   >
+                    {selectable && (
+                      <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                        <input
+                          type="checkbox"
+                          aria-label="Seleccionar fila"
+                          checked={selectedIds?.has(item.id) ?? false}
+                          onChange={(e) => {
+                            if (!onSelectionChange || !selectedIds) return;
+                            const next = new Set(selectedIds);
+                            e.target.checked ? next.add(item.id) : next.delete(item.id);
+                            onSelectionChange(next);
+                          }}
+                        />
+                      </td>
+                    )}
                     {visibleColumns.map((col) => (
                       <td key={col.key}>
                         {col.render

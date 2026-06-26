@@ -66,6 +66,14 @@ export async function aprobarEmail(id: string): Promise<ColaEmail> {
   return mapToColaEmail({ ...data, alumno_nombre_join: alumno?.nombre });
 }
 
+export async function eliminarEmail(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('cola_emails')
+    .update({ estado: 'Eliminado' })
+    .eq('id', id);
+  if (error) throw new Error(`eliminarEmail: ${error.message}`);
+}
+
 export async function crearEmail(emailData: {
   alumnoId: string;
   tipo: string;

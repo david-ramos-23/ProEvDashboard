@@ -340,11 +340,21 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
           fetchAllPages(TABLES.ALUMNOS, ['Estado General'], alumnosFilter),
           fetchAllPages(TABLES.COLA_EMAILS, ['Estado']),
           fetchAllPages(TABLES.INBOX, ['Estado', 'Requiere Atencion']),
-          fetchAllPages(TABLES.REVISIONES, ['Estado de Revisión']),
+          fetchAllPages(TABLES.REVISIONES, ['Estado de Revisión', 'Alumno']),
         ]);
 
         const alumnosByEstado = countBy(alumnos, 'Estado General');
-        const revisionesByEstado = countBy(revisiones, 'Estado de Revisión');
+        // Edition-scope revisiones using the already-fetched alumno ID set
+        const alumnoIdSet = input.edicion
+          ? new Set(alumnos.map(r => (r as { id: string }).id))
+          : null;
+        const scopedRevisiones = alumnoIdSet
+          ? revisiones.filter(r => {
+              const linked = ((r as Record<string, Record<string, unknown[]>>).fields?.['Alumno']) as string[] | undefined;
+              return !linked?.[0] || alumnoIdSet.has(linked[0]);
+            })
+          : revisiones;
+        const revisionesByEstado = countBy(scopedRevisiones, 'Estado de Revisión');
         const colaByEstado = countBy(cola, 'Estado');
         return JSON.stringify({
           edicion_filtrada: input.edicion || 'todas',
@@ -363,8 +373,8 @@ async function executeTool(name: string, input: Record<string, unknown>): Promis
           // Inbox (siempre global)
           inbox_total: inbox.length,
           inbox_requiere_atencion: inbox.filter(r => (r as Record<string, Record<string, unknown>>).fields?.['Requiere Atencion'] === true).length,
-          // Revisiones de video (siempre global — NOTA: son registros de revisión, no alumnos)
-          revisiones_total: revisiones.length,
+          // Revisiones de video (filtradas por edición si se especifica)
+          revisiones_total: scopedRevisiones.length,
           revisiones_pendientes: revisionesByEstado['Pendiente'] || 0,
           revisiones_aprobadas: revisionesByEstado['Aprobado'] || 0,
           revisiones_rechazadas: revisionesByEstado['Rechazado'] || 0,

@@ -1,0 +1,43 @@
+{
+  "pkg": "dashboard",
+  "globalName": "ProEvDS",
+  "projectId": "d9348733-cd37-459a-acc0-3b72642889dc",
+  "shape": "package",
+  "tsconfig": ".design-sync/tsconfig.paths.json",
+  "entry": ".design-sync/ds-entry.tsx",
+  "tokensGlob": "src/styles/*.css",
+  "componentSrcMap": {
+    "KPICard": "src/components/shared/KPICard.tsx",
+    "StatCard": "src/components/shared/KPICard.tsx",
+    "KPIGrid": "src/components/shared/KPICard.tsx",
+    "KPICardSkeleton": "src/components/shared/KPICard.tsx",
+    "StatusBadge": "src/components/shared/StatusBadge.tsx",
+    "DataTable": "src/components/shared/DataTable.tsx",
+    "SkeletonBlock": "src/components/shared/SkeletonBlock.tsx",
+    "DropdownMenu": "src/components/shared/DropdownMenu.tsx",
+    "ConfirmDialog": "src/components/shared/ConfirmDialog.tsx",
+    "LoadingSpinner": "src/components/shared/LoadingSpinner.tsx",
+    "ScrollToTop": "src/components/shared/ScrollToTop.tsx",
+    "AnimatedValue": "src/components/shared/AnimatedValue.tsx"
+  },
+  "dtsPropsFor": {
+    "AnimatedValue": "value: string | number;",
+    "KPICard": "label: string; value: string | number; icon: string; color?: string; subtext?: string; onClick?: () => void;",
+    "StatCard": "label: string; value: string; icon: string;",
+    "KPIGrid": "children: React.ReactNode; columns?: 2 | 3 | 4 | 5; className?: string;",
+    "KPICardSkeleton": "",
+    "StatusBadge": "status: string; type?: 'estado' | 'revision' | 'pago' | 'email' | 'origin'; showIcon?: boolean;",
+    "DataTable": "title?: string; columns: { key: string; header: string; render?: (item: any) => React.ReactNode; width?: string; minWidth?: number; sortable?: boolean; hideable?: boolean; defaultHidden?: boolean; }[]; data: any[]; isLoading?: boolean; onRowClick?: (item: any) => void; emptyMessage?: string; emptyIcon?: string; searchValue?: string; onSearchChange?: (value: string) => void; searchPlaceholder?: string; actions?: React.ReactNode; tableId?: string;",
+    "SkeletonBlock": "width?: string; height?: string; borderRadius?: string; style?: React.CSSProperties;",
+    "LoadingSpinner": "text?: string;",
+    "ScrollToTop": "aiOpen?: boolean;",
+    "ConfirmDialog": "open: boolean; title: string; message?: string; icon?: string; confirmLabel?: string; cancelLabel?: string; variant?: 'success' | 'danger' | 'warning'; onConfirm: () => void; onCancel: () => void;",
+    "DropdownMenu": "open: boolean; onClose: () => void; triggerRef: React.RefObject<HTMLElement | null>; children: React.ReactNode; width?: number; alignRef?: React.RefObject<HTMLElement | null>;"
+  },
+  "overrides": {
+    "DataTable": { "cardMode": "column" },
+    "ConfirmDialog": { "cardMode": "single", "viewport": "560x680", "primaryStory": "Peligro" },
+    "DropdownMenu": { "cardMode": "single", "viewport": "400x320", "primaryStory": "Menu" },
+    "ScrollToTop": { "cardMode": "single", "viewport": "260x220" }
+  }
+}

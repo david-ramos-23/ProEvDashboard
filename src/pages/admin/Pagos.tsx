@@ -20,7 +20,8 @@ const ESTADOS_PAGO: EstadoPago[] = [
 export default function PagosPage() {
   const { t } = useTranslation();
   const { selectedNombre, ediciones } = useEdicion();
-  const [filtroEstado, setFiltroEstado] = useState<EstadoPago | ''>('');
+  const [filtrosEstado, setFiltrosEstado] = useState<Set<EstadoPago>>(new Set());
+  const [busqueda, setBusqueda] = useState('');
 
   const { data: pagos = [], isLoading } = useQuery({
     queryKey: ['pagos'],
@@ -43,9 +44,20 @@ export default function PagosPage() {
     pagosFallidos: pagosEdicion.filter(p => p.estadoPago === 'Fallido').length,
     pagosReembolsados: pagosEdicion.filter(p => p.estadoPago === 'Reembolsado').length,
   }), [pagosEdicion]);
-  const pagosFiltrados = useMemo(() => (
-    filtroEstado ? pagosEdicion.filter(p => p.estadoPago === filtroEstado) : pagosEdicion
-  ), [pagosEdicion, filtroEstado]);
+  const pagosFiltrados = useMemo(() => {
+    let result = filtrosEstado.size > 0
+      ? pagosEdicion.filter(p => filtrosEstado.has(p.estadoPago as EstadoPago))
+      : pagosEdicion;
+    if (busqueda.trim()) {
+      const q = busqueda.toLowerCase();
+      result = result.filter(p =>
+        (p.alumnoNombre || '').toLowerCase().includes(q) ||
+        (p.idSesionStripe || '').toLowerCase().includes(q) ||
+        (p.mesPago || '').toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [pagosEdicion, filtrosEstado, busqueda]);
 
   const columns = useMemo<Column<Pago>[]>(() => [
     {
@@ -98,17 +110,25 @@ export default function PagosPage() {
       {/* Filtros */}
       <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap', alignItems: 'center' }}>
         {ESTADOS_PAGO.map(est => (
-          <button key={est} className={`btn-sm ${filtroEstado === est ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroEstado(est === filtroEstado ? '' : est)}>
+          <button
+            key={est}
+            className={`btn-sm ${filtrosEstado.has(est) ? 'btn-primary' : 'btn-ghost'}`}
+            onClick={() => setFiltrosEstado(prev => {
+              const next = new Set(prev);
+              next.has(est) ? next.delete(est) : next.add(est);
+              return next;
+            })}
+          >
             {est}
           </button>
         ))}
-        {filtroEstado && (
+        {filtrosEstado.size > 0 && (
           <button
             className="btn-sm btn-ghost"
-            onClick={() => setFiltroEstado('')}
+            onClick={() => setFiltrosEstado(new Set())}
             style={{ color: 'var(--color-accent-danger)', borderColor: 'rgba(220,38,38,0.2)' }}
           >
-            Limpiar filtro
+            Limpiar
           </button>
         )}
         <span style={{ marginLeft: 'auto', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
@@ -117,7 +137,18 @@ export default function PagosPage() {
       </div>
 
       {/* Tabla */}
-      <DataTable tableId="pagos" title={t('nav.pagos')} columns={columns} data={pagosFiltrados} isLoading={isLoading} emptyMessage={t('pagos.sinPagos')} emptyIcon="💳" />
+      <DataTable
+        tableId="pagos"
+        title={t('nav.pagos')}
+        columns={columns}
+        data={pagosFiltrados}
+        isLoading={isLoading}
+        emptyMessage={t('pagos.sinPagos')}
+        emptyIcon="💳"
+        searchValue={busqueda}
+        onSearchChange={setBusqueda}
+        searchPlaceholder="Buscar alumno, sesión..."
+      />
     </div>
   );
 }

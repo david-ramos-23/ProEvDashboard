@@ -179,7 +179,7 @@ export const REVISOR_NAV: NavItem[] = [
   { label: 'Pagos', path: '/admin/pagos', icon: '💰' },
   { label: 'Ediciones', path: '/admin/ediciones', icon: '📅' },
   { label: 'Revisión Videos', path: '/revisor/videos', icon: '🎬' },
-  { label: 'Aprobar Emails', path: '/revisor/emails', icon: '✉️' },
+  { label: 'Emails', path: '/admin/inbox', icon: '📬' },
 ];
 
 // ============================================================

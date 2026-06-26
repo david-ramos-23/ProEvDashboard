@@ -12,6 +12,7 @@ import { fetchPagosPorMes } from '@/data/adapters';
 import { fetchHistorial } from '@/data/adapters';
 import { fetchColaEmails } from '@/data/adapters';
 import { fetchInbox } from '@/data/adapters';
+import { fetchRevisionStats } from '@/data/adapters';
 import { Historial } from '@/types';
 import { formatCurrency, formatNumber, timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
@@ -79,6 +80,11 @@ export default function DashboardPage() {
     queryKey: ['inbox', { requiereAtencion: true }],
     queryFn: () => fetchInbox({ requiereAtencion: true }),
   });
+  // A1: Use same revision count source as VideoReview (Revisiones table, not Alumnos estado)
+  const { data: revisionStats } = useQuery({
+    queryKey: ['revision-stats', { edicionNombre: selectedNombre || undefined }],
+    queryFn: () => fetchRevisionStats(selectedNombre || undefined),
+  });
 
   const historialColumns = useMemo<Column<Historial>[]>(() => [
     { key: 'tipoAccion', header: 'Tipo', width: '140px', sortable: true, minWidth: 90,
@@ -102,6 +108,13 @@ export default function DashboardPage() {
     : []
   , [stats]);
 
+  // A3: conversion = Pagados ÷ (Pagados + Pendiente de pago)
+  const conversionPct = useMemo(() => {
+    if (!stats) return 0;
+    const pool = stats.totalPagados + (stats.alumnosPorEstado[ESTADO.PENDIENTE_PAGO] || 0);
+    return pool > 0 ? Math.round(stats.totalPagados * 100 / pool) : 0;
+  }, [stats]);
+
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xl)' }}>
       {/* KPIs navegables */}
@@ -111,9 +124,9 @@ export default function DashboardPage() {
         ) : (
           <>
             <KPICard label={t('dashboard.totalAlumnos')} value={formatNumber(stats.totalAlumnos)} icon="👥" color="var(--color-accent-primary)" onClick={() => navigate('/admin/alumnos')} />
-            <KPICard label={t('dashboard.ingresosTotales')} value={formatCurrency(stats.ingresosTotales)} icon="💰" color="var(--color-accent-success)" onClick={() => navigate('/admin/pagos')} />
-            <KPICard label={t('dashboard.pendientesRevision')} value={formatNumber(stats.pendientesRevision)} icon="🎥" color="var(--color-accent-warning)" onClick={() => navigate('/revisor/videos')} />
-            <KPICard label={t('dashboard.emailsPendientes')} value={formatNumber(emailsPendientes.length)} icon="📧" color="var(--color-accent-warning)" onClick={() => navigate('/revisor/emails')} />
+            <KPICard label={t('dashboard.ingresosTotales')} value={formatCurrency(stats.ingresosTotales)} icon="💰" color="var(--color-accent-success)" onClick={() => navigate('/admin/pagos')} subtext="Rollup edición seleccionada" />
+            <KPICard label={t('dashboard.pendientesRevision')} value={formatNumber(revisionStats?.pendientes ?? stats.pendientesRevision)} icon="🎥" color="var(--color-accent-warning)" onClick={() => navigate('/revisor/videos')} />
+            <KPICard label={t('dashboard.emailsPendientes')} value={formatNumber(emailsPendientes.length)} icon="📧" color="var(--color-accent-warning)" onClick={() => navigate('/admin/inbox?section=cola')} />
             <KPICard label={t('dashboard.inboxAtencion')} value={formatNumber(inboxAlertas.length)} icon="📬" color="var(--color-accent-info)" onClick={() => navigate('/admin/inbox')} />
             <KPICard label={t('dashboard.alertas')} value={formatNumber((stats.alumnosPorEstado[ESTADO.PLAZO_VENCIDO] || 0) + (stats.alumnosPorEstado[ESTADO.PAGO_FALLIDO] || 0))} icon="⚠️" color="var(--color-accent-danger)" subtext="Plazo vencido · Pago fallido" onClick={() => navigate('/admin/alumnos')} />
           </>
@@ -125,7 +138,7 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
           <StatCard
             label={t('dashboard.conversion')}
-            value={`${stats.totalAlumnos > 0 ? Math.round((stats.totalPagados / stats.totalAlumnos) * 100) : 0}% pagados`}
+            value={`${conversionPct}% pagados`}
             icon="🎉"
           />
           <StatCard
@@ -151,7 +164,7 @@ export default function DashboardPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.gridStroke} />
                 <XAxis type="number" tick={{ fill: chartTheme.tickFill, fontSize: 12 }} />
                 <YAxis dataKey="name" type="category" width={130} tick={{ fill: chartTheme.tickFill, fontSize: 11 }} />
-                <Tooltip contentStyle={{ background: chartTheme.tooltipBg, border: chartTheme.tooltipBorder, borderRadius: 8 }} labelStyle={{ color: chartTheme.tooltipLabel }} />
+                <Tooltip contentStyle={{ background: chartTheme.tooltipBg, border: chartTheme.tooltipBorder, borderRadius: 8 }} labelStyle={{ color: chartTheme.tooltipLabel }} itemStyle={{ color: chartTheme.tooltipLabel }} formatter={(v: unknown) => [String(v ?? ''), 'Alumnos']} />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                   {estadosChartData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -195,6 +208,15 @@ export default function DashboardPage() {
         data={historial}
         emptyMessage={t('dashboard.sinActividad')}
         emptyIcon="📋"
+        actions={
+          <span
+            title="Últimas 15 acciones del audit trail del sistema. No está filtrado por la edición seleccionada."
+            aria-label="Información sobre Actividad Reciente"
+            style={{ cursor: 'help', color: 'var(--color-text-muted)', fontSize: '1rem', lineHeight: 1 }}
+          >
+            ℹ️
+          </span>
+        }
       />
     </div>
   );

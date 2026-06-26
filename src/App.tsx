@@ -16,7 +16,6 @@ const AlumnoDetailPage = lazy(() => import('@/pages/admin/AlumnoDetail'));
 const PagosPage = lazy(() => import('@/pages/admin/Pagos'));
 const EdicionesPage = lazy(() => import('@/pages/admin/Ediciones'));
 const VideoReviewPage = lazy(() => import('@/pages/revisor/VideoReview'));
-const EmailApprovalPage = lazy(() => import('@/pages/revisor/EmailApproval'));
 const InboxPage = lazy(() => import('@/pages/admin/Inbox'));
 const AuditTrailPage = lazy(() => import('@/pages/admin/AuditTrail'));
 
@@ -100,7 +99,8 @@ export default function App() {
           <Route path="/admin/comunicaciones" element={<Navigate to="/admin/inbox" replace />} />
           <Route path="/admin/ediciones" element={<EdicionesPage />} />
           <Route path="/revisor/videos" element={<VideoReviewPage />} />
-          <Route path="/revisor/emails" element={<EmailApprovalPage />} />
+          {/* Redirect old email approval page → admin inbox cola */}
+          <Route path="/revisor/emails" element={<Navigate to="/admin/inbox?section=cola" replace />} />
 
           {/* Rutas exclusivas Admin */}
           {session.role === 'admin' && (

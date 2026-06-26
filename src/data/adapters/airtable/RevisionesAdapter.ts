@@ -61,7 +61,7 @@ export async function fetchRevisiones(filters?: {
 }): Promise<RevisionVideo[]> {
   const formulas: string[] = [];
   if (filters?.estado) formulas.push(`{Estado de Revisión} = '${sanitizeForFormula(filters.estado)}'`);
-  if (filters?.alumnoId) formulas.push(`FIND('${sanitizeForFormula(filters.alumnoId)}', ARRAYJOIN({Alumno}))`);
+  // ponytail: alumnoId filtered client-side — FIND({Alumno}) resolves to names not IDs in Airtable
 
   const filterByFormula = formulas.length > 0
     ? (formulas.length === 1 ? formulas[0] : `AND(${formulas.join(', ')})`)
@@ -91,11 +91,14 @@ export async function fetchRevisiones(filters?: {
     });
   }
 
+  let result = filters?.alumnoId
+    ? revisiones.filter(r => r.alumnoId === filters.alumnoId)
+    : revisiones;
   if (filters?.edicionNombre) {
     const idSet = await fetchAlumnoIdsByEdicion(filters.edicionNombre);
-    return revisiones.filter(r => !r.alumnoId || idSet.has(r.alumnoId));
+    result = result.filter(r => !r.alumnoId || idSet.has(r.alumnoId));
   }
-  return revisiones;
+  return result;
 }
 
 /** Obtiene una revisión por ID */

@@ -120,6 +120,9 @@ export async function fetchColaEmails(...args: Parameters<typeof import('./airta
 export async function aprobarEmail(...args: Parameters<typeof import('./airtable/ColaEmailsAdapter').aprobarEmail>) {
   return (await getAdapters()).colaEmails.aprobarEmail(...args);
 }
+export async function eliminarEmail(id: string): Promise<void> {
+  return (await getAdapters()).colaEmails.eliminarEmail(id);
+}
 export async function crearEmail(...args: Parameters<typeof import('./airtable/ColaEmailsAdapter').crearEmail>) {
   return (await getAdapters()).colaEmails.crearEmail(...args);
 }

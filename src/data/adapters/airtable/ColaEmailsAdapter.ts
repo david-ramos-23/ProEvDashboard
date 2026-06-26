@@ -49,7 +49,6 @@ export async function fetchColaEmails(filters?: { estado?: EstadoEmail; estados?
   const records = await listRecords<AirtableColaEmailFields>(AIRTABLE_TABLES.COLA_EMAILS, {
     filterByFormula,
     sort: [{ field: 'Ultima Modificacion', direction: 'desc' }],
-    maxRecords: 100,
   });
 
   const emails = records.map(mapToColaEmail);
@@ -72,6 +71,13 @@ export async function aprobarEmail(id: string): Promise<ColaEmail> {
     'Estado': 'Pendiente',
   });
   return mapToColaEmail(record);
+}
+
+/** Marca un email como Eliminado (reversible vía Airtable) */
+export async function eliminarEmail(id: string): Promise<void> {
+  await updateRecord<AirtableColaEmailFields>(AIRTABLE_TABLES.COLA_EMAILS, id, {
+    'Estado': 'Eliminado' as EstadoEmail,
+  });
 }
 
 export async function crearEmail(data: {

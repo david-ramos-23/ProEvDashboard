@@ -68,7 +68,7 @@ export async function fetchPagos(filters?: {
       : `{Estado de Pago} = '${sanitizeForFormula(filters.estado)}'`;
     formulas.push(estadoQuery);
   }
-  if (filters?.alumnoId) formulas.push(`FIND('${sanitizeForFormula(filters.alumnoId)}', ARRAYJOIN({Alumno}))`);
+  // ponytail: alumnoId filtered client-side — FIND({Alumno}) resolves to names not IDs in Airtable
 
   const filterByFormula = formulas.length > 0
     ? (formulas.length === 1 ? formulas[0] : `AND(${formulas.join(', ')})`)
@@ -88,6 +88,9 @@ export async function fetchPagos(filters?: {
     pagos.forEach(p => { if (p.alumnoId) p.alumnoNombre = nombreMap.get(p.alumnoId); });
   }
 
+  if (filters?.alumnoId) {
+    pagos = pagos.filter(p => p.alumnoId === filters.alumnoId);
+  }
   if (filters?.edicionNombre) {
     const idSet = await fetchAlumnoIdsByEdicion(filters.edicionNombre);
     pagos = pagos.filter(p => !p.alumnoId || idSet.has(p.alumnoId));

@@ -1,12 +1,12 @@
 # Parity Validation Report — Airtable vs Supabase
 
-Generated: 2026-06-14T22:03:35
+Generated: 2026-06-15T19:09:14
 
 ## Verdict
 
 **PASS (0 discrepancies)**
 
-- Rows compared (field-by-field): 2721
+- Rows compared (field-by-field): 2733
 - missing_in_supabase : 0
 - orphaned_in_supabase: 0
 - field_mismatches    : 0
@@ -18,13 +18,13 @@ Generated: 2026-06-14T22:03:35
 |---|---:|---:|---:|---:|---:|
 | ediciones | 2 | 2 | 0 | 0 | 0 |
 | modulos | 6 | 6 | 0 | 0 | 0 |
-| alumnos | 143 | 143 | 0 | 0 | 0 |
+| alumnos | 145 | 145 | 0 | 0 | 0 |
 | revisiones_video | 93 | 93 | 0 | 0 | 0 |
 | pagos | 7 | 7 | 0 | 0 | 0 |
 | envios_emails | 0 | 0 | 0 | 0 | 0 |
-| cola_emails | 232 | 232 | 0 | 0 | 0 |
-| inbox | 393 | 393 | 0 | 0 | 0 |
-| historial | 1845 | 1845 | 0 | 0 | 0 |
+| cola_emails | 234 | 234 | 0 | 0 | 0 |
+| inbox | 395 | 395 | 0 | 0 | 0 |
+| historial | 1851 | 1851 | 0 | 0 | 0 |
 
 ## Discrepancy detail (up to 5 examples per type per table)
 

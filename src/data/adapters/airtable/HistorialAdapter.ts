@@ -42,7 +42,7 @@ export async function fetchHistorial(options?: {
   maxRecords?: number;
 }): Promise<Historial[]> {
   const formulas: string[] = [];
-  if (options?.alumnoId) formulas.push(`FIND('${sanitizeForFormula(options.alumnoId)}', ARRAYJOIN({Alumno}))`);
+  // ponytail: alumnoId filtered client-side — FIND({Alumno}) resolves to names not IDs in Airtable
 
   const records = await listRecords<AirtableHistorialFields>(AIRTABLE_TABLES.HISTORIAL, {
     filterByFormula: formulas.length > 0 ? formulas[0] : undefined,
@@ -61,5 +61,7 @@ export async function fetchHistorial(options?: {
     });
   }
 
-  return historials;
+  return options?.alumnoId
+    ? historials.filter(h => h.alumnoId === options.alumnoId)
+    : historials;
 }
