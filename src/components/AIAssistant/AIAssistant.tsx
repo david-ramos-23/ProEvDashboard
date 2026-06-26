@@ -8,6 +8,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import { useEdicion } from '@/context/EdicionContext';
 import DOMPurify from 'dompurify';
 import styles from './AIAssistant.module.css';
 
@@ -77,6 +78,7 @@ const SUGGESTIONS = [
 
 export default function AIAssistant({ isOpen, onToggle }: AIAssistantProps) {
   const location = useLocation();
+  const { selectedNombre } = useEdicion();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -114,6 +116,7 @@ export default function AIAssistant({ isOpen, onToggle }: AIAssistantProps) {
         body: JSON.stringify({
           messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
           pageContext: location.pathname,
+          edicion: selectedNombre || undefined,
         }),
       });
 
