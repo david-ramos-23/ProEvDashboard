@@ -312,7 +312,7 @@ export function DataTable<T extends { id: string }>({
                     <input
                       type="checkbox"
                       aria-label="Seleccionar todo"
-                      checked={sortedData.length > 0 && sortedData.every(item => selectedIds?.has(item.id))}
+                      checked={sortedData.length > 0 && !!selectedIds && sortedData.every(item => selectedIds.has(item.id))}
                       onChange={(e) => {
                         if (!onSelectionChange) return;
                         onSelectionChange(e.target.checked ? new Set(sortedData.map(i => i.id)) : new Set());
