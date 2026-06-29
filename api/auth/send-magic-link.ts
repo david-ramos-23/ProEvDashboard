@@ -129,6 +129,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const userName = AUTHORIZED_USERS[normalized]?.name || normalized.split('@')[0];
 
+  // FF: MAGIC_LINK_DEV_REDIRECT — temporary until ProEv domain is verified in Resend.
+  // Routes the physical email to a whitelisted address while the token still encodes
+  // the real user email so the session role resolves correctly.
+  const deliveryEmail = process.env.MAGIC_LINK_DEV_REDIRECT || normalized;
+
   const resendRes = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
@@ -137,7 +142,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     },
     body: JSON.stringify({
       from: 'ProEv Dashboard <onboarding@resend.dev>',
-      to: [normalized],
+      to: [deliveryEmail],
       subject: 'Tu enlace de acceso - ProEv Dashboard',
       html: buildEmailHtml(magicLink, userName),
     }),
