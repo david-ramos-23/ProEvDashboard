@@ -40,5 +40,6 @@ export function pagosDeEdicion<T extends { fechaPago?: string | null }>(
   selectedNombre: string | null,
 ): T[] {
   if (!selectedNombre) return pagos;
+  if (!ediciones.length) return pagos; // guard: ediciones not yet loaded, avoid flashing zero KPIs
   return pagos.filter(p => resolveEdicionByDate(p.fechaPago ?? null, ediciones) === selectedNombre);
 }

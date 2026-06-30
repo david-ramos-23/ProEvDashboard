@@ -235,7 +235,7 @@ button {
   transition: background var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
 }
 .btn-icon:hover {
-  background: var(--color-bg-hover, rgba(0, 0, 0, 0.06));
+  background: var(--color-bg-card-hover);
   color: var(--color-text-primary);
 }
 

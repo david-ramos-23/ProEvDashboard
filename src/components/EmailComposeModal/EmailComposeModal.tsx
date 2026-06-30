@@ -55,12 +55,14 @@ export function EmailComposeModal({
     enabled: open && isPickerMode,
   });
 
-  // Reset state when modal opens
+  // Reset modalState to idle when modal closes so the next open starts on the compose form
+  useEffect(() => {
+    if (!open) setModalState('idle');
+  }, [open]);
+
+  // Reset form fields when modal opens
   useEffect(() => {
     if (open) {
-      // Do not reset form when already showing the success screen
-      // (guards against parent prop changes like alumnoNombre triggering a re-run mid-display)
-      if (modalState === 'success') return;
       setComposeMode('template');
       setComposeAlumnoId('');
       setComposeAlumnoNombre('');

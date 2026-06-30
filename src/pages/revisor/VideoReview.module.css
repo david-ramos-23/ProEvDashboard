@@ -2,8 +2,9 @@
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: var(--space-lg);
-  /* Fill viewport minus header (~60px) + mobile edition bar (~48px) + content padding (~32px) */
-  height: calc(100dvh - 140px);
+  /* Fill viewport minus header (64px) + content padding-top (32px) + KPI grid (~90px) + gap (24px) */
+  --vr-header-offset: 210px;
+  height: calc(100dvh - var(--vr-header-offset));
   overflow: hidden;
 }
 
