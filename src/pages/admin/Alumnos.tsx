@@ -5,7 +5,7 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { DataTable, StatusBadge, Column, DropdownMenu } from '@/components/shared';
+import { DataTable, StatusBadge, SkeletonBlock, Column, DropdownMenu } from '@/components/shared';
 import { fetchAlumnos, fetchRevisiones } from '@/data/adapters';
 import { Alumno, EstadoGeneral, EstadoRevision } from '@/types';
 import { timeAgo } from '@/utils/formatters';
@@ -104,7 +104,7 @@ export default function AlumnosPage() {
     queryFn: () => fetchAlumnos({}),
   });
 
-  const { data: revisiones = [] } = useQuery({
+  const { data: revisiones = [], isLoading: revisionesLoading } = useQuery({
     queryKey: ['revisiones', { edicionNombre: selectedNombre || undefined }],
     queryFn: () => fetchRevisiones({ edicionNombre: selectedNombre || undefined }),
   });
@@ -180,11 +180,16 @@ export default function AlumnosPage() {
       // Hace visible 'Revision Necesaria'/'Video no accesible' para que admin actúe.
       // ponytail: columna ordenable en vez de filtro dedicado — ordenar agrupa los casos.
       key: 'estadoRevisionReciente', header: 'Estado Vídeo', width: '150px', sortable: true, minWidth: 120,
-      render: (a) => a.estadoRevisionReciente
-        ? <StatusBadge status={a.estadoRevisionReciente} type="revision" />
-        : a.estadoGeneral === 'En revisión de video'
-          ? <StatusBadge status="Pendiente" type="revision" />
-          : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
+      render: (a) => {
+        if (revisionesLoading && a.estadoGeneral === 'En revisión de video') {
+          return <SkeletonBlock width="100px" height="22px" borderRadius="9999px" />;
+        }
+        return a.estadoRevisionReciente
+          ? <StatusBadge status={a.estadoRevisionReciente} type="revision" />
+          : a.estadoGeneral === 'En revisión de video'
+            ? <StatusBadge status="Pendiente" type="revision" />
+            : <span style={{ color: 'var(--color-text-muted)' }}>—</span>;
+      },
     },
     {
       key: 'moduloSolicitado', header: t('alumnos.modulo'), width: '120px', sortable: true, minWidth: 100,
@@ -234,7 +239,7 @@ export default function AlumnosPage() {
       key: 'fechaPreinscripcion', header: t('alumnos.preinscripcion'), width: '130px', sortable: true, minWidth: 90, defaultHidden: true,
       render: (a) => <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>{a.fechaPreinscripcion || '—'}</span>,
     },
-  ], [t]);
+  ], [t, revisionesLoading]);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)', flex: 1, minHeight: 0 }}>
