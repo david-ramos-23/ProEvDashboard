@@ -441,7 +441,7 @@ export default function VideoReviewPage() {
         alumnoNombre={selected?.alumnoNombre ?? ''}
         onClose={() => { setIsComposeOpen(false); setRevisionMode(false); }}
         initialTemplateKey={revisionMode ? 'libre' : undefined}
-        onAfterSend={revisionMode ? () => handleSave('Revision Necesaria') : undefined}
+        onAfterSend={revisionMode ? () => { setIsComposeOpen(false); setRevisionMode(false); handleSave('Revision Necesaria'); } : undefined}
         skipAction={revisionMode ? {
           label: 'Solo cambiar estado',
           onSkip: () => { setIsComposeOpen(false); setRevisionMode(false); handleSave('Revision Necesaria'); },

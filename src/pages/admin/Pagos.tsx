@@ -11,7 +11,7 @@ import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
 import { ESTADO_PAGO } from '@/utils/constants';
 import { useEdicion } from '@/context/EdicionContext';
-import { resolveEdicionByDate } from '@/lib/resolveEdicion';
+import { resolveEdicionByDate, pagosDeEdicion } from '@/lib/resolveEdicion';
 
 const ESTADOS_PAGO: EstadoPago[] = [
   ESTADO_PAGO.PENDIENTE, ESTADO_PAGO.PAGADO, ESTADO_PAGO.FALLIDO, ESTADO_PAGO.REEMBOLSADO,
@@ -28,16 +28,12 @@ export default function PagosPage() {
     queryFn: () => fetchPagos({}),
   });
 
-  // Infer each payment's edition by date window; then filter client-side.
-  // This avoids leaking payments of multi-edition alumnos across editions.
-  const pagosEdicion = useMemo(() => {
-    if (!selectedNombre) return pagos;
-    // null date (Pendiente sin fecha) → edition can't be inferred → show in all editions
-    return pagos.filter(p => {
-      const ed = resolveEdicionByDate(p.fechaPago, ediciones);
-      return ed === selectedNombre || !p.fechaPago;
-    });
-  }, [pagos, ediciones, selectedNombre]);
+  // Filter payments to the selected edition using date-window inference.
+  // Payments without a date are excluded from specific editions (shown only in all-editions view).
+  const pagosEdicion = useMemo(
+    () => pagosDeEdicion(pagos, ediciones, selectedNombre),
+    [pagos, ediciones, selectedNombre],
+  );
   const stats = useMemo(() => ({
     totalRecaudado: pagosEdicion.filter(p => p.estadoPago === 'Pagado').reduce((s, p) => s + (p.importe || 0), 0),
     pagosCompletados: pagosEdicion.filter(p => p.estadoPago === 'Pagado').length,
@@ -135,9 +131,6 @@ export default function PagosPage() {
             Limpiar
           </button>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-          {pagosFiltrados.length} pago{pagosFiltrados.length !== 1 ? 's' : ''}
-        </span>
       </div>
 
       {/* Tabla */}
@@ -151,6 +144,7 @@ export default function PagosPage() {
         searchValue={busqueda}
         onSearchChange={setBusqueda}
         searchPlaceholder={t('alumnos.searchPlaceholder')}
+        countLabel={(n) => `${n} pago${n !== 1 ? 's' : ''}`}
       />
     </div>
   );

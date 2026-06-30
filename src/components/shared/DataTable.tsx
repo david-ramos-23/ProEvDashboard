@@ -30,6 +30,8 @@ interface DataTableProps<T> {
   selectable?: boolean;
   selectedIds?: Set<string>;
   onSelectionChange?: (ids: Set<string>) => void;
+  /** When provided, renders a record count on the left of the table header */
+  countLabel?: (n: number) => string;
 }
 
 type SortDir = 'asc' | 'desc';
@@ -82,6 +84,7 @@ export function DataTable<T extends { id: string }>({
   selectable,
   selectedIds,
   onSelectionChange,
+  countLabel,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -247,6 +250,9 @@ export function DataTable<T extends { id: string }>({
   return (
     <div ref={tableWrapperRef} className={styles.tableWrapper}>
       <div className={styles.tableHeader}>
+        {countLabel && (
+          <span className={styles.tableCount}>{countLabel(sortedData.length)}</span>
+        )}
         {title && <h3 className={styles.tableTitle}>{title}</h3>}
         <div className={styles.tableActions}>
           {onSearchChange && (
@@ -316,7 +322,7 @@ export function DataTable<T extends { id: string }>({
       </div>
 
       {isMobile ? renderMobileCards() : (
-        <div style={{ overflowX: 'auto' }}>
+        <div className={styles.tableScrollArea}>
           <table ref={tableRef} className={styles.table} style={{ tableLayout: Object.keys(colWidths).length > 0 ? 'fixed' : undefined }}>
             <thead>
               <tr>

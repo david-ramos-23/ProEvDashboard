@@ -25,3 +25,20 @@ export function resolveEdicionByDate(
   if (!matches.length) return null;
   return matches.sort((a, b) => a.duration - b.duration)[0].nombre;
 }
+
+/**
+ * Filters payments to those belonging to a specific edition using date-window inference.
+ * Payments without a date are excluded from specific editions (they appear only in the
+ * all-editions view). This replaces the `|| !p.fechaPago` pattern that inflated counts.
+ *
+ * TODO(tech-debt): add an Edicion linked-record field to the Pagos table in the n8n
+ * Stripe workflow so this inference is not needed.
+ */
+export function pagosDeEdicion<T extends { fechaPago?: string | null }>(
+  pagos: T[],
+  ediciones: Edicion[],
+  selectedNombre: string | null,
+): T[] {
+  if (!selectedNombre) return pagos;
+  return pagos.filter(p => resolveEdicionByDate(p.fechaPago ?? null, ediciones) === selectedNombre);
+}

@@ -284,13 +284,14 @@ export default function AlumnosPage() {
 
       {/* Tabla */}
       <DataTable
-        tableId="alumnos"
+        tableId="alumnos"
         columns={columns}
         data={filtered}
         isLoading={isLoading}
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder={t('alumnos.searchPlaceholder')}
+        countLabel={(n) => `${n} alumno${n !== 1 ? 's' : ''}`}
         onRowClick={(a) => navigate(`/admin/alumnos/${a.id}`)}
         emptyMessage={t('alumnos.noResults')}
         emptyIcon="👥"

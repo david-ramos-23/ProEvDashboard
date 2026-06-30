@@ -194,6 +194,7 @@
 .edicionSelect {
   padding: 0 22px 0 10px;
   height: 30px;
+  min-width: 180px;
   font-size: 0.75rem;
   font-family: var(--font-family);
   font-weight: var(--font-weight-medium);
@@ -203,6 +204,8 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   text-align: left;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;

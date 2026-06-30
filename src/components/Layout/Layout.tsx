@@ -196,7 +196,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
                 >
                   {selectedNombre}{ediciones.find(e => e.nombre === selectedNombre)?.esEdicionActiva ? ' ★' : ''}
                 </button>
-                <DropdownMenu open={edicionOpen} onClose={() => setEdicionOpen(false)} triggerRef={edicionBtnRef} width={edicionBtnRef.current?.offsetWidth || 180}>
+                <DropdownMenu open={edicionOpen} onClose={() => setEdicionOpen(false)} triggerRef={edicionBtnRef} width={Math.max(180, edicionBtnRef.current?.offsetWidth ?? 0)}>
                   {ediciones.map(ed => (
                     <button
                       key={ed.id}

@@ -226,6 +226,7 @@ export default function AuditTrailPage() {
         columns={columns}
         isLoading={isLoading}
         emptyMessage={t('audit.sinRegistros')}
+        countLabel={(n) => `${n} registro${n !== 1 ? 's' : ''}`}
       />
     </div>
   );

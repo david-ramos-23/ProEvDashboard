@@ -2,7 +2,9 @@
   display: grid;
   grid-template-columns: 320px 1fr;
   gap: var(--space-lg);
-  min-height: 600px;
+  /* Fill viewport minus header (~60px) + mobile edition bar (~48px) + content padding (~32px) */
+  height: calc(100dvh - 140px);
+  overflow: hidden;
 }
 
 /* Lista lateral */
@@ -14,6 +16,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  height: 100%;
+  min-height: 0;
 }
 
 .listHeader {
@@ -107,6 +111,8 @@
   flex-direction: column;
   gap: var(--space-lg);
   overflow-y: auto;
+  height: 100%;
+  min-height: 0;
 }
 
 .detailHeader {
@@ -142,6 +148,7 @@
 .videoEmbedAuto {
   width: 100%;
   max-width: 360px;
+  max-height: 60vh;
   aspect-ratio: 9 / 16;
   border-radius: var(--radius-md);
   border: none;
@@ -373,12 +380,20 @@
 
   .splitView {
     grid-template-columns: 1fr;
+    height: auto;
     min-height: auto;
     gap: 0;
+    overflow: visible;
   }
 
   .list {
     max-height: none;
+    height: auto;
+  }
+
+  .detail {
+    height: auto;
+    overflow-y: visible;
   }
 
   .detail {

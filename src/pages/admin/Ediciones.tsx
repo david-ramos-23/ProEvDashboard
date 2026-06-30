@@ -238,12 +238,12 @@ export default function EdicionesPage() {
       {/* Tabla ediciones */}
       <DataTable
         tableId="ediciones"
-        title={t('ediciones.todasEdiciones')}
         columns={edicionColumns}
         data={ediciones}
         isLoading={edicionesLoading}
         emptyMessage={t('ediciones.sinEdiciones')}
         emptyIcon="📅"
+        countLabel={(n) => `${n} edicion${n !== 1 ? 'es' : ''}`}
       />
     </div>
   );

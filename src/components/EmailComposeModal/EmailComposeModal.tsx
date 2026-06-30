@@ -58,6 +58,9 @@ export function EmailComposeModal({
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
+      // Do not reset form when already showing the success screen
+      // (guards against parent prop changes like alumnoNombre triggering a re-run mid-display)
+      if (modalState === 'success') return;
       setComposeMode('template');
       setComposeAlumnoId('');
       setComposeAlumnoNombre('');

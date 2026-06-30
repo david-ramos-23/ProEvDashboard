@@ -320,11 +320,11 @@ function ColaSection() {
       key: 'delete' as keyof ColaEmail, header: '', width: '44px', hideable: false,
       render: (e) => (
         <button
-          className="btn-ghost btn-sm"
+          className="btn-icon"
           onClick={(ev) => { ev.stopPropagation(); setDeleteConfirmId(e.id); }}
           aria-label="Eliminar email"
           title="Eliminar"
-          style={{ color: 'var(--color-accent-danger)', padding: '4px 6px' }}
+          style={{ color: 'var(--color-accent-danger)', fontSize: '18px' }}
         >
           🗑
         </button>
@@ -353,6 +353,9 @@ function ColaSection() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
       <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-xs)' }}>
+        {filtroEstados.length > 0 && (
+          <button className="btn-sm btn-ghost" onClick={() => setFiltroEstados([])} style={{ color: '#e53e3e', borderColor: '#e53e3e' }}>Limpiar</button>
+        )}
         <button className={`btn-sm ${filtroEstados.length === 0 ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroEstados([])}>Todos</button>
         {COLA_TABS.map(tab => {
           const active = filtroEstados.includes(tab.estado);
@@ -366,12 +369,14 @@ function ColaSection() {
             </button>
           );
         })}
-        {filtroEstados.length > 0 && (
-          <button className="btn-ghost btn-sm" onClick={() => setFiltroEstados([])} style={{ marginLeft: 'auto' }}>Limpiar</button>
-        )}
       </div>
 
       <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center' }}>
+        {filtrosTipo.size > 0 && (
+          <button className="btn-sm btn-ghost" onClick={() => setFiltrosTipo(new Set())} style={{ color: '#e53e3e', borderColor: '#e53e3e' }}>
+            Limpiar filtros
+          </button>
+        )}
         <button className={`btn-sm ${filtrosTipo.size === 0 ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltrosTipo(new Set())}>Todos</button>
         {TIPOS_EMAIL.map(tipo => (
           <button key={tipo}
@@ -381,11 +386,6 @@ function ColaSection() {
             {tipo.replace(/_/g, ' ')}
           </button>
         ))}
-        {filtrosTipo.size > 0 && (
-          <button className="btn-ghost btn-sm" onClick={() => setFiltrosTipo(new Set())} style={{ marginLeft: 'auto' }}>
-            Limpiar filtros
-          </button>
-        )}
       </div>
 
       <DataTable
@@ -394,7 +394,7 @@ function ColaSection() {
         data={filteredCola}
         searchValue={colaSearch}
         onSearchChange={setColaSearch}
-        title={`${filteredCola.length} ${filteredCola.length === 1 ? 'email' : 'emails'}`}
+        countLabel={(n) => `${n} ${n === 1 ? 'email' : 'emails'}`}
         isLoading={isLoading}
         emptyMessage="No hay emails con los filtros seleccionados"
         emptyIcon="📧"
