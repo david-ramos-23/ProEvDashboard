@@ -32,6 +32,8 @@ interface DataTableProps<T> {
   onSelectionChange?: (ids: Set<string>) => void;
   /** When provided, renders a record count on the left of the table header */
   countLabel?: (n: number) => string;
+  /** When true, the wrapper stretches to fill its flex parent (use inside contentContained pages) */
+  fill?: boolean;
 }
 
 type SortDir = 'asc' | 'desc';
@@ -85,6 +87,7 @@ export function DataTable<T extends { id: string }>({
   selectedIds,
   onSelectionChange,
   countLabel,
+  fill,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -248,7 +251,7 @@ export function DataTable<T extends { id: string }>({
   );
 
   return (
-    <div ref={tableWrapperRef} className={styles.tableWrapper}>
+    <div ref={tableWrapperRef} className={`${styles.tableWrapper} ${fill ? styles.tableWrapperFill : ''}`}>
       <div className={styles.tableHeader}>
         {countLabel && (
           <span className={styles.tableCount}>{countLabel(sortedData.length)}</span>

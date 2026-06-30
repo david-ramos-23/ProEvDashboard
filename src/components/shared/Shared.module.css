@@ -139,6 +139,12 @@
   min-height: 0;
 }
 
+/* Opt-in: makes the wrapper fill its flex parent (use with fill prop) */
+.tableWrapperFill {
+  flex: 1;
+  min-height: 0;
+}
+
 .tableHeader {
   padding: var(--space-md) var(--space-lg);
   display: flex;

@@ -4,7 +4,7 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, Column, PageHeader } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, Column } from '@/components/shared';
 import { fetchPagos } from '@/data/adapters';
 import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
@@ -87,8 +87,7 @@ export default function PagosPage() {
   ], [t, ediciones]);
 
   return (
-    <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-      <PageHeader title={t('nav.pagos')} count={pagosFiltrados.length} />
+    <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)', flex: 1, minHeight: 0 }}>
       {isError && (
         <div role="alert" style={{ padding: "var(--space-md)", background: "color-mix(in srgb, var(--color-accent-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-accent-danger) 30%, transparent)", borderRadius: "var(--radius-md)", color: "var(--color-accent-danger)", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-md)" }}>
           Error al cargar los pagos. Comprueba tu conexion e intentalo de nuevo.
@@ -145,6 +144,7 @@ export default function PagosPage() {
         onSearchChange={setBusqueda}
         searchPlaceholder={t('alumnos.searchPlaceholder')}
         countLabel={(n) => `${n} pago${n !== 1 ? 's' : ''}`}
+        fill
       />
     </div>
   );

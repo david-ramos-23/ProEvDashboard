@@ -5,7 +5,7 @@
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { DataTable, StatusBadge, Column, DropdownMenu, PageHeader } from '@/components/shared';
+import { DataTable, StatusBadge, Column, DropdownMenu } from '@/components/shared';
 import { fetchAlumnos } from '@/data/adapters';
 import { Alumno, EstadoGeneral } from '@/types';
 import { timeAgo } from '@/utils/formatters';
@@ -204,8 +204,7 @@ export default function AlumnosPage() {
   ], [t]);
 
   return (
-    <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
-      <PageHeader title={t('alumnos.title')} count={filtered.length} />
+    <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)', flex: 1, minHeight: 0 }}>
 
       {/* Filtro por estado (configurable chips with drag & drop) */}
       <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -295,6 +294,7 @@ export default function AlumnosPage() {
         onRowClick={(a) => navigate(`/admin/alumnos/${a.id}`)}
         emptyMessage={t('alumnos.noResults')}
         emptyIcon="👥"
+        fill
       />
     </div>
   );

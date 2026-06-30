@@ -196,7 +196,7 @@
 .edicionSelect {
   padding: 0 22px 0 10px;
   height: 30px;
-  min-width: 180px;
+  width: 132px;
   font-size: 0.75rem;
   font-family: var(--font-family);
   font-weight: var(--font-weight-medium);
@@ -261,6 +261,14 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+@media (min-width: 768px) {
+  .contentContained {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
 }
 
 @keyframes pageEnter {

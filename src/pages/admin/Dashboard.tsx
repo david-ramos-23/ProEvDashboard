@@ -13,6 +13,8 @@ import { fetchHistorial } from '@/data/adapters';
 import { fetchColaEmails } from '@/data/adapters';
 import { fetchInbox } from '@/data/adapters';
 import { fetchRevisionStats } from '@/data/adapters';
+import { fetchPagos } from '@/data/adapters';
+import { pagosDeEdicion } from '@/lib/resolveEdicion';
 import { Historial } from '@/types';
 import { formatCurrency, formatNumber, timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
@@ -58,7 +60,7 @@ export default function DashboardPage() {
   const chartTheme = useChartTheme();
   useHighlightRow();
 
-  const { selectedNombre } = useEdicion();
+  const { selectedNombre, ediciones } = useEdicion();
 
   const { data: stats, isLoading: statsLoading, isError: statsError } = useQuery({
     queryKey: ['dashboard-stats', { edicionNombre: selectedNombre || undefined }],
@@ -85,6 +87,11 @@ export default function DashboardPage() {
     queryKey: ['revision-stats', { edicionNombre: selectedNombre || undefined }],
     queryFn: () => fetchRevisionStats(selectedNombre || undefined),
   });
+  // Same queryKey as Pagos page → shared React Query cache, no extra fetch
+  const { data: pagos = [], isLoading: isPagosLoading } = useQuery({
+    queryKey: ['pagos'],
+    queryFn: () => fetchPagos({}),
+  });
 
   const historialColumns = useMemo<Column<Historial>[]>(() => [
     { key: 'tipoAccion', header: 'Tipo', width: '140px', sortable: true, minWidth: 90,
@@ -108,6 +115,14 @@ export default function DashboardPage() {
     : []
   , [stats]);
 
+  // Ingresos: same calculation as Pagos page (individual payments by date window)
+  const ingresosTotales = useMemo(
+    () => pagosDeEdicion(pagos, ediciones, selectedNombre)
+      .filter(p => p.estadoPago === 'Pagado')
+      .reduce((s, p) => s + (p.importe || 0), 0),
+    [pagos, ediciones, selectedNombre],
+  );
+
   // A3: conversion = Pagados ÷ (Pagados + Pendiente de pago)
   const conversionPct = useMemo(() => {
     if (!stats) return 0;
@@ -125,12 +140,12 @@ export default function DashboardPage() {
       <PageHeader title={t('nav.dashboard')} />
       {/* KPIs navegables */}
       <KPIGrid columns={3}>
-        {statsLoading || !stats ? (
+        {statsLoading || isPagosLoading || !stats ? (
           Array.from({ length: 6 }).map((_, i) => <KPICardSkeleton key={i} />)
         ) : (
           <>
             <KPICard label={t('dashboard.totalAlumnos')} value={formatNumber(stats.totalAlumnos)} icon="👥" color="var(--color-accent-primary)" onClick={() => navigate('/admin/alumnos')} />
-            <KPICard label={t('dashboard.ingresosTotales')} value={formatCurrency(stats.ingresosTotales)} icon="💰" color="var(--color-accent-success)" onClick={() => navigate('/admin/pagos')} subtext="Rollup edición seleccionada" />
+            <KPICard label={t('dashboard.ingresosTotales')} value={formatCurrency(ingresosTotales)} icon="💰" color="var(--color-accent-success)" onClick={() => navigate('/admin/pagos')} subtext="Pagos confirmados" />
             <KPICard label={t('dashboard.pendientesRevision')} value={formatNumber(revisionStats?.pendientes ?? stats.pendientesRevision)} icon="🎥" color="var(--color-accent-warning)" onClick={() => navigate('/revisor/videos')} />
             <KPICard label={t('dashboard.emailsPendientes')} value={formatNumber(emailsPendientes.length)} icon="📧" color="var(--color-accent-warning)" onClick={() => navigate('/admin/inbox?section=cola')} />
             <KPICard label={t('dashboard.inboxAtencion')} value={formatNumber(inboxAlertas.length)} icon="📬" color="var(--color-accent-info)" onClick={() => navigate('/admin/inbox')} />

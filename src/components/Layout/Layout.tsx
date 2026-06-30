@@ -46,6 +46,9 @@ const PAGE_TITLE_KEYS: Record<string, string> = {
 /** Pages where edition filter doesn't apply */
 const NO_EDITION_FILTER_PAGES = new Set(['/admin/ediciones', '/admin/inbox', '/admin/audit', '/revisor/emails']);
 
+/** Pages that should be viewport-contained (table/split layout, no body scroll) */
+const CONTAINED_ROUTES = new Set(['/admin/alumnos', '/admin/pagos', '/admin/inbox', '/revisor/videos']);
+
 export default function Layout({ role, userName, userEmail, onLogout }: LayoutProps) {
   const location = useLocation();
   const { t, locale, setLocale } = useTranslation();
@@ -60,6 +63,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
   const basePath = '/' + location.pathname.split('/').slice(1, 3).join('/');
   const pageTitle = t(PAGE_TITLE_KEYS[basePath] || 'common.noData');
   const showEdicionFilter = !NO_EDITION_FILTER_PAGES.has(basePath);
+  const isContained = CONTAINED_ROUTES.has(location.pathname);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -196,7 +200,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
                 >
                   {selectedNombre}{ediciones.find(e => e.nombre === selectedNombre)?.esEdicionActiva ? ' ★' : ''}
                 </button>
-                <DropdownMenu open={edicionOpen} onClose={() => setEdicionOpen(false)} triggerRef={edicionBtnRef} width={Math.max(180, edicionBtnRef.current?.offsetWidth ?? 0)}>
+                <DropdownMenu open={edicionOpen} onClose={() => setEdicionOpen(false)} triggerRef={edicionBtnRef} width={132}>
                   {ediciones.map(ed => (
                     <button
                       key={ed.id}
@@ -267,7 +271,7 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
             </DropdownMenu>
           </div>
         )}
-        <div className={styles.content} key={location.pathname}>
+        <div className={`${styles.content} ${isContained ? styles.contentContained : ''}`} key={location.pathname}>
           <Outlet />
         </div>
         <ScrollToTop aiOpen={aiOpen} />

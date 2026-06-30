@@ -351,7 +351,7 @@ function ColaSection() {
   }, [filtroEstados, approving, t]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', flex: 1, minHeight: 0 }}>
       <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-xs)' }}>
         {filtroEstados.length > 0 && (
           <button className="btn-sm btn-ghost" onClick={() => setFiltroEstados([])} style={{ color: '#e53e3e', borderColor: '#e53e3e' }}>Limpiar</button>
@@ -398,6 +398,7 @@ function ColaSection() {
         isLoading={isLoading}
         emptyMessage="No hay emails con los filtros seleccionados"
         emptyIcon="📧"
+        fill
         selectable
         selectedIds={colaSelectedIds}
         onSelectionChange={setColaSelectedIds}

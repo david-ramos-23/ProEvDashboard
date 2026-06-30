@@ -174,7 +174,7 @@ export default function VideoReviewPage() {
   }
 
   return (
-    <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)' }}>
+    <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)', flex: 1, minHeight: 0 }}>
       {saveError && (
         <div
           role="alert"
