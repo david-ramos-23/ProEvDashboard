@@ -66,6 +66,7 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
     modulosCompletados: f['Modulos Completados'],
     edicionId: f['Edicion']?.[0],
     edicion: f['Nombre Edicion']?.[0],
+    edicionNombres: f['Nombre Edicion'] || [],
     fotoPerfil: f['Foto de Perfil']?.[0]?.url,
     plazoRevision: f['Plazo Revision'],
     fechaPlazo: f['Fecha Plazo'],
@@ -100,7 +101,6 @@ const TABLE = AIRTABLE_TABLES.ALUMNOS;
 /** Lista todos los alumnos, con filtros opcionales */
 export async function fetchAlumnos(filters?: {
   estado?: EstadoGeneral;
-  edicionNombre?: string;
   modulo?: string;
   search?: string;
 }): Promise<Alumno[]> {
@@ -109,9 +109,9 @@ export async function fetchAlumnos(filters?: {
   if (filters?.estado) {
     formulas.push(`{Estado General} = '${sanitizeForFormula(filters.estado)}'`);
   }
-  if (filters?.edicionNombre) {
-    formulas.push(edicionMatchFormula(filters.edicionNombre));
-  }
+  // edicionNombre is intentionally NOT filtered server-side here — Airtable's ARRAYJOIN
+  // on multipleRecordLinks only resolves the first linked record, so students in two
+  // editions would be invisible from the second edition. Caller filters client-side instead.
   if (filters?.modulo) {
     formulas.push(`{Modulo Solicitado} = '${sanitizeForFormula(filters.modulo)}'`);
   }

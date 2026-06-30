@@ -97,10 +97,11 @@ export default function AlumnosPage() {
   const [search, setSearch] = useState('');
   const [filtrosEstado, setFiltrosEstado] = useState<Set<EstadoGeneral>>(new Set());
 
-  // Fetch all alumnos for the edition (estado filtering is done client-side for AND logic)
+  // Fetch ALL alumnos (no server-side edition filter — see AlumnosAdapter for why).
+  // Edition filtering is done client-side below so multi-edition students appear correctly.
   const { data: alumnos = [], isLoading } = useQuery({
-    queryKey: ['alumnos', { edicionNombre: selectedNombre || undefined }],
-    queryFn: () => fetchAlumnos({ edicionNombre: selectedNombre || undefined }),
+    queryKey: ['alumnos'],
+    queryFn: () => fetchAlumnos({}),
   });
 
   const { data: revisiones = [] } = useQuery({
@@ -133,9 +134,14 @@ export default function AlumnosPage() {
     return estado;
   }, [revisiones]);
 
-  // Client-side filtering: estado chips (OR within estados) + search
+  // Client-side filtering: edition (multi-edition safe) + estado chips + search
   const filtered = useMemo(() => {
     let result = alumnos;
+    if (selectedNombre) {
+      result = result.filter(a =>
+        a.edicionNombres?.includes(selectedNombre) || a.edicion === selectedNombre
+      );
+    }
     if (filtrosEstado.size > 0) {
       result = result.filter(a => filtrosEstado.has(a.estadoGeneral));
     }
@@ -147,7 +153,7 @@ export default function AlumnosPage() {
       );
     }
     return result;
-  }, [alumnos, filtrosEstado, search]);
+  }, [alumnos, selectedNombre, filtrosEstado, search]);
 
   // Overlay live revision estado onto each alumno for the Estado Vídeo column
   const tableData = useMemo(() => filtered.map(a => {

@@ -21,6 +21,7 @@ function mapToAlumno(row: Record<string, unknown>): Alumno {
     modulosCompletados: row.modulos_completados as string[] | undefined,
     edicionId: row.edicion_id as string | undefined,
     edicion: row.edicion_nombre as string | undefined,
+    edicionNombres: row.edicion_nombre ? [row.edicion_nombre as string] : [],
     fotoPerfil: row.foto_perfil as string | undefined,
     plazoRevision: row.plazo_revision as string | undefined,
     fechaPlazo: row.fecha_plazo as string | undefined,
@@ -46,7 +47,6 @@ function mapToAlumno(row: Record<string, unknown>): Alumno {
 /** Lista todos los alumnos, con filtros opcionales */
 export async function fetchAlumnos(filters?: {
   estado?: EstadoGeneral;
-  edicionNombre?: string;
   modulo?: string;
   search?: string;
 }): Promise<Alumno[]> {
@@ -58,9 +58,7 @@ export async function fetchAlumnos(filters?: {
   if (filters?.estado) {
     query = query.eq('estado_general', filters.estado);
   }
-  if (filters?.edicionNombre) {
-    query = query.eq('edicion_nombre', filters.edicionNombre);
-  }
+  // edicionNombre not filtered server-side — caller filters client-side for multi-edition parity
   if (filters?.modulo) {
     query = query.eq('modulo_solicitado', filters.modulo);
   }
