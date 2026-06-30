@@ -16,6 +16,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { useEdicion } from '@/context/EdicionContext';
 import AIAssistant from '@/components/AIAssistant/AIAssistant';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import styles from './Layout.module.css';
 
 interface LayoutProps {
@@ -271,8 +272,11 @@ export default function Layout({ role, userName, userEmail, onLogout }: LayoutPr
             </DropdownMenu>
           </div>
         )}
+        {/* key remounts this subtree on navigation, giving the ErrorBoundary a fresh instance */}
         <div className={`${styles.content} ${isContained ? styles.contentContained : ''}`} key={location.pathname}>
-          <Outlet />
+          <ErrorBoundary>
+            <Outlet />
+          </ErrorBoundary>
         </div>
         <ScrollToTop aiOpen={aiOpen} />
       </main>

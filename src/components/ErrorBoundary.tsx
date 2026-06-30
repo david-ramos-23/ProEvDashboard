@@ -5,6 +5,8 @@ interface Props {
   errorTitle?: string;
   errorMessage?: string;
   reloadLabel?: string;
+  /** When this key changes, a caught error is cleared so the new route can render normally. */
+  resetKey?: string;
 }
 
 interface State {
@@ -20,6 +22,14 @@ export class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    // Reset the error state when the route changes so a crash on one page
+    // doesn't leave the entire app stuck on the error fallback.
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
   }
 
   componentDidCatch(error: Error) {

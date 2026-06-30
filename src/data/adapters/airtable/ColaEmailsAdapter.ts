@@ -17,18 +17,29 @@ interface AirtableColaEmailFields {
   'Descripcion'?: string;
 }
 
+/**
+ * Safely coerces an Airtable field value to string, handling cases where a
+ * lookup/rollup field unexpectedly returns an array instead of a scalar.
+ */
+function coerceToString(val: unknown): string | undefined {
+  if (val == null) return undefined;
+  if (Array.isArray(val)) return val[0] != null ? String(val[0]) : undefined;
+  return String(val);
+}
+
 function mapToColaEmail(record: AirtableRecord<AirtableColaEmailFields>): ColaEmail {
   const f = record.fields;
+  const rawTipo = coerceToString(f['Tipo'] as unknown);
   return {
     id: record.id,
     createdTime: record.createdTime,
     alumnoId: f['Alumno']?.[0] || '',
     alumnoNombre: f['Nombre del Alumno']?.[0],
-    tipo: (f['Tipo'] as ColaEmail['tipo']) || 'informacion',
-    asunto: f['Asunto Generado'],
-    mensaje: f['Mensaje'] || '',
+    tipo: ((rawTipo || 'informacion') as ColaEmail['tipo']),
+    asunto: coerceToString(f['Asunto Generado'] as unknown),
+    mensaje: coerceToString(f['Mensaje'] as unknown) || '',
     estado: f['Estado'] || 'Pendiente',
-    descripcion: f['Descripcion'],
+    descripcion: coerceToString(f['Descripcion'] as unknown),
   };
 }
 

@@ -250,9 +250,9 @@ function ColaSection() {
     if (!colaSearch.trim()) return result;
     const q = colaSearch.toLowerCase();
     return result.filter(e =>
-      e.alumnoNombre?.toLowerCase().includes(q) ||
-      e.asunto?.toLowerCase().includes(q) ||
-      e.tipo?.toLowerCase().includes(q),
+      String(e.alumnoNombre || '').toLowerCase().includes(q) ||
+      String(e.asunto || '').toLowerCase().includes(q) ||
+      String(e.tipo || '').toLowerCase().includes(q),
     );
   }, [colaEmails, colaSearch, filtrosTipo]);
 
@@ -516,9 +516,9 @@ export default function InboxPage() {
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(e =>
-        e.asunto?.toLowerCase().includes(q) ||
-        e.de?.toLowerCase().includes(q) ||
-        e.para?.toLowerCase().includes(q)
+        String(e.asunto || '').toLowerCase().includes(q) ||
+        String(e.de || '').toLowerCase().includes(q) ||
+        String(e.para || '').toLowerCase().includes(q)
       );
     }
     return sortEmails(list);

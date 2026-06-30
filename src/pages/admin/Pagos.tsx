@@ -47,8 +47,8 @@ export default function PagosPage() {
     if (busqueda.trim()) {
       const q = busqueda.toLowerCase();
       result = result.filter(p =>
-        (p.alumnoNombre || '').toLowerCase().includes(q) ||
-        (p.mesPago || '').toLowerCase().includes(q)
+        String(p.alumnoNombre ?? '').toLowerCase().includes(q) ||
+        String(p.mesPago ?? '').toLowerCase().includes(q)
       );
     }
     return result;
