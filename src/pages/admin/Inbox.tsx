@@ -238,6 +238,7 @@ function ColaSection() {
   const [colaSelectedIds, setColaSelectedIds] = useState<Set<string>>(new Set());
   const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false);
   const [batchDeleting, setBatchDeleting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { data: colaEmails = [], isLoading } = useQuery({
     queryKey: ['cola-emails', { estados: filtroEstados }],
@@ -267,8 +268,15 @@ function ColaSection() {
   }
 
   async function handleEliminar(id: string) {
-    await eliminarEmail(id);
-    await queryClient.invalidateQueries({ queryKey: ['cola-emails'] });
+    setDeletingId(id);
+    try {
+      await eliminarEmail(id);
+      await queryClient.invalidateQueries({ queryKey: ['cola-emails'] });
+    } catch (err) {
+      console.error('Failed to delete email:', err);
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   async function handleBatchEliminar() {
@@ -330,9 +338,10 @@ function ColaSection() {
           onClick={(ev) => { ev.stopPropagation(); setDeleteConfirmId(e.id); }}
           aria-label="Eliminar email"
           title="Eliminar"
+          disabled={deletingId === e.id}
           style={{ color: 'var(--color-accent-danger)', fontSize: '18px' }}
         >
-          🗑
+          {deletingId === e.id ? '⏳' : '🗑'}
         </button>
       ),
     });
@@ -354,14 +363,11 @@ function ColaSection() {
       });
     }
     return cols;
-  }, [filtroEstados, approving, t]);
+  }, [filtroEstados, approving, deletingId, t]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', flex: 1, minHeight: 0 }}>
       <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: 'var(--space-xs)' }}>
-        {filtroEstados.length > 0 && (
-          <button className="btn-sm btn-ghost" onClick={() => setFiltroEstados([])} style={{ color: '#e53e3e', borderColor: '#e53e3e' }}>Limpiar</button>
-        )}
         <button className={`btn-sm ${filtroEstados.length === 0 ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltroEstados([])}>Todos</button>
         {COLA_TABS.map(tab => {
           const active = filtroEstados.includes(tab.estado);
@@ -375,14 +381,20 @@ function ColaSection() {
             </button>
           );
         })}
+        <button
+          className="btn-sm btn-ghost"
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['cola-emails'] })}
+          title="Actualizar lista"
+          style={{ marginLeft: 'auto' }}
+        >
+          ↻
+        </button>
+        {filtroEstados.length > 0 && (
+          <button className="btn-sm btn-ghost" onClick={() => setFiltroEstados([])} style={{ color: '#e53e3e', borderColor: '#e53e3e' }}>Limpiar</button>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 'var(--space-xs)', flexWrap: 'wrap', alignItems: 'center' }}>
-        {filtrosTipo.size > 0 && (
-          <button className="btn-sm btn-ghost" onClick={() => setFiltrosTipo(new Set())} style={{ color: '#e53e3e', borderColor: '#e53e3e' }}>
-            Limpiar filtros
-          </button>
-        )}
         <button className={`btn-sm ${filtrosTipo.size === 0 ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFiltrosTipo(new Set())}>Todos</button>
         {TIPOS_EMAIL.map(tipo => (
           <button key={tipo}
@@ -392,6 +404,11 @@ function ColaSection() {
             {tipo.replace(/_/g, ' ')}
           </button>
         ))}
+        {filtrosTipo.size > 0 && (
+          <button className="btn-sm btn-ghost" onClick={() => setFiltrosTipo(new Set())} style={{ color: '#e53e3e', borderColor: '#e53e3e', marginLeft: 'auto' }}>
+            Limpiar filtros
+          </button>
+        )}
       </div>
 
       <DataTable

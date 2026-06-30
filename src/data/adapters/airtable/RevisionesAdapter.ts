@@ -107,7 +107,7 @@ export async function fetchRevisionById(id: string): Promise<RevisionVideo> {
   return mapToRevision(record);
 }
 
-/** Actualiza una revisión (estado, puntuación, feedback, notas) */
+/** Actualiza una revisión (estado, puntuación, feedback, notas, URL de video) */
 export async function updateRevision(
   id: string,
   updates: Partial<{
@@ -115,6 +115,7 @@ export async function updateRevision(
     puntuacion: number;
     feedback: string;
     notasInternas: string;
+    videoEnviado: string;
   }>
 ): Promise<RevisionVideo> {
   const fields: Partial<AirtableRevisionFields> = {};
@@ -127,6 +128,7 @@ export async function updateRevision(
   if (updates.puntuacion != null) fields['Puntuacion'] = updates.puntuacion;
   if (updates.feedback !== undefined) fields['Feedback'] = updates.feedback;
   if (updates.notasInternas !== undefined) fields['Notas Internas'] = updates.notasInternas;
+  if (updates.videoEnviado !== undefined) fields['Video Enviado'] = updates.videoEnviado;
 
   const record = await updateRecord<AirtableRevisionFields>(TABLE, id, fields);
   return mapToRevision(record);

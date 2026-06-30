@@ -111,6 +111,7 @@ export async function updateRevision(
     puntuacion: number;
     feedback: string;
     notasInternas: string;
+    videoEnviado: string;
   }>
 ): Promise<RevisionVideo> {
   const fields: Record<string, unknown> = {};
@@ -118,6 +119,7 @@ export async function updateRevision(
   if (updates.puntuacion != null) fields.puntuacion = updates.puntuacion;
   if (updates.feedback !== undefined) fields.feedback = updates.feedback;
   if (updates.notasInternas !== undefined) fields.notas_internas = updates.notasInternas;
+  if (updates.videoEnviado !== undefined) fields.video_enviado = updates.videoEnviado;
 
   await withAudit(() =>
     supabase.from('revisiones_video').update(fields).eq('id', id)

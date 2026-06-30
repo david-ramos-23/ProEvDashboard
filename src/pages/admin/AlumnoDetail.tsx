@@ -29,6 +29,9 @@ export default function AlumnoDetailPage() {
   const navigate = useNavigate();
   const [isSaving, setIsSaving] = useState(false);
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+  const [editingVideoUrl, setEditingVideoUrl] = useState('');
+  const [savingVideoId, setSavingVideoId] = useState<string | null>(null);
 
   // Campos editables
   const [editEstado, setEditEstado] = useState<EstadoGeneral | ''>('');
@@ -83,7 +86,7 @@ export default function AlumnoDetailPage() {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [parejaOpen]);
 
-  const { alumno, isLoading, revisiones, revisionesLoading, pagos, pagosLoading, historial, historialLoading, activeTab, goToTab, saveAlumno } = useAlumnoDetail(id);
+  const { alumno, isLoading, revisiones, revisionesLoading, pagos, pagosLoading, historial, historialLoading, activeTab, goToTab, saveAlumno, updateVideoUrl } = useAlumnoDetail(id);
 
   // Sync edit fields when alumno data loads
   useEffect(() => {
@@ -440,10 +443,47 @@ export default function AlumnoDetailPage() {
                 {rev.feedback && (
                   <p style={{ marginTop: 'var(--space-sm)', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>{rev.feedback}</p>
                 )}
-                {rev.videoEnviado && (
-                  <a href={rev.videoEnviado} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', marginTop: '4px', display: 'inline-block' }}>
-                    🎥 {t('alumnos.verVideo')} →
-                  </a>
+                {editingVideoId === rev.id ? (
+                  <div style={{ display: 'flex', gap: 'var(--space-xs)', alignItems: 'center', marginTop: 'var(--space-sm)', flexWrap: 'wrap' }}>
+                    <input
+                      type="url"
+                      value={editingVideoUrl}
+                      onChange={e => setEditingVideoUrl(e.target.value)}
+                      placeholder="https://..."
+                      style={{ flex: 1, minWidth: 0, fontSize: '0.8125rem', padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', background: 'var(--color-bg-input)', color: 'var(--color-text-primary)' }}
+                      autoFocus
+                    />
+                    <button
+                      className="btn-sm btn-primary"
+                      disabled={savingVideoId === rev.id}
+                      onClick={async () => {
+                        setSavingVideoId(rev.id);
+                        try { await updateVideoUrl(rev.id, editingVideoUrl); } finally {
+                          setSavingVideoId(null);
+                          setEditingVideoId(null);
+                        }
+                      }}
+                    >
+                      {savingVideoId === rev.id ? '⏳' : '✓'}
+                    </button>
+                    <button className="btn-sm btn-ghost" onClick={() => setEditingVideoId(null)}>✕</button>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)', marginTop: '4px' }}>
+                    {rev.videoEnviado && (
+                      <a href={rev.videoEnviado} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', display: 'inline-block' }}>
+                        🎥 {t('alumnos.verVideo')} →
+                      </a>
+                    )}
+                    <button
+                      className="btn-icon"
+                      title={rev.videoEnviado ? 'Editar URL de video' : 'Agregar URL de video'}
+                      style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', padding: '2px 4px' }}
+                      onClick={() => { setEditingVideoId(rev.id); setEditingVideoUrl(rev.videoEnviado ?? ''); }}
+                    >
+                      ✏️
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

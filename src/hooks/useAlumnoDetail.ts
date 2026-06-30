@@ -8,7 +8,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchAlumnoById, updateAlumno } from '@/data/adapters';
+import { fetchAlumnoById, updateAlumno, updateRevision } from '@/data/adapters';
 import { fetchRevisiones } from '@/data/adapters';
 import { fetchPagos } from '@/data/adapters';
 import { fetchHistorial } from '@/data/adapters';
@@ -62,6 +62,11 @@ export function useAlumnoDetail(id: string | undefined) {
     await queryClient.invalidateQueries({ queryKey: ['alumnos'] });
   }
 
+  async function updateVideoUrl(revisionId: string, videoEnviado: string): Promise<void> {
+    await updateRevision(revisionId, { videoEnviado });
+    await queryClient.invalidateQueries({ queryKey: ['revisiones', { alumnoId: id }] });
+  }
+
   return {
     alumno,
     isLoading,
@@ -74,5 +79,6 @@ export function useAlumnoDetail(id: string | undefined) {
     activeTab,
     goToTab,
     saveAlumno,
+    updateVideoUrl,
   };
 }
