@@ -102,6 +102,7 @@ export default function VideoReviewPage() {
   const [notas, setNotas] = useState('');
   const [confirmAction, setConfirmAction] = useState<{ estado: EstadoRevision; label: string; icon: string; variant: 'success' | 'danger' | 'warning' } | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   // La revisión de vídeo solo aplica a la edición en marcha: tanto la cola de
   // trabajo como las métricas (KPIs) se filtran por la edición seleccionada en el
@@ -141,6 +142,11 @@ export default function VideoReviewPage() {
       selectRevision(revisiones[0], true);
     }
   }, [revisiones]);
+
+  // Reset detail panel scroll to top whenever the selected revision changes
+  useEffect(() => {
+    detailRef.current?.scrollTo({ top: 0 });
+  }, [selected?.id]);
 
   async function handleSave(estado: EstadoRevision) {
     if (!selected) return;
@@ -263,7 +269,7 @@ export default function VideoReviewPage() {
         </div>
 
         {/* Detalle de revisión */}
-        <div className={`${styles.detail} ${isMobile && !showDetail ? styles.mobileHidden : ''}`}>
+        <div ref={detailRef} className={`${styles.detail} ${isMobile && !showDetail ? styles.mobileHidden : ''}`}>
           {selected ? (
             <>
               {/* Mobile back button */}

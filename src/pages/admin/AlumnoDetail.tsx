@@ -83,7 +83,7 @@ export default function AlumnoDetailPage() {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [parejaOpen]);
 
-  const { alumno, isLoading, revisiones, pagos, historial, activeTab, goToTab, saveAlumno } = useAlumnoDetail(id);
+  const { alumno, isLoading, revisiones, revisionesLoading, pagos, pagosLoading, historial, historialLoading, activeTab, goToTab, saveAlumno } = useAlumnoDetail(id);
 
   // Sync edit fields when alumno data loads
   useEffect(() => {
@@ -409,7 +409,19 @@ export default function AlumnoDetailPage() {
         {/* TAB: Revisiones */}
         {activeTab === 'revisiones' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            {revisiones.length === 0 ? (
+            {revisionesLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <SkeletonBlock width="120px" height="22px" borderRadius="9999px" />
+                      <SkeletonBlock width="60px" height="16px" />
+                    </div>
+                    <SkeletonBlock width="80%" height="14px" />
+                  </div>
+                ))}
+              </div>
+            ) : revisiones.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', padding: 'var(--space-2xl)' }}>
                 <span style={{ fontSize: '2rem' }}>🎬</span>
                 <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>{t('alumnos.sinRevisiones')}</p>
@@ -441,7 +453,19 @@ export default function AlumnoDetailPage() {
         {/* TAB: Pagos */}
         {activeTab === 'pagos' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            {pagos.length === 0 ? (
+            {pagosLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <SkeletonBlock width="120px" height="22px" borderRadius="9999px" />
+                      <SkeletonBlock width="60px" height="16px" />
+                    </div>
+                    <SkeletonBlock width="80%" height="14px" />
+                  </div>
+                ))}
+              </div>
+            ) : pagos.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', padding: 'var(--space-2xl)' }}>
                 <span style={{ fontSize: '2rem' }}>💳</span>
                 <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>{t('alumnos.sinPagos')}</p>
@@ -466,7 +490,19 @@ export default function AlumnoDetailPage() {
         {/* TAB: Historial */}
         {activeTab === 'historial' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
-            {historial.length === 0 ? (
+            {historialLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+                {[0, 1, 2].map(i => (
+                  <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-xs)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <SkeletonBlock width="120px" height="22px" borderRadius="9999px" />
+                      <SkeletonBlock width="60px" height="16px" />
+                    </div>
+                    <SkeletonBlock width="80%" height="14px" />
+                  </div>
+                ))}
+              </div>
+            ) : historial.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', padding: 'var(--space-2xl)' }}>
                 <span style={{ fontSize: '2rem' }}>📜</span>
                 <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>{t('alumnos.sinHistorial')}</p>

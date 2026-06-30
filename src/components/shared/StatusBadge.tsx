@@ -14,7 +14,14 @@ interface StatusBadgeProps {
 function getStatusColor(status: string, type: StatusType): string {
   switch (type) {
     case 'estado': return ESTADO_COLORS[status as EstadoGeneral] || 'var(--color-text-muted)';
-    case 'revision': return REVISION_COLORS[status as EstadoRevision] || 'var(--color-text-muted)';
+    case 'revision': {
+      const strip = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const directMatch = REVISION_COLORS[status as EstadoRevision];
+      if (directMatch) return directMatch;
+      const strippedStatus = strip(status);
+      const fallbackKey = Object.keys(REVISION_COLORS).find(k => strip(k) === strippedStatus);
+      return fallbackKey ? REVISION_COLORS[fallbackKey as EstadoRevision] : 'var(--color-text-muted)';
+    }
     case 'pago': return PAGO_COLORS[status as EstadoPago] || 'var(--color-text-muted)';
     case 'email': return EMAIL_COLORS[status as EstadoEmail] || 'var(--color-text-muted)';
     case 'origin': return ORIGEN_COLORS[status] || 'var(--color-text-muted)';

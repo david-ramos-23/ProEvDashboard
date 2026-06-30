@@ -239,6 +239,8 @@
   top: 0;
   z-index: 1;
   background: var(--color-bg-secondary);
+  box-shadow: inset 0 -1px 0 var(--color-border);
+  border-bottom: none;
 }
 
 .sortableHeader {

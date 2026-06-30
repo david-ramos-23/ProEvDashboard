@@ -6,8 +6,8 @@ import { useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DataTable, StatusBadge, Column, DropdownMenu } from '@/components/shared';
-import { fetchAlumnos } from '@/data/adapters';
-import { Alumno, EstadoGeneral } from '@/types';
+import { fetchAlumnos, fetchRevisiones } from '@/data/adapters';
+import { Alumno, EstadoGeneral, EstadoRevision } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { ESTADO_ICONS, ESTADO } from '@/utils/constants';
 import { useTranslation } from '@/i18n';
@@ -103,6 +103,11 @@ export default function AlumnosPage() {
     queryFn: () => fetchAlumnos({ edicionNombre: selectedNombre || undefined }),
   });
 
+  const { data: revisiones = [] } = useQuery({
+    queryKey: ['revisiones', { edicionNombre: selectedNombre || undefined }],
+    queryFn: () => fetchRevisiones({ edicionNombre: selectedNombre || undefined }),
+  });
+
   const toggleEstado = (est: EstadoGeneral) => {
     setFiltrosEstado(prev => {
       const next = new Set(prev);
@@ -111,6 +116,22 @@ export default function AlumnosPage() {
       return next;
     });
   };
+
+  // Build "latest revision estado per alumno" map for live Estado Vídeo column
+  const latestRevisionByAlumno = useMemo(() => {
+    const estado = new Map<string, EstadoRevision>();
+    const ts = new Map<string, number>();
+    for (const r of revisiones) {
+      if (!r.alumnoId) continue;
+      const t = new Date(r.fechaRevision || r.createdTime || 0).getTime();
+      if (Number.isNaN(t)) continue;
+      if (ts.get(r.alumnoId) == null || t >= ts.get(r.alumnoId)!) {
+        ts.set(r.alumnoId, t);
+        estado.set(r.alumnoId, r.estadoRevision);
+      }
+    }
+    return estado;
+  }, [revisiones]);
 
   // Client-side filtering: estado chips (OR within estados) + search
   const filtered = useMemo(() => {
@@ -127,6 +148,12 @@ export default function AlumnosPage() {
     }
     return result;
   }, [alumnos, filtrosEstado, search]);
+
+  // Overlay live revision estado onto each alumno for the Estado Vídeo column
+  const tableData = useMemo(() => filtered.map(a => {
+    const live = latestRevisionByAlumno.get(a.id);
+    return live ? { ...a, estadoRevisionReciente: live } : a;
+  }), [filtered, latestRevisionByAlumno]);
 
   const columns = useMemo<Column<Alumno>[]>(() => [
     {
@@ -285,7 +312,7 @@ export default function AlumnosPage() {
       <DataTable
         tableId="alumnos"
         columns={columns}
-        data={filtered}
+        data={tableData}
         isLoading={isLoading}
         searchValue={search}
         onSearchChange={setSearch}

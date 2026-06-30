@@ -6,7 +6,7 @@ import { useMemo, useCallback, useSyncExternalStore } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatCard, DataTable, Column, PageHeader } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, SkeletonBlock, StatCard, DataTable, Column } from '@/components/shared';
 import { fetchDashboardStats } from '@/data/adapters';
 import { fetchPagosPorMes } from '@/data/adapters';
 import { fetchHistorial } from '@/data/adapters';
@@ -137,7 +137,6 @@ export default function DashboardPage() {
           Error al cargar el dashboard. Comprueba tu conexion e intentalo de nuevo.
         </div>
       )}
-      <PageHeader title={t('nav.dashboard')} />
       {/* KPIs navegables */}
       <KPIGrid columns={3}>
         {statsLoading || isPagosLoading || !stats ? (

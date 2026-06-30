@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { KPICardSkeleton, SkeletonBlock, DataTable, Column, StatusBadge, PageHeader } from '@/components/shared';
+import { KPICardSkeleton, SkeletonBlock, DataTable, Column, StatusBadge } from '@/components/shared';
 import { fetchEdiciones, updateEdicion } from '@/data/adapters';
 import { fetchModulos } from '@/data/adapters';
 import { Edicion, Modulo } from '@/types';
@@ -138,7 +138,6 @@ export default function EdicionesPage() {
           )}
         </div>
       )}
-      <PageHeader title={t('nav.ediciones') || 'Ediciones'} />
       {/* Info edición activa */}
       {edicionesLoading ? (
         <div className="card">

@@ -12,7 +12,6 @@ import { fetchAlumnoById, updateAlumno } from '@/data/adapters';
 import { fetchRevisiones } from '@/data/adapters';
 import { fetchPagos } from '@/data/adapters';
 import { fetchHistorial } from '@/data/adapters';
-import { EstadoGeneral } from '@/types';
 
 export type AlumnoDetailTab = 'info' | 'revisiones' | 'pagos' | 'historial' | 'ia';
 
@@ -32,23 +31,29 @@ export function useAlumnoDetail(id: string | undefined) {
     enabled: !!id,
   });
 
-  const { data: revisiones = [] } = useQuery({
+  const revisionesQuery = useQuery({
     queryKey: ['revisiones', { alumnoId: id }],
     queryFn: () => fetchRevisiones({ alumnoId: id }),
     enabled: !!id && visitedTabs.has('revisiones'),
   });
+  const revisiones = revisionesQuery.data ?? [];
+  const revisionesLoading = revisionesQuery.isLoading;
 
-  const { data: pagos = [] } = useQuery({
+  const pagosQuery = useQuery({
     queryKey: ['pagos', { alumnoId: id }],
     queryFn: () => fetchPagos({ alumnoId: id }),
     enabled: !!id && visitedTabs.has('pagos'),
   });
+  const pagos = pagosQuery.data ?? [];
+  const pagosLoading = pagosQuery.isLoading;
 
-  const { data: historial = [] } = useQuery({
+  const historialQuery = useQuery({
     queryKey: ['historial', { alumnoId: id, maxRecords: 20 }],
     queryFn: () => fetchHistorial({ alumnoId: id, maxRecords: 20 }),
     enabled: !!id && visitedTabs.has('historial'),
   });
+  const historial = historialQuery.data ?? [];
+  const historialLoading = historialQuery.isLoading;
 
   async function saveAlumno(updates: Parameters<typeof updateAlumno>[1]): Promise<void> {
     if (!id) return;
@@ -61,8 +66,11 @@ export function useAlumnoDetail(id: string | undefined) {
     alumno,
     isLoading,
     revisiones,
+    revisionesLoading,
     pagos,
+    pagosLoading,
     historial,
+    historialLoading,
     activeTab,
     goToTab,
     saveAlumno,

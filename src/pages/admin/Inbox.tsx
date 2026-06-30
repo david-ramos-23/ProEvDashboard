@@ -196,13 +196,19 @@ function DetailPanel({ email, onUpdate, isPending, onBack }: DetailPanelProps) {
           >
             ✅ {t('inbox.marcarRespondido')}
           </button>
-          <button
-            className="btn-ghost btn-sm"
-            onClick={() => onUpdate(email.id, { estado: 'Archivado' })}
-            disabled={isPending || email.estado === 'Archivado'}
-          >
-            📁 Archivar
-          </button>
+          {email.estado !== 'Archivado' ? (
+            <button className="btn-ghost btn-sm"
+              onClick={() => onUpdate(email.id, { estado: 'Archivado' })}
+              disabled={isPending}>
+              📁 Archivar
+            </button>
+          ) : (
+            <button className="btn-ghost btn-sm"
+              onClick={() => onUpdate(email.id, { estado: 'Leido' })}
+              disabled={isPending}>
+              📤 Desarchivar
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -702,10 +708,17 @@ export default function InboxPage() {
                             ✓
                           </button>
                         )}
-                        <button title="Archivar" className={styles.listItemActionBtn}
-                          onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Archivado' } }); }}>
-                          ↓
-                        </button>
+                        {email.estado !== 'Archivado' ? (
+                          <button title="Archivar" className={styles.listItemActionBtn}
+                            onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Archivado' } }); }}>
+                            ↓
+                          </button>
+                        ) : (
+                          <button title="Desarchivar" className={styles.listItemActionBtn}
+                            onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Leido' } }); }}>
+                            ↑
+                          </button>
+                        )}
                         <button title="Eliminar" className={styles.listItemActionBtn}
                           onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: email.id, updates: { estado: 'Eliminado' } }); }}>
                           🗑
