@@ -63,7 +63,7 @@ export function useAlumnoDetail(id: string | undefined) {
   }
 
   async function updateVideoUrl(revisionId: string, videoEnviado: string): Promise<void> {
-    await updateRevision(revisionId, { videoEnviado });
+    await updateRevision(revisionId, { videoEnviado, estadoRevision: 'Pendiente' });
     await queryClient.invalidateQueries({ queryKey: ['revisiones', { alumnoId: id }] });
   }
 
