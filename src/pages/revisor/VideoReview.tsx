@@ -387,15 +387,6 @@ export default function VideoReviewPage() {
               {/* Botones de acción */}
               <div className={styles.actions}>
                 <button
-                  type="button"
-                  className="btn-ghost btn-sm"
-                  onClick={() => setIsComposeOpen(true)}
-                  disabled={!selected || isSaving}
-                  aria-label={t('emailCompose.compose')}
-                >
-                  {t('emailCompose.compose')}
-                </button>
-                <button
                   className={styles.actionBtn + ' ' + styles.actionApprove}
                   onClick={() => setConfirmAction({ estado: 'Aprobado', label: t('videoReview.aprobar'), icon: '✅', variant: 'success' })}
                   disabled={isSaving}
@@ -415,6 +406,15 @@ export default function VideoReviewPage() {
                   disabled={isSaving}
                 >
                   {t('videoReview.revisionNecesaria')}
+                </button>
+                <button
+                  type="button"
+                  className="btn-ghost btn-sm"
+                  onClick={() => setIsComposeOpen(true)}
+                  disabled={!selected || isSaving}
+                  aria-label={t('emailCompose.compose')}
+                >
+                  {t('emailCompose.compose')}
                 </button>
               </div>
 
