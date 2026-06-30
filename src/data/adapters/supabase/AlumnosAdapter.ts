@@ -20,6 +20,7 @@ function mapToAlumno(row: Record<string, unknown>): Alumno {
     modulosInscritos: row.modules as string[] | undefined,
     modulosCompletados: row.modulos_completados as string[] | undefined,
     edicionId: row.edicion_id as string | undefined,
+    edicionIds: row.edicion_id ? [row.edicion_id as string] : [],
     edicion: row.edicion_nombre as string | undefined,
     edicionNombres: row.edicion_nombre ? [row.edicion_nombre as string] : [],
     fotoPerfil: row.foto_perfil as string | undefined,

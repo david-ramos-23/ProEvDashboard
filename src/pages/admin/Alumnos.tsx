@@ -93,7 +93,7 @@ export default function AlumnosPage() {
     });
   }
 
-  const { selectedNombre } = useEdicion();
+  const { selectedNombre, selectedEdicion } = useEdicion();
   const [search, setSearch] = useState('');
   const [filtrosEstado, setFiltrosEstado] = useState<Set<EstadoGeneral>>(new Set());
 
@@ -137,9 +137,9 @@ export default function AlumnosPage() {
   // Client-side filtering: edition (multi-edition safe) + estado chips + search
   const filtered = useMemo(() => {
     let result = alumnos;
-    if (selectedNombre) {
+    if (selectedEdicion) {
       result = result.filter(a =>
-        a.edicionNombres?.includes(selectedNombre) || a.edicion === selectedNombre
+        a.edicionIds?.includes(selectedEdicion.id) ?? false
       );
     }
     if (filtrosEstado.size > 0) {

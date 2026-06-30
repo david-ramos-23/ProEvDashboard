@@ -76,6 +76,8 @@ export interface Alumno extends BaseRecord {
   edicionId?: string;
   /** All edition names this alumno belongs to (supports multi-edition records) */
   edicionNombres?: string[];
+  /** All edition record IDs this alumno belongs to (used for client-side edition filtering) */
+  edicionIds?: string[];
   fotoPerfil?: string;
   // Plazos
   plazoRevision?: string;

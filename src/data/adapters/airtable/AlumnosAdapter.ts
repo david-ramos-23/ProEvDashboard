@@ -65,6 +65,7 @@ function mapToAlumno(record: AirtableRecord<AirtableAlumnoFields>): Alumno {
     modulosInscritos: f['Modules'],
     modulosCompletados: f['Modulos Completados'],
     edicionId: f['Edicion']?.[0],
+    edicionIds: f['Edicion'] || [],
     edicion: f['Nombre Edicion']?.[0],
     edicionNombres: f['Nombre Edicion'] || [],
     fotoPerfil: f['Foto de Perfil']?.[0]?.url,
