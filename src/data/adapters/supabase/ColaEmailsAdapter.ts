@@ -70,7 +70,7 @@ export async function aprobarEmail(id: string): Promise<ColaEmail> {
 export async function eliminarEmail(id: string): Promise<void> {
   const { error } = await supabase
     .from('cola_emails')
-    .update({ estado: 'Eliminado' })
+    .delete()
     .eq('id', id);
   if (error) throw new Error(`eliminarEmail: ${error.message}`);
 }

@@ -209,6 +209,13 @@ export async function updateRecord<T>(
 }
 
 /**
+ * Elimina un registro de una tabla (hard delete).
+ */
+export async function deleteRecord(tableId: string, recordId: string): Promise<void> {
+  await airtableFetch<{ deleted: boolean }>(`${tableId}/${recordId}`, { method: 'DELETE' });
+}
+
+/**
  * Crea un nuevo registro en una tabla.
  */
 export async function createRecord<T>(

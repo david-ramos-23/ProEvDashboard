@@ -403,6 +403,23 @@ function ColaSection() {
         )}
       </div>
 
+      {colaSelectedIds.size > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', padding: '6px 10px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+            {colaSelectedIds.size} seleccionado{colaSelectedIds.size !== 1 ? 's' : ''}
+          </span>
+          <button
+            className="btn-sm btn-ghost"
+            style={{ color: 'var(--color-accent-danger)', borderColor: 'rgba(220,38,38,0.2)' }}
+            onClick={() => setBatchDeleteConfirm(true)}
+            disabled={batchDeleting}
+          >
+            {batchDeleting ? '⏳' : '🗑'} Borrar
+          </button>
+          <button className="btn-sm btn-ghost" onClick={() => setColaSelectedIds(new Set())}>✕</button>
+        </div>
+      )}
+
       <DataTable
         tableId="inbox-cola"
         columns={columns}
@@ -417,24 +434,6 @@ function ColaSection() {
         selectable
         selectedIds={colaSelectedIds}
         onSelectionChange={setColaSelectedIds}
-        actions={colaSelectedIds.size > 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', padding: '4px 8px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
-            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-              {colaSelectedIds.size} seleccionado{colaSelectedIds.size !== 1 ? 's' : ''}
-            </span>
-            <button
-              className="btn-sm btn-ghost"
-              style={{ color: 'var(--color-accent-danger)', borderColor: 'rgba(220,38,38,0.2)' }}
-              onClick={() => setBatchDeleteConfirm(true)}
-              disabled={batchDeleting}
-            >
-              {batchDeleting ? '⏳' : '🗑'} Borrar
-            </button>
-            <button className="btn-sm btn-ghost" onClick={() => setColaSelectedIds(new Set())}>
-              ✕
-            </button>
-          </div>
-        ) : undefined}
       />
 
       <ConfirmDialog

@@ -4,7 +4,7 @@
 
 import { ColaEmail, EstadoEmail } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
-import { listRecords, updateRecord, createRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
+import { listRecords, updateRecord, createRecord, deleteRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
 import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
 
 interface AirtableColaEmailFields {
@@ -86,11 +86,9 @@ export async function aprobarEmail(id: string): Promise<ColaEmail> {
   return mapToColaEmail(record);
 }
 
-/** Marca un email como Eliminado (reversible vía Airtable) */
+/** Elimina un email de la Cola (hard delete en Airtable). */
 export async function eliminarEmail(id: string): Promise<void> {
-  await updateRecord<AirtableColaEmailFields>(AIRTABLE_TABLES.COLA_EMAILS, id, {
-    'Estado': 'Eliminado' as EstadoEmail,
-  });
+  await deleteRecord(AIRTABLE_TABLES.COLA_EMAILS, id);
 }
 
 export async function crearEmail(data: {
