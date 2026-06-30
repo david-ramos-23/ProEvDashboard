@@ -249,7 +249,8 @@ ENUM_VALUES: dict[str, set[str]] = {
     "tipo_email": {
         "disculpa", "informacion", "recordatorio", "seguimiento", "bienvenida",
         "felicitacion", "urgente",
-        "seguimiento_frio", "recuperacion_pago", "recordatorio_pago", "libre",
+        "seguimiento_frio", "recuperacion_pago", "recordatorio_pago",
+        "recordatorio_preinscripcion", "libre",
     },
     # 'Español' is normalized to 'Espanol' before validation (see
     # normalize_value); 'Espanol' is the single canonical ENUM value.

@@ -65,6 +65,7 @@ CREATE TYPE tipo_email AS ENUM (
   'seguimiento_frio',
   'recuperacion_pago',
   'recordatorio_pago',
+  'recordatorio_preinscripcion',
   'libre'
 );
 
