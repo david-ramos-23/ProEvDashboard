@@ -381,16 +381,8 @@ function ColaSection() {
             </button>
           );
         })}
-        <button
-          className="btn-sm btn-ghost"
-          onClick={() => queryClient.invalidateQueries({ queryKey: ['cola-emails'] })}
-          title="Actualizar lista"
-          style={{ marginLeft: 'auto' }}
-        >
-          ↻
-        </button>
         {filtroEstados.length > 0 && (
-          <button className="btn-sm btn-ghost" onClick={() => setFiltroEstados([])} style={{ color: '#e53e3e', borderColor: '#e53e3e' }}>Limpiar</button>
+          <button className="btn-sm btn-ghost" onClick={() => setFiltroEstados([])} style={{ color: '#e53e3e', borderColor: 'color-mix(in srgb, #e53e3e 20%, transparent)' }}>Limpiar</button>
         )}
       </div>
 
@@ -405,7 +397,7 @@ function ColaSection() {
           </button>
         ))}
         {filtrosTipo.size > 0 && (
-          <button className="btn-sm btn-ghost" onClick={() => setFiltrosTipo(new Set())} style={{ color: '#e53e3e', borderColor: '#e53e3e', marginLeft: 'auto' }}>
+          <button className="btn-sm btn-ghost" onClick={() => setFiltrosTipo(new Set())} style={{ color: '#e53e3e', borderColor: 'color-mix(in srgb, #e53e3e 20%, transparent)' }}>
             Limpiar filtros
           </button>
         )}
@@ -637,6 +629,13 @@ export default function InboxPage() {
                   onClick={() => setShowArchived(o => !o)}
                 >
                   📁 Archivados
+                </button>
+                <button
+                  className="btn-sm btn-ghost"
+                  title="Actualizar bandeja"
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['inbox'] })}
+                >
+                  ↻
                 </button>
                 <div className={styles.searchWrap}>
                   <span className={styles.searchIcon}>🔍</span>
