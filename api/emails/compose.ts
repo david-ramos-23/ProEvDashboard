@@ -6,6 +6,7 @@ const AUTHORIZED_USERS: Record<string, 'admin' | 'revisor'> = {
   'proevolutioncourse@gmail.com': 'admin',
   'alonsoynoelia17@gmail.com': 'revisor',
   'alonkickboxer@gmail.com': 'revisor',
+  'marichuguidone@gmail.com': 'revisor',
 };
 
 const ADMIN_ALIAS_PATTERN = /^andara14\+admin@gmail\.com$/i;
