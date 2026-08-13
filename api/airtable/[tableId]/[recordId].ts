@@ -26,7 +26,7 @@ const AUTHORIZED_USERS = [
   'proevolutioncourse@gmail.com',
   'alonsoynoelia17@gmail.com',
   'alonkickboxer@gmail.com',
-  'marichuguidone@gmail.com',
+  'marichuguidonet@gmail.com',
 ];
 const TEST_USER_PATTERN = /^andara14\+test-.*@gmail\.com$/i;
 const ALIAS_PATTERN = /^andara14\+(admin|revisor)@gmail\.com$/i;

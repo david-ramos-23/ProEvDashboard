@@ -4,7 +4,7 @@ const AUTHORIZED_USERS: Record<string, 'admin' | 'revisor'> = {
   'proevolutioncourse@gmail.com': 'admin',
   'alonsoynoelia17@gmail.com': 'revisor',
   'alonkickboxer@gmail.com': 'revisor',
-  'marichuguidone@gmail.com': 'revisor',
+  'marichuguidonet@gmail.com': 'revisor',
 };
 
 const TEST_USER_PATTERN = /^andara14\+test-.*@gmail\.com$/i;

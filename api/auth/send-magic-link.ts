@@ -24,7 +24,7 @@ const AUTHORIZED_USERS: Record<string, { role: string; name: string }> = {
   'proevolutioncourse@gmail.com': { role: 'admin', name: 'Pro Evolution Course' },
   'alonsoynoelia17@gmail.com': { role: 'revisor', name: 'Alonso y Noelia' },
   'alonkickboxer@gmail.com': { role: 'revisor', name: 'Alonkickboxer' },
-  'marichuguidone@gmail.com': { role: 'revisor', name: 'Marichu Guidone' },
+  'marichuguidonet@gmail.com': { role: 'revisor', name: 'Marichu Guidone' },
 };
 
 const TEST_USER_PATTERN = /^andara14\+test-.*@gmail\.com$/i;
