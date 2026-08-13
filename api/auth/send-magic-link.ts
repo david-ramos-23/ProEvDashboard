@@ -55,6 +55,9 @@ function buildEmailHtml(magicLink: string, name: string): string {
 <head><meta charset="utf-8"></head>
 <body style="margin:0;padding:0;background:#F6F3EE;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+    <tr><td align="center" style="padding-bottom:25px;">
+      <img src="https://sawa-dev-2-storage-bucket.storage.googleapis.com/profiles/nx0mtgi3zeb8acxp-d7a42.png" alt="Alonso y Noelia" width="160" style="display:block;">
+    </td></tr>
     <tr><td align="center">
       <table width="420" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
         <tr>
