@@ -141,6 +141,10 @@ export const EDITION_ESTADO_COLORS: Record<string, string> = {
 export const ORIGEN_COLORS: Record<string, string> = {
   Manual: '#7C3AED',      // purple, matches Airtable purpleLight2
   Automatico: 'var(--color-text-muted)',
+  // ColaEmail.origen (Cola de Emails) — snake_case Airtable single-select values
+  manual_template: '#7C3AED',
+  manual_quick: '#7C3AED',
+  automatico: 'var(--color-text-muted)',
 };
 
 /** Colores de estado de email */

@@ -39,7 +39,13 @@ export type TipoEmail =
   | 'seguimiento_frio'
   | 'bienvenida'
   | 'felicitacion'
-  | 'urgente';
+  | 'urgente'
+  | 'recordatorio_pago'
+  | 'recordatorio_preinscripcion'
+  | 'recuperacion_pago';
+
+/** Origen de un email en la Cola — quién/qué lo generó */
+export type OrigenEmail = 'manual_template' | 'manual_quick' | 'automatico';
 
 /** Estados de edición */
 export type EstadoEdicion = 'Planificada' | 'En Inscripcion' | 'Activa' | 'Finalizada';
@@ -195,6 +201,7 @@ export interface ColaEmail extends BaseRecord {
   mensaje: string;
   estado: EstadoEmail;
   descripcion?: string;
+  origen?: OrigenEmail;
 }
 
 /** Envío masivo de emails */

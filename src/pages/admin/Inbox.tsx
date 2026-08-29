@@ -316,8 +316,8 @@ function ColaSection() {
       },
       {
         key: 'origen', header: 'Origen', width: '90px', minWidth: 70,
-        render: (e) => e.asunto
-          ? <StatusBadge status="Manual" type="origin" />
+        render: (e) => e.origen
+          ? <StatusBadge status={e.origen} type="origin" />
           : null,
       },
       {
