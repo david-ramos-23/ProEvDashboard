@@ -30,6 +30,9 @@ const FALLBACK_SCHEMA: SchemaData = {
   'Cola de Emails': {
     'Estado': Object.values(ESTADO_EMAIL),
   },
+  'Envios de Emails': {
+    'Tipo': ['disculpa', 'informacion', 'recordatorio', 'seguimiento', 'bienvenida', 'felicitacion', 'urgente'],
+  },
 };
 
 async function fetchSchema(): Promise<SchemaData> {
