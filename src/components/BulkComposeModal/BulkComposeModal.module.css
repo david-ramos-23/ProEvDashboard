@@ -1,0 +1,230 @@
+.title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-lg, 24px);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md, 16px);
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filterRow {
+  display: flex;
+  gap: var(--space-md, 16px);
+  flex-wrap: wrap;
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.select,
+.input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+  background: var(--color-bg-input);
+  transition: border-color var(--transition-fast, 150ms);
+}
+
+.select:focus,
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+}
+
+.select:disabled,
+.input:disabled,
+.textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+  background: var(--color-bg-input);
+  resize: vertical;
+  min-height: 120px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--color-accent-primary);
+}
+
+.recipientsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  padding: var(--space-sm, 8px);
+}
+
+.selectAllBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  padding: 0 4px;
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  color: var(--color-accent-primary);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  padding: 0;
+}
+
+.linkBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.recipientList {
+  max-height: 220px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.recipientRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.recipientRow:hover {
+  background: var(--color-bg-secondary, #f1f5f9);
+}
+
+.recipientRowDisabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.recipientName {
+  flex: 1;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.noEmailBadge {
+  font-size: 0.75rem;
+  color: var(--color-accent-danger, #dc2626);
+}
+
+.emptyState {
+  padding: 12px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.previewNote {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.errorMessage {
+  font-size: 0.875rem;
+  color: var(--color-accent-danger, #dc2626);
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm, 8px);
+  margin-top: var(--space-sm, 8px);
+  position: sticky;
+  bottom: 0;
+  background: var(--color-bg-primary);
+  padding-top: var(--space-sm, 8px);
+  border-top: 1px solid var(--color-border, #e2e8f0);
+}
+
+.cancelButton {
+  padding: 8px 16px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: var(--color-bg-secondary, #f1f5f9);
+}
+
+.cancelButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sendButton {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #fff;
+  background: var(--color-accent-primary, #0C5A45);
+  cursor: pointer;
+  transition: opacity var(--transition-fast, 150ms);
+}
+
+.sendButton:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.sendButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 767px) {
+  .actions {
+    flex-direction: column-reverse;
+  }
+
+  .cancelButton,
+  .sendButton {
+    width: 100%;
+    padding: 12px 16px;
+    min-height: 44px;
+  }
+}

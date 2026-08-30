@@ -18,6 +18,7 @@ import { useTranslation } from '@/i18n';
 import { useIsMobile } from '@/hooks/useMediaQuery';
 import { ESTADO_EMAIL } from '@/utils/constants';
 import { EmailComposeModal } from '@/components/EmailComposeModal';
+import { BulkComposeModal } from '@/components/BulkComposeModal';
 import { getSession } from '@/auth/AuthService';
 import styles from './Inbox.module.css';
 
@@ -498,6 +499,7 @@ export default function InboxPage() {
   const [showDetail, setShowDetail] = useState(false);
   const [search, setSearch] = useState('');
   const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [isBulkComposeOpen, setIsBulkComposeOpen] = useState(false);
   const isAdmin = getSession()?.role === 'admin';
 
   const queryFilters = buildQueryFilters(dirTab, atencionOnly);
@@ -586,15 +588,24 @@ export default function InboxPage() {
           <span>📧</span> Cola de emails
         </button>
         {isAdmin && (
-          <button
-            type="button"
-            className="btn-ghost btn-sm"
-            style={{ marginLeft: 'auto' }}
-            onClick={() => setIsComposeOpen(true)}
-            aria-label={t('emailCompose.newEmail')}
-          >
-            ✉️ {t('emailCompose.newEmail')}
-          </button>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-xs)' }}>
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={() => setIsComposeOpen(true)}
+              aria-label={t('emailCompose.newEmail')}
+            >
+              ✉️ {t('emailCompose.newEmail')}
+            </button>
+            <button
+              type="button"
+              className="btn-ghost btn-sm"
+              onClick={() => setIsBulkComposeOpen(true)}
+              aria-label={t('bulkCompose.newBulkEmail')}
+            >
+              📢 {t('bulkCompose.newBulkEmail')}
+            </button>
+          </div>
         )}
       </div>
 
@@ -769,6 +780,10 @@ export default function InboxPage() {
         alumnoRecordId=""
         alumnoNombre=""
         onClose={() => setIsComposeOpen(false)}
+      />
+      <BulkComposeModal
+        open={isBulkComposeOpen}
+        onClose={() => setIsBulkComposeOpen(false)}
       />
     </div>
   );
