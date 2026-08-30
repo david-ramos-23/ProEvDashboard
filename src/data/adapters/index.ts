@@ -18,7 +18,7 @@ const useSupabase = import.meta.env.VITE_DATA_SOURCE === 'supabase';
 
 async function loadAdapters() {
   if (useSupabase) {
-    const [alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, inbox] = await Promise.all([
+    const [alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox] = await Promise.all([
       import('./supabase/AlumnosAdapter'),
       import('./supabase/RevisionesAdapter'),
       import('./supabase/PagosAdapter'),
@@ -26,11 +26,12 @@ async function loadAdapters() {
       import('./supabase/EdicionesAdapter'),
       import('./supabase/ModulosAdapter'),
       import('./supabase/ColaEmailsAdapter'),
+      import('./supabase/EnviosEmailsAdapter'),
       import('./supabase/InboxAdapter'),
     ]);
-    return { alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, inbox };
+    return { alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox };
   }
-  const [alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, inbox] = await Promise.all([
+  const [alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox] = await Promise.all([
     import('./airtable/AlumnosAdapter'),
     import('./airtable/RevisionesAdapter'),
     import('./airtable/PagosAdapter'),
@@ -38,9 +39,10 @@ async function loadAdapters() {
     import('./airtable/EdicionesAdapter'),
     import('./airtable/ModulosAdapter'),
     import('./airtable/ColaEmailsAdapter'),
+    import('./airtable/EnviosEmailsAdapter'),
     import('./airtable/InboxAdapter'),
   ]);
-  return { alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, inbox };
+  return { alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox };
 }
 
 // Singleton promise — adapters load once on first access
@@ -125,6 +127,20 @@ export async function eliminarEmail(id: string): Promise<void> {
 }
 export async function crearEmail(...args: Parameters<typeof import('./airtable/ColaEmailsAdapter').crearEmail>) {
   return (await getAdapters()).colaEmails.crearEmail(...args);
+}
+
+// --- Envios Emails (bulk campaigns) ---
+export async function fetchEnviosEmails(...args: Parameters<typeof import('./airtable/EnviosEmailsAdapter').fetchEnviosEmails>) {
+  return (await getAdapters()).enviosEmails.fetchEnviosEmails(...args);
+}
+export async function crearEnvio(...args: Parameters<typeof import('./airtable/EnviosEmailsAdapter').crearEnvio>) {
+  return (await getAdapters()).enviosEmails.crearEnvio(...args);
+}
+export async function actualizarEnvio(...args: Parameters<typeof import('./airtable/EnviosEmailsAdapter').actualizarEnvio>) {
+  return (await getAdapters()).enviosEmails.actualizarEnvio(...args);
+}
+export async function eliminarEnvio(id: string): Promise<void> {
+  return (await getAdapters()).enviosEmails.eliminarEnvio(id);
 }
 
 // --- Inbox ---
