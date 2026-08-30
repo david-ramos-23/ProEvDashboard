@@ -53,7 +53,7 @@ function isValidTemplateKey(key: string): key is TemplateKey {
   return (VALID_TEMPLATE_KEYS as readonly string[]).includes(key);
 }
 
-const VALID_ORIGINS_FIELD = ['manual_template', 'manual_quick', 'bulk', 'automatico_workflow'] as const;
+export const VALID_ORIGINS_FIELD = ['manual_template', 'manual_quick', 'bulk'] as const;
 type ValidOrigenField = typeof VALID_ORIGINS_FIELD[number];
 
 function isValidOrigenField(v: unknown): v is ValidOrigenField {
