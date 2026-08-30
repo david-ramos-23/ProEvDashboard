@@ -5,6 +5,7 @@ import { getSession } from '@/auth/AuthService';
 import { fetchAlumnos } from '@/data/adapters';
 import { useTranslation } from '@/i18n';
 import { EMAIL_TEMPLATES, UI_TEMPLATE_OPTIONS, type TemplateKey } from '@/lib/emailTemplates';
+import { ComposeModalShell } from '@/components/ComposeModalShell';
 import styles from './EmailComposeModal.module.css';
 
 type ModalState = 'idle' | 'sending' | 'success' | 'error';
@@ -29,7 +30,6 @@ export function EmailComposeModal({
   skipAction,
 }: EmailComposeModalProps) {
   const { t } = useTranslation();
-  const panelRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
   const pickerBtnRef = useRef<HTMLButtonElement>(null);
   const [pickerPortalStyle, setPickerPortalStyle] = useState<React.CSSProperties>({});
@@ -89,40 +89,6 @@ export function EmailComposeModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [composeAlumnoNombre]);
-
-  // Focus trap + Escape key
-  useEffect(() => {
-    if (!open) return;
-    const panel = panelRef.current;
-    if (panel) {
-      const firstInput = panel.querySelector<HTMLElement>('select, input, textarea, button');
-      firstInput?.focus();
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && modalState !== 'sending') {
-        onClose();
-        return;
-      }
-      if (e.key === 'Tab' && panel) {
-        const focusable = panel.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), select:not([disabled]), input:not([disabled]), textarea:not([disabled])'
-        );
-        if (!focusable.length) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, modalState, onClose]);
-
 
   // Close picker dropdown on outside click
   useEffect(() => {
@@ -195,27 +161,18 @@ export function EmailComposeModal({
     })
     .slice(0, 50);
 
-  if (!open) return null;
-
-  return createPortal(
-    <div className={styles.overlay} onClick={modalState !== 'sending' ? onClose : undefined}>
-      <div
-        ref={panelRef}
-        className={styles.panel}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="compose-title"
-      >
-        {modalState === 'success' ? (
-          <div className={styles.successState}>
-            <div className={styles.successIcon} aria-hidden="true">✓</div>
-            <h2 id="compose-title" className={styles.successTitle}>{t('emailCompose.successTitle')}</h2>
-            <p className={styles.successDescription}>{t('emailCompose.successDescription')}</p>
-            <button className={styles.closeButton} onClick={onClose}>{t('emailCompose.closeButton')}</button>
-          </div>
-        ) : (
-          <>
+  return (
+    <ComposeModalShell
+      open={open}
+      onClose={onClose}
+      isBusy={modalState === 'sending'}
+      titleId="compose-title"
+      showSuccess={modalState === 'success'}
+      successTitle={t('emailCompose.successTitle')}
+      successDescription={t('emailCompose.successDescription')}
+      successCloseLabel={t('emailCompose.closeButton')}
+    >
+      <>
             <h2 id="compose-title" className={styles.title}>{t('emailCompose.title')}</h2>
             <form onSubmit={handleSubmit} className={styles.form}>
               {/* Mode toggle */}
@@ -400,9 +357,6 @@ export function EmailComposeModal({
               </div>
             </form>
           </>
-        )}
-      </div>
-    </div>,
-    document.body
+    </ComposeModalShell>
   );
 }
