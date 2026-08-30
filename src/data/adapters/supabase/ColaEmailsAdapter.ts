@@ -16,6 +16,7 @@ function mapToColaEmail(row: Record<string, unknown>): ColaEmail {
     mensaje: (row.mensaje as string) || '',
     estado: (row.estado as EstadoEmail) || 'Pendiente',
     descripcion: row.descripcion as string | undefined,
+    origen: row.origen as ColaEmail['origen'],
   };
 }
 

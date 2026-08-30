@@ -83,10 +83,11 @@ CREATE TYPE origen_evento AS ENUM (
   'Sistema'
 );
 
--- Origen for Cola de Emails (manual_template/manual_quick) and Inbox (Automatico/Manual)
+-- Origen for Cola de Emails (manual_template/manual_quick/automatico) and Inbox (Automatico/Manual)
 CREATE TYPE origen_email AS ENUM (
   'manual_template',
   'manual_quick',
+  'automatico',
   'Automatico',
   'Manual'
 );
@@ -255,6 +256,9 @@ CREATE TABLE cola_emails (
   estado estado_email DEFAULT 'Pendiente Aprobacion',
   origen origen_email,
   fecha_envio DATE,
+  -- NULL means "never expires". Every writer except the alert scheduler omits it,
+  -- so the queue trigger must treat NULL as valid, not as expired.
+  valido_hasta DATE,
   reprogramado BOOLEAN DEFAULT false,
   ultimo_reproceso TIMESTAMPTZ,
   descripcion TEXT,
@@ -499,19 +503,36 @@ SELECT
   COALESCE((now()::date - (SELECT max(h.created_at)::date FROM public.historial h WHERE h.alumno_id = a.id)), 9999) AS dias_desde_ultimo_evento,
   (now()::date - a.fecha_cambio_estado::date) AS dias_en_estado_actual,
   -- NOTA cutover: este CASE y la fórmula Airtable "Alerta Activa" (fldWyLnOU9xSQK4Wn)
-  -- deben cambiarse en sincronía. Rama C1 "Preinscrito" pendiente de decisión de negocio
-  -- (ver .claude/handoffs/C1-C2-mejoras-plan.md). Thresholds confirmados 2026-06-25.
+  -- deben cambiarse en sincronía. Reescrito 2026-08-30 para igualar la fórmula Airtable.
+  --
+  -- Cada rama pregunta lo mismo: ¿hay un trámite pendiente que este alumno no ha
+  -- completado? Es una whitelist pura, así que Privado / Aprobado / Pagado /
+  -- Finalizado / Rechazado / Plazo Vencido caen a '' sin necesidad de exclusiones.
+  --
+  -- '🥶 Alumno Frío' YA NO SE EMITE AQUÍ. La versión anterior lo evaluaba primero y
+  -- con el umbral más laxo, así que se tragaba todas las ramas específicas: en producción
+  -- eso produjo 482 alertas genéricas de 505. Ahora el cierre en frío se decide por número
+  -- de recordatorios sin respuesta (3), algo que una vista no puede contar, y vive en el
+  -- nodo Code del scheduler n8n.
+  --
+  -- Nótese que este CASE ya no depende de dias_desde_ultimo_evento. Esa dependencia era
+  -- la que realimentaba el bucle de 8 días en Airtable; quitarla lo hace imposible.
   CASE
-    WHEN a.estado_general <> 'Finalizado'::estado_general
-     AND a.estado_general <> 'Rechazado'::estado_general
-     AND COALESCE((now()::date - (SELECT max(h.created_at)::date FROM public.historial h WHERE h.alumno_id = a.id)), 9999) >= 7
-      THEN '🥶 Alumno Frío'
+    WHEN a.estado_general = 'Pago Fallido'::estado_general
+     AND (now()::date - a.fecha_cambio_estado::date) >= 3
+      THEN '⚠️ Pago Fallido'
     WHEN a.estado_general = 'Pendiente de pago'::estado_general
      AND (now()::date - a.fecha_cambio_estado::date) >= 5
       THEN '💳 Pago Pendiente'
+    WHEN a.estado_general = 'Preinscrito'::estado_general
+     AND (now()::date - a.fecha_cambio_estado::date) >= 3
+      THEN '📝 Preinscrito'
     WHEN a.estado_general = 'En revisión de video'::estado_general
      AND (now()::date - a.fecha_cambio_estado::date) >= 3
       THEN '🎥 Video sin Revisar'
+    WHEN a.estado_general = 'Reserva'::estado_general
+     AND (now()::date - a.fecha_cambio_estado::date) >= 7
+      THEN '🕗 Reserva'
     ELSE ''
   END AS alerta_activa
 FROM alumnos a

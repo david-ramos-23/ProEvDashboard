@@ -175,6 +175,7 @@ FIELD_MAP: dict[str, str] = {
     "Fecha Envio": "fecha_envio",
     "Reprogramado": "reprogramado",
     "Ultimo Reproceso": "ultimo_reproceso",
+    "Valido Hasta": "valido_hasta",
     # Inbox
     "De": "de",
     "Para": "para",
@@ -259,7 +260,15 @@ ENUM_VALUES: dict[str, set[str]] = {
         "Manual", "Automatico", "Webhook", "API", "Workflow Automatico",
         "Sistema",
     },
-    "origen_email": {"manual_template", "manual_quick", "Automatico", "Manual"},
+    # Cola de Emails uses the lowercase origins (manual_template, manual_quick,
+    # automatico); Inbox uses the capitalised ones (Manual, Automatico). Both
+    # tables share this one enum. 'automatico' is what the alert scheduler
+    # writes on every queue row it creates — omitting it here silently drops
+    # every automatic alert from the load.
+    "origen_email": {
+        "manual_template", "manual_quick", "automatico",
+        "Automatico", "Manual",
+    },
     # CHECK-constraint columns (not PG enums) — validated like enums so the
     # dry-run catches values the DB CHECK would reject:
     "clasificacion_importancia": {"Alta", "Media", "Baja"},
@@ -404,6 +413,8 @@ TABLE_COLUMNS: dict[str, dict[str, ColSpec]] = {
         "fecha_envio": ColSpec(kind="date"),
         "reprogramado": ColSpec(kind="bool"),
         "ultimo_reproceso": ColSpec(kind="timestamptz"),
+        # NULL means "never expires"; only the alert scheduler sets it.
+        "valido_hasta": ColSpec(kind="date"),
     },
     "inbox": {
         "de": ColSpec(kind="text"),
@@ -1448,6 +1459,14 @@ def _self_test() -> int:
                 "Estado": "Enviado",             # estado_email enum
                 "Origen": "manual_template",     # origen_email (cola side)
             }},
+            {"id": "recCOLA2", "fields": {
+                "Tipo": "recordatorio_pago",
+                "Asunto Generado": "Recordatorio",
+                "Mensaje": "Hola",
+                "Estado": "Pendiente",
+                "Origen": "automatico",          # written by the alert scheduler
+                "Valido Hasta": "2026-09-15",
+            }},
         ],
     }
 
@@ -1520,6 +1539,14 @@ def _self_test() -> int:
     cola_mapped = (
         cola_row.get("estado") == "Enviado"
         and cola_row.get("origen") == "manual_template"
+    )
+    # An automatic alert must survive too. Drop 'automatico' from the
+    # origen_email allowlist or 'Valido Hasta' from FIELD_MAP and this row is
+    # excluded from the load without an error anyone would notice.
+    cola_auto_row = cola_rows[1] if len(cola_rows) > 1 else {}
+    cola_auto_mapped = (
+        cola_auto_row.get("origen") == "automatico"
+        and str(cola_auto_row.get("valido_hasta")) == "2026-09-15"
     )
 
     # ---- compute_prune_ids (PURE) unit tests -------------------------------
@@ -1682,6 +1709,7 @@ def _self_test() -> int:
     print(f"self-FK NULL on INSERT tuple  : {self_fk_null_on_insert}")
     print(f"inbox estado+origen mapped    : {inbox_mapped}")
     print(f"cola estado+origen mapped     : {cola_mapped}")
+    print(f"cola automatico+valido_hasta  : {cola_auto_mapped}")
     print(f"prune normal (rec5 stale)     : {prune_normal}")
     print(f"prune empty-fetch guard       : {prune_empty_guard}")
     print(f"prune known-empty allowlist   : {prune_allowlist}")
@@ -1702,7 +1730,7 @@ def _self_test() -> int:
         bad_caught and notnull_caught and pago_normalized
         and pareja_mapped and self_fk_flagged and lookup_list_coerced
         and self_fk_null_on_insert
-        and inbox_mapped and cola_mapped
+        and inbox_mapped and cola_mapped and cola_auto_mapped
         and prune_normal and prune_empty_guard and prune_allowlist
         and prune_threshold_guard and prune_force_override
         and prune_force_keeps_empty_guard

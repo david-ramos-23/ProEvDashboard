@@ -15,6 +15,7 @@ interface AirtableColaEmailFields {
   'Mensaje'?: string;
   'Estado'?: EstadoEmail;
   'Descripcion'?: string;
+  'Origen'?: string;
 }
 
 /**
@@ -40,6 +41,7 @@ function mapToColaEmail(record: AirtableRecord<AirtableColaEmailFields>): ColaEm
     mensaje: coerceToString(f['Mensaje'] as unknown) || '',
     estado: f['Estado'] || 'Pendiente',
     descripcion: coerceToString(f['Descripcion'] as unknown),
+    origen: coerceToString(f['Origen'] as unknown) as ColaEmail['origen'],
   };
 }
 
