@@ -83,11 +83,12 @@ CREATE TYPE origen_evento AS ENUM (
   'Sistema'
 );
 
--- Origen for Cola de Emails (manual_template/manual_quick/automatico) and Inbox (Automatico/Manual)
+-- Origen for Cola de Emails (manual_template/manual_quick/automatico/bulk) and Inbox (Automatico/Manual)
 CREATE TYPE origen_email AS ENUM (
   'manual_template',
   'manual_quick',
   'automatico',
+  'bulk',
   'Automatico',
   'Manual'
 );
