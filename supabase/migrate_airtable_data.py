@@ -198,6 +198,7 @@ FIELD_MAP: dict[str, str] = {
     "Total Emails": "total_emails",
     "Emails Creados": "emails_creados",
     "Fecha Completado": "fecha_completado",
+    "Alumnos": "alumnos_ids",
 }
 
 
@@ -266,7 +267,7 @@ ENUM_VALUES: dict[str, set[str]] = {
     # writes on every queue row it creates — omitting it here silently drops
     # every automatic alert from the load.
     "origen_email": {
-        "manual_template", "manual_quick", "automatico",
+        "manual_template", "manual_quick", "automatico", "bulk",
         "Automatico", "Manual",
     },
     # CHECK-constraint columns (not PG enums) — validated like enums so the
@@ -391,6 +392,11 @@ TABLE_COLUMNS: dict[str, dict[str, ColSpec]] = {
         "analisis_riesgo": ColSpec(kind="text"),
     },
     "envios_emails": {
+        "nombre": ColSpec(kind="text"),
+        # multipleRecordLinks -> UUID[]. Without this the sync mirrors a campaign
+        # with no recipients at all, which reads as a valid empty campaign rather
+        # than as missing data.
+        "alumnos_ids": ColSpec(kind="uuid[]", fk="alumnos"),
         "tipo": ColSpec(kind="text", enum="tipo_email"),
         "mensaje": ColSpec(kind="text"),
         "descripcion": ColSpec(kind="text"),
@@ -654,6 +660,12 @@ def coerce_value(spec: ColSpec, value: Any) -> tuple[Any, str | None]:
         if kind == "uuid":
             # FK values are resolved separately; passthrough here.
             return value, None
+        if kind == "uuid[]":
+            # A multipleRecordLinks field: a LIST of Airtable record ids, each of
+            # which build_insert_tuple resolves to a Supabase UUID. Passthrough
+            # here, but normalise to a list so a single-link field (which
+            # Airtable may hand over unwrapped) does not become a bare string.
+            return (value if isinstance(value, list) else [value]), None
         if kind == "int":
             return int(float(_first(value))), None
         if kind == "numeric":
@@ -866,7 +878,15 @@ def build_insert_tuple(
     """
     fk_cols = {
         c: spec.fk for c, spec in columns.items()
-        if spec.fk and not spec.self_fk
+        if spec.fk and not spec.self_fk and spec.kind != "uuid[]"
+    }
+    # Link-ARRAY FK columns (multipleRecordLinks -> UUID[]): every element is
+    # resolved, not just the first. A campaign that silently loses recipients
+    # looks like a valid small campaign, so an unresolved element fails the whole
+    # row exactly like a scalar FK does.
+    fk_array_cols = {
+        c: spec.fk for c, spec in columns.items()
+        if spec.fk and not spec.self_fk and spec.kind == "uuid[]"
     }
     self_fk_cols = {c for c, spec in columns.items() if spec.self_fk}
     rec_id = row.get("__rec_id")
@@ -884,6 +904,16 @@ def build_insert_tuple(
             if parent_rec is not None and resolved is None:
                 unresolved.append(f"unresolved FK link {col} -> {parent_rec}")
             val = resolved
+        elif col in fk_array_cols and val is not None:
+            links = val if isinstance(val, list) else [val]
+            resolved_list: list[str] = []
+            for link in links:
+                resolved = recid_to_pk.get(link)
+                if resolved is None:
+                    unresolved.append(f"unresolved FK link {col}[] -> {link}")
+                else:
+                    resolved_list.append(resolved)
+            val = resolved_list
         record_values.append(val)
     if unresolved:
         return None, unresolved
@@ -1468,6 +1498,15 @@ def _self_test() -> int:
                 "Valido Hasta": "2026-09-15",
             }},
         ],
+        "envios_emails": [
+            {"id": "recENV1", "fields": {
+                "Nombre": "Campana de prueba",
+                "Alumnos": ["recAL1", "recAL2"],  # multipleRecordLinks -> UUID[]
+                "Tipo": "informacion",
+                "Mensaje": "Hola a todos",
+                "Estado": "Borrador",            # estado_envio enum
+            }},
+        ],
     }
 
     import tempfile
@@ -1526,6 +1565,38 @@ def _self_test() -> int:
         and insert_tuple[self_fk_pos] is None
         and al1.get("pareja_alumno_id") == ["recAL2"]  # raw link still on row
     )
+
+    # Envios de Emails: a campaign's recipient LIST must resolve to a UUID[],
+    # every element of it. Dropping `alumnos_ids` from TABLE_COLUMNS or `Alumnos`
+    # from FIELD_MAP mirrors the campaign with no recipients — which reads as a
+    # valid empty campaign, not as missing data. An unresolved element must fail
+    # the whole row rather than shrink it silently.
+    _, envio_rows = process_table("envios_emails", fixtures["envios_emails"])
+    envio_row = envio_rows[0] if envio_rows else {}
+    env_cols = TABLE_COLUMNS["envios_emails"]
+    env_insert_cols = ["id", "airtable_id"] + list(env_cols.keys())
+    pk_al1, pk_al2 = str(uuid.uuid4()), str(uuid.uuid4())
+    env_tuple, env_unresolved = build_insert_tuple(
+        envio_row, env_cols, {"recAL1": pk_al1, "recAL2": pk_al2}, str(uuid.uuid4()),
+    )
+    # Guard rather than .index(): if the column is dropped from TABLE_COLUMNS the
+    # assertion must report False, not raise — a crash hides which check failed.
+    ids_pos = (
+        env_insert_cols.index("alumnos_ids")
+        if "alumnos_ids" in env_insert_cols else -1
+    )
+    envio_links_mapped = (
+        ids_pos >= 0
+        and envio_row.get("nombre") == "Campana de prueba"
+        and not env_unresolved and env_tuple is not None
+        and env_tuple[ids_pos] == [pk_al1, pk_al2]
+    )
+    # Same row, one recipient missing from the map -> the row must fail, not
+    # quietly ship a one-recipient campaign.
+    _, env_partial_unresolved = build_insert_tuple(
+        envio_row, env_cols, {"recAL1": pk_al1}, str(uuid.uuid4()),
+    )
+    envio_partial_fails = bool(env_partial_unresolved)
 
     # Inbox + Cola de Emails: estado/origen must survive map_record.
     _, inbox_rows = process_table("inbox", fixtures["inbox"])
@@ -1710,6 +1781,8 @@ def _self_test() -> int:
     print(f"inbox estado+origen mapped    : {inbox_mapped}")
     print(f"cola estado+origen mapped     : {cola_mapped}")
     print(f"cola automatico+valido_hasta  : {cola_auto_mapped}")
+    print(f"envio nombre+alumnos_ids[]    : {envio_links_mapped}")
+    print(f"envio partial link -> fails   : {envio_partial_fails}")
     print(f"prune normal (rec5 stale)     : {prune_normal}")
     print(f"prune empty-fetch guard       : {prune_empty_guard}")
     print(f"prune known-empty allowlist   : {prune_allowlist}")
@@ -1731,6 +1804,7 @@ def _self_test() -> int:
         and pareja_mapped and self_fk_flagged and lookup_list_coerced
         and self_fk_null_on_insert
         and inbox_mapped and cola_mapped and cola_auto_mapped
+        and envio_links_mapped and envio_partial_fails
         and prune_normal and prune_empty_guard and prune_allowlist
         and prune_threshold_guard and prune_force_override
         and prune_force_keeps_empty_guard

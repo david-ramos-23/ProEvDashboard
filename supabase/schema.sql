@@ -271,6 +271,9 @@ CREATE TABLE cola_emails (
 CREATE TABLE envios_emails (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   airtable_id TEXT UNIQUE,
+  -- Campaign label. Mirrors Airtable's `Nombre`; the incremental upgrade script
+  -- MIGRACION-BULK-ORIGEN-2026-08-30.sql adds it to already-provisioned DBs.
+  nombre TEXT,
   alumnos_ids UUID[],
   tipo tipo_email,
   mensaje TEXT,
