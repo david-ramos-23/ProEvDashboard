@@ -145,6 +145,8 @@ export const ORIGEN_COLORS: Record<string, string> = {
   manual_template: '#7C3AED',
   manual_quick: '#7C3AED',
   automatico: 'var(--color-text-muted)',
+  // Distinct color so a bulk-campaign badge is never mistaken for a manual send
+  bulk: 'var(--color-accent-info)',
 };
 
 /** Colores de estado de email */

@@ -30,6 +30,9 @@ export type EstadoPago = 'Pendiente' | 'Pagado' | 'Fallido' | 'Reembolsado' | 'E
 /** Estados del email en Cola de Emails */
 export type EstadoEmail = 'Pendiente Aprobacion' | 'Pendiente' | 'Enviando' | 'Enviado' | 'Error';
 
+/** Estados de una campaña de envío masivo (Envios de Emails) */
+export type EstadoEnvio = 'Borrador' | 'Pendiente' | 'Procesando' | 'Completado' | 'Error';
+
 /** Tipos de email soportados */
 export type TipoEmail =
   | 'disculpa'
@@ -45,7 +48,7 @@ export type TipoEmail =
   | 'recuperacion_pago';
 
 /** Origen de un email en la Cola — quién/qué lo generó */
-export type OrigenEmail = 'manual_template' | 'manual_quick' | 'automatico';
+export type OrigenEmail = 'manual_template' | 'manual_quick' | 'automatico' | 'bulk';
 
 /** Estados de edición */
 export type EstadoEdicion = 'Planificada' | 'En Inscripcion' | 'Activa' | 'Finalizada';
@@ -206,11 +209,15 @@ export interface ColaEmail extends BaseRecord {
 
 /** Envío masivo de emails */
 export interface EnvioEmail extends BaseRecord {
+  nombre: string;
   alumnosIds: string[];
   tipo: TipoEmail;
   mensaje: string;
   descripcion?: string;
-  estado: string;
+  estado: EstadoEnvio;
+  totalEmails?: number;
+  emailsCreados?: number;
+  fechaCompletado?: string;
 }
 
 /** Email del Inbox */
