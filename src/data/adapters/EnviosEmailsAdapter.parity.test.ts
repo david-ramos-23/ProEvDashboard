@@ -75,7 +75,12 @@ describe('EnviosEmailsAdapter twin parity', () => {
     const fromAirtable = await crearEnvioAirtable(input);
     const fromSupabase = await crearEnvioSupabase(input);
 
-    const strip = ({ id: _id, createdTime: _createdTime, ...rest }: typeof fromAirtable) => rest;
+    const strip = (envio: typeof fromAirtable) => {
+      const rest: Partial<typeof envio> = { ...envio };
+      delete rest.id;
+      delete rest.createdTime;
+      return rest;
+    };
 
     expect(strip(fromAirtable)).toEqual(strip(fromSupabase));
     expect(fromAirtable.estado).toBe('Borrador');
