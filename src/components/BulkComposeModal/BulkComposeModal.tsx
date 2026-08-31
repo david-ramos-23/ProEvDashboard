@@ -95,7 +95,8 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
       });
       setModalState('success');
       onCreated?.();
-    } catch {
+    } catch (err) {
+      console.error('Failed to create bulk campaign:', err);
       setModalState('error');
     }
   }
