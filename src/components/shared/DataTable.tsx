@@ -454,10 +454,18 @@ export function DataTable<T extends { id: string }>({
                     style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
                     onClick={() => onRowClick?.(item)}
                   >
+                    {/* The width below mirrors the matching th. Without it the
+                        column collapses to zero at narrow desktop widths (an
+                        iPad at 768px, one pixel above the card breakpoint),
+                        leaving a checkbox present in the DOM but unclickable. */}
                     {selectable && (
-                      <td onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                      <td
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ textAlign: 'center', width: '40px', minWidth: 40 }}
+                      >
                         <input
                           type="checkbox"
+                          className={styles.rowSelectCheckbox}
                           aria-label="Seleccionar fila"
                           checked={selectedIds?.has(item.id) ?? false}
                           onChange={(e) => {
