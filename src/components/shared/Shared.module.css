@@ -948,3 +948,14 @@
 .mobileCardSelectable {
   padding-right: calc(var(--touch-target-min) + var(--space-sm));
 }
+
+/* Row-selection checkbox. Needs explicit dimensions: relying on the UA default
+   left it at 0x0 in some engines (measured on the iPad Mini viewport), so the
+   control existed in the DOM, reported `inline-block`, and still could not be
+   clicked. */
+.rowSelectCheckbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-accent-primary);
+  cursor: pointer;
+}
