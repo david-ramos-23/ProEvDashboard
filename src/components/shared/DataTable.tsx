@@ -337,7 +337,16 @@ export function DataTable<T extends { id: string }>({
                       checked={sortedData.length > 0 && !!selectedIds && sortedData.every(item => selectedIds.has(item.id))}
                       onChange={(e) => {
                         if (!onSelectionChange) return;
-                        onSelectionChange(e.target.checked ? new Set(sortedData.map(i => i.id)) : new Set());
+                        // Acts on the VISIBLE rows only, preserving anything
+                        // selected under a previous search or filter. Replacing
+                        // the whole set here silently discarded those — and a
+                        // selection feeding a bulk email must never shrink
+                        // without the operator seeing it.
+                        const visible = sortedData.map(i => i.id);
+                        const next = new Set(selectedIds ?? []);
+                        if (e.target.checked) visible.forEach(id => next.add(id));
+                        else visible.forEach(id => next.delete(id));
+                        onSelectionChange(next);
                       }}
                     />
                   </th>

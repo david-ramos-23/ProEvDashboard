@@ -84,9 +84,14 @@ export function BulkComposeModal({ open, onClose, onCreated, editEnvio, initialS
     if (open) {
       setSearch('');
       setEstadoFilter('');
-      // Edit mode seeds the ids; a fresh campaign seeds from a caller's
-      // preselection instead (e.g. Alumnos' multi-select). Either way they
-      // hydrate into records as the picker resolves them (see below).
+      // Both paths seed ids that hydrate into records as the picker resolves
+      // them, but an id that NEVER hydrates means opposite things:
+      //   - editing: a recipient outside the current edition. Legitimate, and
+      //     dropping it would shrink a campaign someone already composed.
+      //   - new campaign: a student with no email. Including them would count a
+      //     recipient that can never be delivered, so `Emails Creados ===
+      //     Total Emails` could never hold.
+      // Hence the same hydration, different fate on submit (see handleSubmit).
       setSelected(new Map());
       setPendingIds(new Set(editEnvio?.alumnosIds || initialSelectedIds || []));
       setTipo(editEnvio?.tipo || '');
@@ -95,8 +100,14 @@ export function BulkComposeModal({ open, onClose, onCreated, editEnvio, initialS
         `${t('bulkCompose.defaultNamePrefix')} ${selectedNombre || t('bulkCompose.defaultNameFallback')} — ${formatDateTime(new Date().toISOString())}`);
       setModalState('idle');
     }
+    // Depends on `open` ALONE, deliberately. `initialSelectedIds` is a fresh Set
+    // on every parent render, and the caller clears its selection in `onCreated`
+    // — so listing it here re-ran this block right after a successful save,
+    // flipping modalState from 'success' back to 'idle' and replacing the
+    // confirmation with a blank form for a campaign that had just been created.
+    // Seeding belongs to the closed → open transition, nothing else.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editEnvio, initialSelectedIds]);
+  }, [open]);
 
   function toggleId(alumno: Alumno) {
     setSelected((prev) => {
@@ -129,8 +140,12 @@ export function BulkComposeModal({ open, onClose, onCreated, editEnvio, initialS
   // still unresolved. Surfaced so the footer count never disagrees with the list.
   const offscreenCount = useMemo(() => {
     const visible = new Set(eligible.map((a) => a.id));
-    return selectedRecipients.filter((a) => !visible.has(a.id)).length + pendingIds.size;
-  }, [eligible, selectedRecipients, pendingIds]);
+    // Pending ids count only when editing, matching what actually ships: on a
+    // new campaign they are ineligible students being discarded, so counting
+    // them would overstate the cohort the operator is about to mail.
+    const pending = isEditing ? pendingIds.size : 0;
+    return selectedRecipients.filter((a) => !visible.has(a.id)).length + pending;
+  }, [eligible, selectedRecipients, pendingIds, isEditing]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -139,10 +154,14 @@ export function BulkComposeModal({ open, onClose, onCreated, editEnvio, initialS
     try {
       const payload = {
         nombre: nombre.trim() || t('bulkCompose.defaultNameFallback'),
-        // Unhydrated edit-mode IDs ship too. Sending only the resolved records
-        // would drop recipients the picker never surfaced — the same silent
-        // shrinkage the Map-based selection exists to prevent.
-        alumnosIds: [...selectedRecipients.map((a) => a.id), ...pendingIds],
+        // Unhydrated ids ship ONLY when editing, where they are recipients the
+        // picker cannot currently surface (another edition) and dropping them
+        // would shrink an existing campaign. On a NEW campaign an unhydrated id
+        // is a student `resolveRecipients` rejected — no email on file — and
+        // including them would guarantee `Emails Creados < Total Emails`.
+        alumnosIds: isEditing
+          ? [...selectedRecipients.map((a) => a.id), ...pendingIds]
+          : selectedRecipients.map((a) => a.id),
         tipo,
         mensaje,
       };
