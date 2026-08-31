@@ -237,10 +237,32 @@ export function DataTable<T extends { id: string }>({
           <div
             key={item.id}
             data-row-id={item.id}
-            className={`${styles.mobileCard} ${onRowClick ? styles.mobileCardClickable : ''} ${styles.rowEnter}`}
+            className={`${styles.mobileCard} ${onRowClick ? styles.mobileCardClickable : ''} ${selectable ? styles.mobileCardSelectable : ''} ${styles.rowEnter}`}
             style={{ animationDelay: `${Math.min(idx * 30, 300)}ms` }}
             onClick={() => onRowClick?.(item)}
           >
+            {selectable && selectedIds && onSelectionChange && (
+              // Tapping the card navigates, so the checkbox has to stop the
+              // event or selecting a recipient would bounce you into their
+              // detail page. Without this branch the mobile layout had no
+              // selection at all and bulk actions were unreachable below 767px.
+              <label
+                className={styles.mobileCardSelect}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(item.id)}
+                  aria-label={`Seleccionar fila ${item.id}`}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    const next = new Set(selectedIds);
+                    if (e.target.checked) next.add(item.id); else next.delete(item.id);
+                    onSelectionChange(next);
+                  }}
+                />
+              </label>
+            )}
             {visibleColumns.map((col) => (
               <div key={col.key} className={styles.mobileCardField}>
                 <span className={styles.mobileCardLabel}>{col.header}</span>
