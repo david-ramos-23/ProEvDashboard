@@ -48,8 +48,11 @@ ALTER TABLE cola_emails ADD COLUMN IF NOT EXISTS valido_hasta DATE;
 -- ============================================================
 -- STEP 2 — alerta_activa, aligned with the rewritten Airtable formula
 --
--- Column list copied verbatim from the currently-applied view
--- (MIGRACION-SCHEMA-GAPS.sql lines 109-147) rather than re-expanding `a.*`:
+-- Column list taken from the LIVE view as of 2026-08-31, read with
+-- information_schema.columns — NOT from MIGRACION-SCHEMA-GAPS.sql, whose order
+-- is stale: `modules` has since moved to position 42 (last), because an earlier
+-- CREATE OR REPLACE could only append. Using the June order failed with
+-- `cannot change name of view column "edicion_id" to "modules"`.
 -- CREATE OR REPLACE VIEW requires the leading column set to be unchanged, and
 -- an `a.*` expansion would silently depend on the live shape of `alumnos`.
 -- Only the final CASE changes.
@@ -65,7 +68,6 @@ CREATE OR REPLACE VIEW public.alumnos_enriched AS
     a.idioma,
     a.modulo_solicitado,
     a.modulos_completados,
-    a.modules,
     a.edicion_id,
     a.foto_perfil,
     a.plazo_revision,
@@ -95,24 +97,8 @@ CREATE OR REPLACE VIEW public.alumnos_enriched AS
     COALESCE(pago_stats.total_pagos, 0) AS total_pagos,
     COALESCE(pago_stats.importe_total_pagado, 0::numeric) AS importe_total_pagado,
     pago_stats.fecha_ultimo_pago,
-    -- derived alert fields (always fresh on read; no cron)
     COALESCE((now()::date - (SELECT max(h.created_at)::date FROM public.historial h WHERE h.alumno_id = a.id)), 9999) AS dias_desde_ultimo_evento,
     (now()::date - a.fecha_cambio_estado::date) AS dias_en_estado_actual,
-    -- NOTA cutover: este CASE y la fórmula Airtable "Alerta Activa"
-    -- (fldWyLnOU9xSQK4Wn) deben cambiarse en sincronía.
-    --
-    -- Cada rama pregunta lo mismo: ¿hay un trámite pendiente que este alumno no
-    -- ha completado? Es una whitelist pura, así que Privado / Aprobado / Pagado /
-    -- Finalizado / Rechazado / Plazo Vencido caen a '' sin exclusiones.
-    --
-    -- '🥶 Alumno Frío' YA NO SE EMITE AQUÍ. La versión anterior lo evaluaba
-    -- primero y con el umbral más laxo, así que se tragaba todas las ramas
-    -- específicas: en producción eso produjo 482 alertas genéricas de 505. Ahora
-    -- el cierre en frío se decide por número de recordatorios sin respuesta (3),
-    -- algo que una vista no puede contar, y vive en el nodo Code del scheduler.
-    --
-    -- Este CASE ya no depende de dias_desde_ultimo_evento. Esa dependencia era
-    -- la que realimentaba el bucle de 8 días; quitarla lo hace imposible.
     CASE
       WHEN a.estado_general = 'Pago Fallido'::estado_general
        AND (now()::date - a.fecha_cambio_estado::date) >= 3
@@ -130,7 +116,8 @@ CREATE OR REPLACE VIEW public.alumnos_enriched AS
        AND (now()::date - a.fecha_cambio_estado::date) >= 7
         THEN '🕗 Reserva'
       ELSE ''
-    END AS alerta_activa
+    END AS alerta_activa,
+    a.modules
    FROM alumnos a
      LEFT JOIN ediciones e ON a.edicion_id = e.id
      LEFT JOIN LATERAL ( SELECT count(*)::integer AS total_revisiones,
