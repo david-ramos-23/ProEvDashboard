@@ -5,6 +5,7 @@
 
 import { Alumno, EstadoGeneral, DashboardStats } from '@/types';
 import { ESTADO } from '@/utils/constants';
+import { promedioEngagement, type EngagementInput } from '@/lib/engagement';
 import { supabase, withAudit } from './SupabaseClient';
 
 function mapToAlumno(row: Record<string, unknown>): Alumno {
@@ -157,20 +158,16 @@ export async function fetchDashboardStats(options?: { edicionNombre?: string }):
   allEstados.forEach(e => { alumnosPorEstado[e] = 0; });
 
   let ingresosTotales = 0;
-  let engagementSum = 0;
-  let engagementCount = 0;
+  const engagement: EngagementInput[] = [];
 
   alumnos.forEach((f: Record<string, unknown>) => {
     const estado = (f.estado_general as EstadoGeneral) || 'Privado';
     alumnosPorEstado[estado] = (alumnosPorEstado[estado] || 0) + 1;
     ingresosTotales += Number(f.importe_total_pagado) || 0;
-    if (f.engagement_score != null) {
-      engagementSum += Number(f.engagement_score);
-      engagementCount++;
-    }
+    engagement.push({ estado, score: f.engagement_score as number | null });
   });
 
-  const engagementPromedio = engagementCount > 0 ? Math.round(engagementSum / engagementCount) : 0;
+  const engagementPromedio = promedioEngagement(engagement);
 
   return {
     totalAlumnos: alumnos.length,
