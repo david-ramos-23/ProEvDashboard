@@ -15,7 +15,9 @@ test.describe('AlumnoDetail', () => {
     await page.waitForTimeout(4000);
     const firstRow = page.locator('table tbody tr').first();
     await firstRow.click();
-    await page.waitForURL(/\/admin\/alumnos\/rec/, { timeout: 10000 });
+    // Row IDs come from the active data adapter (Airtable "rec..." or Supabase
+    // UUIDs) — match any non-empty id segment instead of a specific format.
+    await page.waitForURL(/\/admin\/alumnos\/[\w-]+$/, { timeout: 10000 });
   });
 
   test('carga sin errores (no CharAt crash)', async ({ page }) => {
