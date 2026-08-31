@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchAlumnos, crearEnvio } from '@/data/adapters';
+import { fetchAlumnos, crearEnvio, actualizarEnvio } from '@/data/adapters';
 import { useSchema } from '@/hooks/useSchema';
 import { useEdicion } from '@/context/EdicionContext';
 import { useTranslation } from '@/i18n';
@@ -8,7 +8,7 @@ import { ComposeModalShell } from '@/components/ComposeModalShell';
 import { bulkTipoOptions, resolveRecipients } from '@/lib/bulkTemplates';
 import { formatDateTime } from '@/utils/formatters';
 import { StatusBadge } from '@/components/shared';
-import type { Alumno, EstadoGeneral } from '@/types';
+import type { Alumno, EstadoGeneral, EnvioEmail } from '@/types';
 import styles from './BulkComposeModal.module.css';
 
 type ModalState = 'idle' | 'creating' | 'success' | 'error';
@@ -16,16 +16,21 @@ type ModalState = 'idle' | 'creating' | 'success' | 'error';
 interface BulkComposeModalProps {
   open: boolean;
   onClose: () => void;
-  /** Called after `crearEnvio` succeeds — lets the caller refresh a campaign list. */
+  /** Called after `crearEnvio`/`actualizarEnvio` succeeds — lets the caller refresh a campaign list. */
   onCreated?: () => void;
+  /** When set, the modal edits this existing Borrador campaign via `actualizarEnvio`
+   * instead of creating a new one. Only Borrador campaigns should ever be passed here —
+   * enforced by the caller (Comunicaciones section), not by this component. */
+  editEnvio?: EnvioEmail | null;
 }
 
 /**
  * Multi-recipient campaign composer. Writes exactly one `Envios de Emails`
- * record with `Estado: 'Borrador'` via `crearEnvio` — never `/api/emails/compose`,
- * and never a per-recipient `Cola de Emails` write.
+ * record — `Estado: 'Borrador'` via `crearEnvio` when creating, or a field-only
+ * patch via `actualizarEnvio` when `editEnvio` is set (never touches `Estado`) —
+ * never `/api/emails/compose`, and never a per-recipient `Cola de Emails` write.
  */
-export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalProps) {
+export function BulkComposeModal({ open, onClose, onCreated, editEnvio }: BulkComposeModalProps) {
   const { t } = useTranslation();
   const { getOptions } = useSchema();
   const { selectedNombre } = useEdicion();
@@ -37,6 +42,11 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
   // under a previous search or state filter: the campaign would go out to the
   // last filter's cohort only, and nothing would say so.
   const [selected, setSelected] = useState<Map<string, Alumno>>(new Map());
+  // Edit mode receives recipient IDs without their records. They wait here until
+  // the picker surfaces the matching student, then move into `selected`. An ID
+  // that never resolves — a recipient chosen under a different edition, say —
+  // stays here and is counted, so editing a draft can never quietly shrink it.
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [tipo, setTipo] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [nombre, setNombre] = useState('');
@@ -62,19 +72,25 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
     [candidatos, selectedNombre],
   );
 
-  // Reset the form every time the modal opens
+  const isEditing = !!editEnvio;
+
+  // Reset (or pre-fill from editEnvio) every time the modal opens
   useEffect(() => {
     if (open) {
       setSearch('');
       setEstadoFilter('');
+      // Edit mode seeds the ids; they hydrate into records as the picker
+      // resolves them (see the hydration effect below).
       setSelected(new Map());
-      setTipo('');
-      setMensaje('');
-      setNombre(`${t('bulkCompose.defaultNamePrefix')} ${selectedNombre || t('bulkCompose.defaultNameFallback')} — ${formatDateTime(new Date().toISOString())}`);
+      setPendingIds(new Set(editEnvio?.alumnosIds || []));
+      setTipo(editEnvio?.tipo || '');
+      setMensaje(editEnvio?.mensaje || '');
+      setNombre(editEnvio?.nombre ||
+        `${t('bulkCompose.defaultNamePrefix')} ${selectedNombre || t('bulkCompose.defaultNameFallback')} — ${formatDateTime(new Date().toISOString())}`);
       setModalState('idle');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, editEnvio]);
 
   function toggleId(alumno: Alumno) {
     setSelected((prev) => {
@@ -85,29 +101,54 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
     });
   }
 
+  // Hydrate pending edit-mode IDs into records as the picker resolves them.
+  useEffect(() => {
+    if (pendingIds.size === 0) return;
+    const found = eligible.filter((a) => pendingIds.has(a.id));
+    if (found.length === 0) return;
+    setSelected((prev) => {
+      const next = new Map(prev);
+      for (const a of found) next.set(a.id, a);
+      return next;
+    });
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      for (const a of found) next.delete(a.id);
+      return next;
+    });
+  }, [eligible, pendingIds]);
+
   const selectedRecipients = useMemo(() => [...selected.values()], [selected]);
-  // Selected under an earlier filter and no longer on screen. Surfaced so the
-  // count in the footer never disagrees with what the list shows.
+  // Selected under an earlier filter and no longer on screen, plus edit-mode IDs
+  // still unresolved. Surfaced so the footer count never disagrees with the list.
   const offscreenCount = useMemo(() => {
     const visible = new Set(eligible.map((a) => a.id));
-    return selectedRecipients.filter((a) => !visible.has(a.id)).length;
-  }, [eligible, selectedRecipients]);
+    return selectedRecipients.filter((a) => !visible.has(a.id)).length + pendingIds.size;
+  }, [eligible, selectedRecipients, pendingIds]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (selectedRecipients.length === 0 || !tipo || !mensaje.trim()) return;
     setModalState('creating');
     try {
-      await crearEnvio({
+      const payload = {
         nombre: nombre.trim() || t('bulkCompose.defaultNameFallback'),
-        alumnosIds: selectedRecipients.map((a) => a.id),
+        // Unhydrated edit-mode IDs ship too. Sending only the resolved records
+        // would drop recipients the picker never surfaced — the same silent
+        // shrinkage the Map-based selection exists to prevent.
+        alumnosIds: [...selectedRecipients.map((a) => a.id), ...pendingIds],
         tipo,
         mensaje,
-      });
+      };
+      if (isEditing && editEnvio) {
+        await actualizarEnvio(editEnvio.id, payload);
+      } else {
+        await crearEnvio(payload);
+      }
       setModalState('success');
       onCreated?.();
     } catch (err) {
-      console.error('Failed to create bulk campaign:', err);
+      console.error('Failed to save bulk campaign:', err);
       setModalState('error');
     }
   }
@@ -121,11 +162,13 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
       isBusy={modalState === 'creating'}
       titleId="bulk-compose-title"
       showSuccess={modalState === 'success'}
-      successTitle={t('bulkCompose.successTitle')}
-      successDescription={t('bulkCompose.successDescription')}
+      successTitle={isEditing ? t('bulkCompose.editSuccessTitle') : t('bulkCompose.successTitle')}
+      successDescription={isEditing ? t('bulkCompose.editSuccessDescription') : t('bulkCompose.successDescription')}
       successCloseLabel={t('bulkCompose.closeButton')}
     >
-      <h2 id="bulk-compose-title" className={styles.title}>{t('bulkCompose.title')}</h2>
+      <h2 id="bulk-compose-title" className={styles.title}>
+        {isEditing ? t('bulkCompose.editTitle') : t('bulkCompose.title')}
+      </h2>
       <form onSubmit={handleSubmit} className={styles.form}>
         <div className={styles.fieldGroup}>
           <label htmlFor="bulk-nombre" className={styles.label}>{t('bulkCompose.nombreLabel')}</label>
@@ -287,7 +330,9 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
             className={styles.sendButton}
             disabled={modalState === 'creating' || selectedRecipients.length === 0 || !tipo || !mensaje.trim()}
           >
-            {modalState === 'creating' ? t('bulkCompose.creatingButton') : t('bulkCompose.confirmButton')}
+            {modalState === 'creating'
+              ? t('bulkCompose.creatingButton')
+              : isEditing ? t('common.save') : t('bulkCompose.confirmButton')}
           </button>
         </div>
       </form>
