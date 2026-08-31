@@ -42,12 +42,20 @@ test.describe('Login Page — Visual & Layout', () => {
     await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
 
-  test('Google Sign-In container is present', async ({ page }) => {
+  test('Google Sign-In container is hidden outside the production domain', async ({ page }) => {
+    // Google OAuth requires an exact registered host, so Login.tsx only
+    // renders the GSI container when IS_PROD_HOST matches
+    // proev-dashboard.dravaautomations.com exactly — never on localhost/preview.
+    // Magic link is the intended QA path (see comment in src/pages/Login.tsx).
     const gsiContainer = page.locator('[class*="googleBtn"]');
-    await expect(gsiContainer).toBeAttached();
+    await expect(gsiContainer).not.toBeAttached();
   });
 
-  test('submit button and GSI container have same width', async ({ page }) => {
+  // "submit button and GSI container have same width" is skipped: the GSI
+  // container only renders on the exact production host (IS_PROD_HOST in
+  // src/pages/Login.tsx), which this suite never runs against, so there is no
+  // element to compare widths with outside of production itself.
+  test.skip('submit button and GSI container have same width', async ({ page }) => {
     const submitBtn = page.locator('button[type="submit"]');
     const gsiContainer = page.locator('[class*="googleBtn"]');
 
