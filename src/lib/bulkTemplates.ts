@@ -4,7 +4,7 @@
  */
 
 import type { Alumno } from '@/types';
-import { UI_TEMPLATE_OPTIONS, type TemplateKey } from './emailTemplates';
+import { UI_TEMPLATE_OPTIONS } from './emailTemplates';
 
 /**
  * Resolves the recipient cohort for a bulk campaign.
@@ -40,15 +40,29 @@ export function resolveRecipients(
 }
 
 /**
- * Derives the templates offered in bulk-composition mode from the `Tipo`
- * single-select options actually present on `Envios de Emails` — never a
- * hardcoded exclusion list. A template with no matching `Tipo` option
- * (currently `libre`) is hidden until the option exists, then reappears with
- * zero code change.
+ * Derives the campaign types offered in bulk-composition mode from the `Tipo`
+ * single-select options actually present on `Envios de Emails`.
+ *
+ * A campaign's `Tipo` is NOT the same thing as a compose template. Templates
+ * (`UI_TEMPLATE_OPTIONS`) are a set of four canned message bodies; `Tipo` is the
+ * campaign's category, and Airtable's select is the authority on which ones
+ * exist. Iterating the templates and intersecting would drop every valid type
+ * without a canned body — `informacion`, `bienvenida`, `felicitacion`,
+ * `urgente` — leaving three of seven selectable.
+ *
+ * So: iterate the select, and borrow a template's label only when one happens to
+ * share the name. A type added in the Airtable UI shows up here with no code
+ * change, falling back to a per-type i18n key and finally to its raw value, so
+ * an untranslated type is still offered rather than silently dropped.
  */
-export function bulkTemplateOptions(
+export function bulkTipoOptions(
   tipoOptions: string[],
-): { key: TemplateKey; labelKey: string }[] {
-  const available = new Set(tipoOptions);
-  return UI_TEMPLATE_OPTIONS.filter((opt) => available.has(opt.key));
+): { key: string; labelKey: string }[] {
+  const templateLabels = new Map(
+    UI_TEMPLATE_OPTIONS.map((opt) => [opt.key as string, opt.labelKey]),
+  );
+  return tipoOptions.map((tipo) => ({
+    key: tipo,
+    labelKey: templateLabels.get(tipo) ?? `bulkCompose.tipos.${tipo}`,
+  }));
 }

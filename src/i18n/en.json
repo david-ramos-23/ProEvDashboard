@@ -248,6 +248,17 @@
     "successTitle": "Draft created",
     "successDescription": "The campaign was saved as a draft. You can review and send it from Comunicaciones.",
     "closeButton": "Close",
-    "errorMessage": "Failed to create the campaign. Please try again."
+    "errorMessage": "Failed to create the campaign. Please try again.",
+    "offscreenNote": "selected outside the current filter",
+    "tipos": {
+      "informacion": "Information",
+      "bienvenida": "Welcome",
+      "felicitacion": "Congratulations",
+      "urgente": "Urgent",
+      "seguimiento_frio": "Cold follow-up",
+      "recordatorio_pago": "Payment reminder",
+      "recordatorio_preinscripcion": "Pre-registration reminder",
+      "recuperacion_pago": "Payment recovery"
+    }
   }
 }

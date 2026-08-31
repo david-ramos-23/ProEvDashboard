@@ -248,6 +248,17 @@
     "successTitle": "Borrador creado",
     "successDescription": "La campaña se guardó como borrador. Podrás revisarla y enviarla desde Comunicaciones.",
     "closeButton": "Cerrar",
-    "errorMessage": "Error al crear la campaña. Inténtalo de nuevo."
+    "errorMessage": "Error al crear la campaña. Inténtalo de nuevo.",
+    "offscreenNote": "seleccionados fuera del filtro actual",
+    "tipos": {
+      "informacion": "Información",
+      "bienvenida": "Bienvenida",
+      "felicitacion": "Felicitación",
+      "urgente": "Urgente",
+      "seguimiento_frio": "Seguimiento en frío",
+      "recordatorio_pago": "Recordatorio de pago",
+      "recordatorio_preinscripcion": "Recordatorio de preinscripción",
+      "recuperacion_pago": "Recuperación de pago"
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveRecipients, bulkTemplateOptions } from './bulkTemplates';
+import { resolveRecipients, bulkTipoOptions } from './bulkTemplates';
 import type { Alumno } from '@/types';
 
 function makeAlumno(overrides: Partial<Alumno>): Alumno {
@@ -44,18 +44,36 @@ describe('resolveRecipients', () => {
   });
 });
 
-describe('bulkTemplateOptions', () => {
-  it('excludes libre when Tipo options do not include it', () => {
-    const options = bulkTemplateOptions(['disculpa', 'informacion', 'recordatorio', 'seguimiento', 'bienvenida', 'felicitacion', 'urgente']);
-    expect(options.map(o => o.key)).not.toContain('libre');
+describe('bulkTipoOptions', () => {
+  // The live select as of 2026-08-31.
+  const LIVE_TIPOS = ['disculpa', 'informacion', 'recordatorio', 'seguimiento', 'bienvenida', 'felicitacion', 'urgente'];
+
+  it('offers EVERY type in the select, not just those with a canned template', () => {
+    // Regression guard. The first implementation iterated UI_TEMPLATE_OPTIONS and
+    // intersected, which silently dropped informacion/bienvenida/felicitacion/
+    // urgente — 3 of 7 types selectable, with nothing to indicate the loss.
+    const keys = bulkTipoOptions(LIVE_TIPOS).map(o => o.key);
+    expect(keys).toEqual(LIVE_TIPOS);
   });
 
-  it('includes libre once it appears in the live Tipo options', () => {
-    const options = bulkTemplateOptions(['disculpa', 'libre']);
-    expect(options.map(o => o.key)).toContain('libre');
+  it('borrows a template label when one shares the type name', () => {
+    const opt = bulkTipoOptions(['disculpa'])[0];
+    expect(opt.labelKey).toBe('emailCompose.templates.disculpa');
+  });
+
+  it('falls back to a per-type i18n key for a type with no template', () => {
+    const opt = bulkTipoOptions(['felicitacion'])[0];
+    expect(opt.labelKey).toBe('bulkCompose.tipos.felicitacion');
+  });
+
+  it('offers a type added in Airtable that the code has never seen', () => {
+    // Adding an option in the Airtable UI must enable it with no code change.
+    const keys = bulkTipoOptions([...LIVE_TIPOS, 'libre', 'tipo_inventado']).map(o => o.key);
+    expect(keys).toContain('libre');
+    expect(keys).toContain('tipo_inventado');
   });
 
   it('returns an empty set when Tipo options are empty', () => {
-    expect(bulkTemplateOptions([])).toEqual([]);
+    expect(bulkTipoOptions([])).toEqual([]);
   });
 });
