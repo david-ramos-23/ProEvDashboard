@@ -152,6 +152,20 @@
   justify-content: space-between;
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0;
+  /* Wraps instead of overflowing: just above the 767px breakpoint — or with the
+     AI panel compressing the main area — the count, bulk action, 220px search
+     and column menu stop fitting on one line, and the wrapper clips overflow. */
+  flex-wrap: wrap;
+  row-gap: var(--space-sm);
+}
+
+/* Reserves the height a selection will need BEFORE there is one.
+   `.btn-sm` carries min-height: var(--touch-target-min) (44px, for touch), while
+   the plain count header sits at roughly 35px — so revealing the bulk actions
+   still grew the header by ~9px and the table still jumped, just less. Reserving
+   it only on selectable tables keeps every other table its natural height. */
+.tableHeaderSelectable {
+  min-height: calc(var(--touch-target-min) + var(--space-md) * 2);
 }
 
 .tableCount {
