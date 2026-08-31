@@ -24,6 +24,17 @@ export const ESTADO = {
   PAGO_FALLIDO: 'Pago Fallido' as EstadoGeneral,
 } as const;
 
+/**
+ * Estados excluidos del KPI de engagement promedio: `Rechazado` are no longer
+ * candidates and `Privado` holds internal/test records. Both would drag the
+ * average without representing a real student or prospect.
+ * Only affects the KPI — the per-student score is still shown for everyone.
+ */
+export const ESTADOS_FUERA_DE_ENGAGEMENT: readonly EstadoGeneral[] = [
+  ESTADO.RECHAZADO,
+  ESTADO.PRIVADO,
+];
+
 /** All possible values for EstadoRevision */
 export const ESTADO_REVISION = {
   PENDIENTE: 'Pendiente' as EstadoRevision,

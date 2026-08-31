@@ -7,6 +7,7 @@
 
 import { Alumno, EstadoGeneral, DashboardStats } from '@/types';
 import { AIRTABLE_TABLES, ESTADO, FIELD } from '@/utils/constants';
+import { promedioEngagement, type EngagementInput } from '@/lib/engagement';
 import { listRecords, getRecord, updateRecord, AirtableRecord, sanitizeForFormula, edicionMatchFormula } from './AirtableClient';
 
 /** Campos de Airtable tal como vienen del API (con nombres originales) */
@@ -267,20 +268,16 @@ export async function fetchDashboardStats(options?: { edicionNombre?: string }):
   allEstados.forEach(e => { alumnosPorEstado[e] = 0; });
 
   let ingresosTotales = 0;
-  let engagementSum = 0;
-  let engagementCount = 0;
+  const engagement: EngagementInput[] = [];
 
   alumnos.forEach(f => {
     const estado = (f[FIELD.ESTADO_GENERAL] || ESTADO.PRIVADO) as EstadoGeneral;
     alumnosPorEstado[estado] = (alumnosPorEstado[estado] || 0) + 1;
     ingresosTotales += f[FIELD.IMPORTE_TOTAL_PAGADO] || 0;
-    if (f[FIELD.ENGAGEMENT_SCORE] != null) {
-      engagementSum += f[FIELD.ENGAGEMENT_SCORE]!;
-      engagementCount++;
-    }
+    engagement.push({ estado, score: f[FIELD.ENGAGEMENT_SCORE] });
   });
 
-  const engagementPromedio = engagementCount > 0 ? Math.round(engagementSum / engagementCount) : 0;
+  const engagementPromedio = promedioEngagement(engagement);
 
   return {
     totalAlumnos: alumnos.length,
