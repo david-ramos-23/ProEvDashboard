@@ -851,6 +851,18 @@ def fetch_airtable_records(
 # ------------------------------------------------------------------
 # Postgres target (guarded — only used with --load)
 # ------------------------------------------------------------------
+def array_placeholder(spec: ColSpec) -> str:
+    """execute_values placeholder for one column, cast when the target is an array.
+
+    psycopg2 renders a Python list as ARRAY['a','b'], which Postgres types as
+    text[]. Assigning that to a uuid[] column raises DatatypeMismatch, so array
+    columns need the cast spelled out. Kept pure so the offline self-test covers
+    it: this path only runs against a real database, where it went unexercised
+    until the first bulk campaign existed.
+    """
+    return f"%s::{spec.kind}" if spec.kind.endswith("[]") else "%s"
+
+
 def build_insert_tuple(
     row: dict[str, Any],
     columns: dict[str, ColSpec],
@@ -1010,8 +1022,17 @@ def load_table(
         cols=psql.SQL(", ").join(psql.Identifier(c) for c in insert_cols),
         set_clause=set_sql,
     )
+    # execute_values renders a Python list as ARRAY['a','b'], which Postgres
+    # infers as text[]. Assigning that to a uuid[] column fails outright
+    # (DatatypeMismatch), so those placeholders carry an explicit cast. NULL
+    # casts fine, so nullable array columns need no special case.
+    template = "(" + ", ".join(
+        ["%s", "%s"] + [array_placeholder(spec) for spec in columns.values()]
+    ) + ")"
     with conn.cursor() as cur:
-        returned = execute_values(cur, upsert_sql, values, fetch=True)
+        returned = execute_values(
+            cur, upsert_sql, values, template=template, fetch=True,
+        )
     # Overwrite the provisional UUIDs with the persisted ids (the DB keeps the
     # old id on conflict), so later child tables resolve against the real id.
     for returned_airtable_id, returned_id in returned:
@@ -1598,6 +1619,20 @@ def _self_test() -> int:
     )
     envio_partial_fails = bool(env_partial_unresolved)
 
+    # The uuid[] column must carry an explicit cast in the execute_values
+    # template. Without it Postgres reads ARRAY['..'] as text[] and rejects the
+    # INSERT with DatatypeMismatch — which only surfaces once a campaign
+    # actually exists, so the offline check has to stand in for the database.
+    env_template = "(" + ", ".join(
+        ["%s", "%s"] + [array_placeholder(s) for s in env_cols.values()]
+    ) + ")"
+    envio_uuid_array_cast = (
+        env_template.count("%s") == len(env_insert_cols)
+        and "%s::uuid[]" in env_template
+        and array_placeholder(ColSpec(kind="uuid[]")) == "%s::uuid[]"
+        and array_placeholder(ColSpec(kind="text")) == "%s"
+    )
+
     # Inbox + Cola de Emails: estado/origen must survive map_record.
     _, inbox_rows = process_table("inbox", fixtures["inbox"])
     inbox_row = inbox_rows[0] if inbox_rows else {}
@@ -1783,6 +1818,7 @@ def _self_test() -> int:
     print(f"cola automatico+valido_hasta  : {cola_auto_mapped}")
     print(f"envio nombre+alumnos_ids[]    : {envio_links_mapped}")
     print(f"envio partial link -> fails   : {envio_partial_fails}")
+    print(f"envio uuid[] cast in template : {envio_uuid_array_cast}")
     print(f"prune normal (rec5 stale)     : {prune_normal}")
     print(f"prune empty-fetch guard       : {prune_empty_guard}")
     print(f"prune known-empty allowlist   : {prune_allowlist}")
@@ -1804,7 +1840,7 @@ def _self_test() -> int:
         and pareja_mapped and self_fk_flagged and lookup_list_coerced
         and self_fk_null_on_insert
         and inbox_mapped and cola_mapped and cola_auto_mapped
-        and envio_links_mapped and envio_partial_fails
+        and envio_links_mapped and envio_partial_fails and envio_uuid_array_cast
         and prune_normal and prune_empty_guard and prune_allowlist
         and prune_threshold_guard and prune_force_override
         and prune_force_keeps_empty_guard
