@@ -31,8 +31,11 @@ test.describe('Login Page', () => {
 
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('button[type="submit"]')).toBeVisible();
-    // Google sign-in button
-    await expect(page.locator('[class*="googleBtn"]')).toBeVisible();
+    // Google Sign-In is intentionally hidden outside the exact production
+    // domain (OAuth requires an exact registered host) — see IS_PROD_HOST in
+    // src/pages/Login.tsx. On localhost it must stay absent; magic link is
+    // the QA path.
+    await expect(page.locator('[class*="googleBtn"]')).not.toBeAttached();
   });
 
   test('botón de submit deshabilitado con campo vacío', async ({ page }) => {
