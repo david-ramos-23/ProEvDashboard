@@ -70,7 +70,9 @@ test.describe('Emails / Inbox', () => {
   test('Cola muestra filtros de tipo de email', async ({ page }) => {
     await page.locator('button:has-text("Cola de emails")').click();
     await page.waitForTimeout(2000);
-    // Type filter chips should be visible
-    await expect(page.locator('button:has-text("seguimiento")')).toBeVisible({ timeout: 10000 });
+    // Type filter chips should be visible. Exact match: TIPOS_EMAIL now also
+    // includes "seguimiento frio" (seguimientos inteligentes), so a plain
+    // has-text("seguimiento") substring match is ambiguous between the two chips.
+    await expect(page.getByRole('button', { name: 'seguimiento', exact: true })).toBeVisible({ timeout: 10000 });
   });
 });
