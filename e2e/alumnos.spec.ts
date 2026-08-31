@@ -64,7 +64,9 @@ test.describe('Gestión de Alumnos', () => {
     const count = await rows.count();
     if (count > 0) {
       for (let i = 0; i < Math.min(count, 5); i++) {
-        await expect(rows.nth(i).locator('td').nth(1)).toContainText('Preinscrito');
+        // td(0) is the selectable checkbox column added by the Alumnos bulk-email
+        // entry point (slice 4) — estado is now the 3rd cell, not the 2nd.
+        await expect(rows.nth(i).locator('td').nth(2)).toContainText('Preinscrito');
       }
     }
     await expect(page.locator('button:has-text("Limpiar filtros")')).toBeVisible();
@@ -81,9 +83,10 @@ test.describe('Gestión de Alumnos', () => {
     const count = await rows.count();
 
     if (count > 0) {
-      // All visible rows should have "revisión de video" in estado column
+      // All visible rows should have "revisión de video" in estado column.
+      // td(0) is the selectable checkbox column (slice 4) — estado is the 3rd cell.
       for (let i = 0; i < Math.min(count, 5); i++) {
-        await expect(rows.nth(i).locator('td').nth(1)).toContainText('revisión de video');
+        await expect(rows.nth(i).locator('td').nth(2)).toContainText('revisión de video');
       }
     }
 

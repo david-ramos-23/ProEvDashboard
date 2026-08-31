@@ -22,6 +22,11 @@ interface BulkComposeModalProps {
    * instead of creating a new one. Only Borrador campaigns should ever be passed here —
    * enforced by the caller (Comunicaciones section), not by this component. */
   editEnvio?: EnvioEmail | null;
+  /** Pre-selects these student ids when the modal opens for a NEW campaign — e.g.
+   * the Alumnos page's multi-select bulk action. Seeded into `pendingIds`, so it
+   * hydrates through the same picker-resolution path as edit-mode ids. Ignored
+   * when `editEnvio` is set (edit mode owns the seed in that case). */
+  initialSelectedIds?: Set<string>;
 }
 
 /**
@@ -30,7 +35,7 @@ interface BulkComposeModalProps {
  * patch via `actualizarEnvio` when `editEnvio` is set (never touches `Estado`) —
  * never `/api/emails/compose`, and never a per-recipient `Cola de Emails` write.
  */
-export function BulkComposeModal({ open, onClose, onCreated, editEnvio }: BulkComposeModalProps) {
+export function BulkComposeModal({ open, onClose, onCreated, editEnvio, initialSelectedIds }: BulkComposeModalProps) {
   const { t } = useTranslation();
   const { getOptions } = useSchema();
   const { selectedNombre } = useEdicion();
@@ -79,10 +84,11 @@ export function BulkComposeModal({ open, onClose, onCreated, editEnvio }: BulkCo
     if (open) {
       setSearch('');
       setEstadoFilter('');
-      // Edit mode seeds the ids; they hydrate into records as the picker
-      // resolves them (see the hydration effect below).
+      // Edit mode seeds the ids; a fresh campaign seeds from a caller's
+      // preselection instead (e.g. Alumnos' multi-select). Either way they
+      // hydrate into records as the picker resolves them (see below).
       setSelected(new Map());
-      setPendingIds(new Set(editEnvio?.alumnosIds || []));
+      setPendingIds(new Set(editEnvio?.alumnosIds || initialSelectedIds || []));
       setTipo(editEnvio?.tipo || '');
       setMensaje(editEnvio?.mensaje || '');
       setNombre(editEnvio?.nombre ||
@@ -90,7 +96,7 @@ export function BulkComposeModal({ open, onClose, onCreated, editEnvio }: BulkCo
       setModalState('idle');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editEnvio]);
+  }, [open, editEnvio, initialSelectedIds]);
 
   function toggleId(alumno: Alumno) {
     setSelected((prev) => {

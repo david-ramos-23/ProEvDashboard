@@ -4,7 +4,7 @@
 
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DataTable, StatusBadge, SkeletonBlock, Column, DropdownMenu } from '@/components/shared';
 import { fetchAlumnos, fetchRevisiones } from '@/data/adapters';
 import { Alumno, EstadoGeneral, EstadoRevision } from '@/types';
@@ -13,6 +13,7 @@ import { ESTADO_ICONS, ESTADO } from '@/utils/constants';
 import { useTranslation } from '@/i18n';
 import { useEdicion } from '@/context/EdicionContext';
 import { useSchema } from '@/hooks/useSchema';
+import { BulkComposeModal } from '@/components/BulkComposeModal';
 
 const FILTER_STORAGE_KEY = 'proev_alumnos_filters';
 
@@ -38,6 +39,13 @@ export default function AlumnosPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { getOptions } = useSchema();
+  const queryClient = useQueryClient();
+
+  // Multi-select for the bulk email entry point — mirrors Inbox's Cola
+  // selection bar. Works on the current selection, not the active filter:
+  // filters change what's visible, not what stays checked.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkComposeOpen, setBulkComposeOpen] = useState(false);
 
   // All available estados from schema
   const ALL_ESTADOS = useMemo(() => {
@@ -319,6 +327,23 @@ export default function AlumnosPage() {
         </DropdownMenu>
       </div>
 
+      {/* Barra de selección múltiple — solo visible con alumnos seleccionados */}
+      {selectedIds.size > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', padding: '6px 10px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+            {selectedIds.size} seleccionado{selectedIds.size !== 1 ? 's' : ''}
+          </span>
+          <button
+            type="button"
+            className="btn-sm btn-ghost"
+            onClick={() => setBulkComposeOpen(true)}
+          >
+            📢 {t('bulkCompose.newBulkEmail')}
+          </button>
+          <button className="btn-sm btn-ghost" onClick={() => setSelectedIds(new Set())}>✕</button>
+        </div>
+      )}
+
       {/* Tabla */}
       <DataTable
         tableId="alumnos"
@@ -333,6 +358,19 @@ export default function AlumnosPage() {
         emptyMessage={t('alumnos.noResults')}
         emptyIcon="👥"
         fill
+        selectable
+        selectedIds={selectedIds}
+        onSelectionChange={setSelectedIds}
+      />
+
+      <BulkComposeModal
+        open={bulkComposeOpen}
+        initialSelectedIds={selectedIds}
+        onClose={() => setBulkComposeOpen(false)}
+        onCreated={() => {
+          setSelectedIds(new Set());
+          queryClient.invalidateQueries({ queryKey: ['envios-emails'] });
+        }}
       />
     </div>
   );
