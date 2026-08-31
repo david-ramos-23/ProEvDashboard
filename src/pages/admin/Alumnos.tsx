@@ -327,23 +327,6 @@ export default function AlumnosPage() {
         </DropdownMenu>
       </div>
 
-      {/* Barra de selección múltiple — solo visible con alumnos seleccionados */}
-      {selectedIds.size > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', padding: '6px 10px', background: 'var(--color-bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
-          <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-            {selectedIds.size} seleccionado{selectedIds.size !== 1 ? 's' : ''}
-          </span>
-          <button
-            type="button"
-            className="btn-sm btn-ghost"
-            onClick={() => setBulkComposeOpen(true)}
-          >
-            📢 {t('bulkCompose.newBulkEmail')}
-          </button>
-          <button className="btn-sm btn-ghost" onClick={() => setSelectedIds(new Set())}>✕</button>
-        </div>
-      )}
-
       {/* Tabla */}
       <DataTable
         tableId="alumnos"
@@ -361,6 +344,11 @@ export default function AlumnosPage() {
         selectable
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
+        selectionActions={() => (
+          <button type="button" className="btn-sm btn-ghost" onClick={() => setBulkComposeOpen(true)}>
+            📢 {t('bulkCompose.newBulkEmail')}
+          </button>
+        )}
       />
 
       <BulkComposeModal
