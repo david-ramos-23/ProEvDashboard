@@ -38,7 +38,7 @@ interface BulkComposeModalProps {
 export function BulkComposeModal({ open, onClose, onCreated, editEnvio, initialSelectedIds }: BulkComposeModalProps) {
   const { t } = useTranslation();
   const { getOptions } = useSchema();
-  const { selectedNombre } = useEdicion();
+  const { selectedNombre, selectedEdicion } = useEdicion();
 
   const [search, setSearch] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('');
@@ -73,8 +73,8 @@ export function BulkComposeModal({ open, onClose, onCreated, editEnvio, initialS
   });
 
   const { eligible, sinEmail } = useMemo(
-    () => resolveRecipients(candidatos, { edicionNombre: selectedNombre || undefined }),
-    [candidatos, selectedNombre],
+    () => resolveRecipients(candidatos, { edicionId: selectedEdicion?.id }),
+    [candidatos, selectedEdicion],
   );
 
   const isEditing = !!editEnvio;
