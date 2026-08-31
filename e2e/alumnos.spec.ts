@@ -26,7 +26,12 @@ test.describe('Gestión de Alumnos', () => {
     await loginAsAdmin(page);
     await page.click('nav >> text=Alumnos');
     await page.waitForURL('**/admin/alumnos');
-    await page.waitForSelector('table tbody tr:not(:has([class*="skeleton"]))', { timeout: 15000 });
+    // React Router keeps the previous route's DOM mounted while the lazily-loaded
+    // Alumnos chunk resolves, so an unscoped "table tbody tr" can momentarily match
+    // the Dashboard's "Actividad Reciente" table instead. The countLabel span
+    // (e.g. "50 alumnos") only renders once the Alumnos DataTable itself has data,
+    // so waiting on it guarantees we're looking at the right table.
+    await page.locator('[class*="tableCount"]').filter({ hasText: /\d+ alumnos?/ }).waitFor({ state: 'visible', timeout: 15000 });
   });
 
   test('muestra tabla con datos y contador en cabecera', async ({ page }) => {
@@ -37,8 +42,9 @@ test.describe('Gestión de Alumnos', () => {
     const count = await rows.count();
     expect(count).toBeGreaterThan(0);
 
-    // Counter in title
-    await expect(page.locator('h3').filter({ hasText: /Alumnos \(\d+\)/ })).toBeVisible();
+    // Counter now lives in the DataTable header as a countLabel span (e.g. "50 alumnos"),
+    // not an "Alumnos (N)" h3 — that title moved out when PageHeader was introduced.
+    await expect(page.locator('[class*="tableCount"]').filter({ hasText: /\d+ alumnos?/ })).toBeVisible();
   });
 
   test('chips de estado de filtro son visibles', async ({ page }) => {
@@ -90,8 +96,8 @@ test.describe('Gestión de Alumnos', () => {
       }
     }
 
-    // Title should show filtered count
-    await expect(page.locator('h3').filter({ hasText: `(${count})` })).toBeVisible();
+    // Counter should reflect the filtered count
+    await expect(page.locator('[class*="tableCount"]').filter({ hasText: `${count} alumno` })).toBeVisible();
   });
 
   test('multi-select: dos filtros combinados (OR)', async ({ page }) => {
@@ -149,7 +155,7 @@ test.describe('Gestión de Alumnos', () => {
     await page.waitForTimeout(500);
 
     // Table wrapper should still be visible (even with empty state)
-    await expect(page.locator('h3').filter({ hasText: /Alumnos \(\d+\)/ })).toBeVisible();
+    await expect(page.locator('[class*="tableCount"]').filter({ hasText: /\d+ alumnos?/ })).toBeVisible();
   });
 
   test('búsqueda + filtro estado combinados', async ({ page }) => {
@@ -158,18 +164,22 @@ test.describe('Gestión de Alumnos', () => {
     await page.locator('input[placeholder*="Buscar"]').fill('test');
     await page.waitForTimeout(500);
 
-    // Should still show the alumnos header with count
-    await expect(page.locator('h3').filter({ hasText: /Alumnos \(\d+\)/ })).toBeVisible();
+    // Should still show the alumnos count
+    await expect(page.locator('[class*="tableCount"]').filter({ hasText: /\d+ alumnos?/ })).toBeVisible();
   });
 
   test('click en fila navega al detalle', async ({ page }) => {
     // Ensure table data is fully loaded before clicking
     const firstRow = page.locator('table tbody tr').first();
     await firstRow.waitFor({ state: 'visible', timeout: 15000 });
-    // Wait for the row to have actual content (not skeleton/loading)
-    await expect(firstRow.locator('td').first()).not.toBeEmpty({ timeout: 10000 });
+    // Wait for the row to have actual content (not skeleton/loading).
+    // td(0) is the selectable checkbox column (slice 4) — it never has text,
+    // so the loaded-content check has to look at td(1) (Alumno) instead.
+    await expect(firstRow.locator('td').nth(1)).not.toBeEmpty({ timeout: 10000 });
     await firstRow.click();
-    await expect(page).toHaveURL(/\/admin\/alumnos\/rec/, { timeout: 10000 });
+    // Row IDs come from the active data adapter (Airtable "rec..." or Supabase
+    // UUIDs) — match any non-empty id segment instead of a specific format.
+    await expect(page).toHaveURL(/\/admin\/alumnos\/[\w-]+$/, { timeout: 10000 });
     await expect(page.locator('text=Algo ha fallado')).not.toBeVisible({ timeout: 5000 });
   });
 
