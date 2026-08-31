@@ -3,13 +3,13 @@
  *
  * `crearEnvio` es el único punto de escritura para nuevas campañas y SIEMPRE escribe
  * Estado: 'Borrador' — el campo no es parametrizable desde el llamador. La transición a
- * 'Pendiente' (el único estado que el fan-out de n8n recoge) vive en `enviarEnvio`,
- * introducida en la slice 3.
+ * 'Pendiente' (el único estado que el fan-out de n8n recoge) vive en `enviarEnvio`, el
+ * único símbolo del repo capaz de escribir ese valor.
  */
 
 import { EnvioEmail, EstadoEnvio, TipoEmail } from '@/types';
 import { AIRTABLE_TABLES } from '@/utils/constants';
-import { listRecords, updateRecord, createRecord, deleteRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
+import { listRecords, getRecord, updateRecord, createRecord, deleteRecord, AirtableRecord, sanitizeForFormula } from './AirtableClient';
 
 interface AirtableEnvioEmailFields {
   'Nombre'?: string;
@@ -107,6 +107,26 @@ export async function actualizarEnvio(id: string, updates: {
     ...(updates.mensaje !== undefined ? { 'Mensaje': updates.mensaje } : {}),
     ...(updates.descripcion !== undefined ? { 'Descripcion': updates.descripcion } : {}),
     ...(updates.alumnosIds !== undefined ? { 'Total Emails': updates.alumnosIds.length } : {}),
+  });
+  return mapToEnvioEmail(record);
+}
+
+/**
+ * Transitions a campaign from Borrador to Pendiente — the only symbol in the repo
+ * capable of writing 'Pendiente', which makes the campaign eligible for the n8n
+ * fan-out at its next poll. Reads the record first and rejects if it is not
+ * currently Borrador — an idempotency guard against two users sending the same
+ * shared draft, not a lock.
+ */
+export async function enviarEnvio(id: string): Promise<EnvioEmail> {
+  const current = await getRecord<AirtableEnvioEmailFields>(AIRTABLE_TABLES.ENVIOS_EMAILS, id);
+  if (current.fields['Estado'] !== 'Borrador') {
+    throw new Error(
+      `enviarEnvio: campaign ${id} is '${current.fields['Estado']}', expected 'Borrador'`
+    );
+  }
+  const record = await updateRecord<AirtableEnvioEmailFields>(AIRTABLE_TABLES.ENVIOS_EMAILS, id, {
+    'Estado': 'Pendiente',
   });
   return mapToEnvioEmail(record);
 }

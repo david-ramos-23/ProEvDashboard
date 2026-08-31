@@ -113,6 +113,38 @@ export async function actualizarEnvio(id: string, updates: {
   return mapToEnvioEmail(row as Record<string, unknown>);
 }
 
+/**
+ * Transitions a campaign from Borrador to Pendiente — mirrors the Airtable twin's
+ * idempotency guard: reads the record first and rejects if it is not currently
+ * Borrador, so two users acting on the same shared draft cannot both send it.
+ */
+export async function enviarEnvio(id: string): Promise<EnvioEmail> {
+  const { data: current, error: readError } = await supabase
+    .from('envios_emails')
+    .select('estado')
+    .eq('id', id)
+    .single();
+  if (readError) throw new Error(`enviarEnvio: ${readError.message}`);
+
+  const currentEstado = (current as Record<string, unknown> | null)?.estado;
+  if (currentEstado !== 'Borrador') {
+    throw new Error(`enviarEnvio: campaign ${id} is '${currentEstado}', expected 'Borrador'`);
+  }
+
+  const { data: row, error } = await withAudit(async () => {
+    const result = await supabase
+      .from('envios_emails')
+      .update({ estado: 'Pendiente' })
+      .eq('id', id)
+      .select('*')
+      .single();
+    return result;
+  });
+
+  if (error) throw new Error(`enviarEnvio: ${(error as Error).message}`);
+  return mapToEnvioEmail(row as Record<string, unknown>);
+}
+
 /** Deletes a draft campaign. */
 export async function eliminarEnvio(id: string): Promise<void> {
   const { error } = await supabase
