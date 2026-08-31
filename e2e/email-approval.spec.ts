@@ -35,16 +35,29 @@ test.describe('Email Approval (legacy redirect → Cola de Emails)', () => {
 
   test('emails pendientes de aprobación muestran el botón de aprobar', async ({ page }) => {
     await page.locator('button.btn-sm').filter({ hasText: 'Por aprobar' }).click();
-    await page.waitForTimeout(1000);
 
-    // The row-level approve button (✅, aria-label "Aprobar") only renders for
-    // rows whose estado is PENDIENTE_APROBACION — see the ColaSection column
-    // definition in src/pages/admin/Inbox.tsx. Only assert it when the
-    // current dataset actually has a pending-approval email to show it for.
-    const approveButtons = page.locator('button[aria-label="Aprobar"]');
-    const count = await approveButtons.count();
-    if (count > 0) {
-      await expect(approveButtons.first()).toBeVisible();
-    }
+    // Wait for the filtered result to settle rather than sleeping a fixed 1s.
+    // Counts only real data rows: `tbody tr` also matches the empty-state row,
+    // which made the skip below never trigger and the assertion fail against a
+    // table that was, correctly, showing nothing.
+    const rows = page.locator('tbody tr[data-row-id]');
+    const empty = page.locator('text=/No hay emails/i');
+    await expect(rows.first().or(empty)).toBeVisible({ timeout: 10000 });
+
+    // If the dataset has no pending-approval email, SKIP — visibly — instead of
+    // passing. Guarding the assertion behind `if (count > 0)` made this test
+    // incapable of failing: deleting the approve button outright would still
+    // have left it green, which is the opposite of what it exists for.
+    const rowCount = await rows.count();
+    test.skip(rowCount === 0, 'no pending-approval emails in the current dataset');
+
+    // With rows present the button is not optional — every row under this filter
+    // is PENDIENTE_APROBACION, and each must offer the row-level approve action
+    // (see the ColaSection column definition in src/pages/admin/Inbox.tsx).
+    //
+    // Located by class, not by aria-label: that label is `t('common.approve')`,
+    // which renders "Aprobar" or "Approve" depending on the active locale. A
+    // literal Spanish selector would go red on an English run for no real reason.
+    await expect(page.locator('tbody button.btn-success').first()).toBeVisible();
   });
 });
