@@ -139,6 +139,9 @@ export async function crearEnvio(...args: Parameters<typeof import('./airtable/E
 export async function actualizarEnvio(...args: Parameters<typeof import('./airtable/EnviosEmailsAdapter').actualizarEnvio>) {
   return (await getAdapters()).enviosEmails.actualizarEnvio(...args);
 }
+export async function enviarEnvio(id: string) {
+  return (await getAdapters()).enviosEmails.enviarEnvio(id);
+}
 export async function eliminarEnvio(id: string): Promise<void> {
   return (await getAdapters()).enviosEmails.eliminarEnvio(id);
 }
