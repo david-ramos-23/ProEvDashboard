@@ -9,7 +9,7 @@ function makeAlumno(overrides: Partial<Alumno>): Alumno {
     email: 'test@example.com',
     estadoGeneral: 'Privado',
     idioma: 'Espanol',
-    edicionNombres: [],
+    edicionIds: [],
     ...overrides,
   };
 }
@@ -30,17 +30,34 @@ describe('resolveRecipients', () => {
   });
 
   it('keeps a multi-edition student when the filter edicion is any of their editions', () => {
-    const multiEdicion = makeAlumno({ id: 'rec1', edicionNombres: ['Edicion A', 'Edicion B'] });
-    const otherEdicion = makeAlumno({ id: 'rec2', edicionNombres: ['Edicion C'] });
-    const result = resolveRecipients([multiEdicion, otherEdicion], { edicionNombre: 'Edicion B' });
+    const multiEdicion = makeAlumno({ id: 'rec1', edicionIds: ['recEdA', 'recEdB'] });
+    const otherEdicion = makeAlumno({ id: 'rec2', edicionIds: ['recEdC'] });
+    const result = resolveRecipients([multiEdicion, otherEdicion], { edicionId: 'recEdB' });
     expect(result.eligible.map(a => a.id)).toEqual(['rec1']);
   });
 
   it('returns all eligible students when no edicion filter is given', () => {
-    const a = makeAlumno({ id: 'rec1', edicionNombres: ['Edicion A'] });
-    const b = makeAlumno({ id: 'rec2', edicionNombres: ['Edicion B'] });
+    const a = makeAlumno({ id: 'rec1', edicionIds: ['recEdA'] });
+    const b = makeAlumno({ id: 'rec2', edicionIds: ['recEdB'] });
     const result = resolveRecipients([a, b], {});
     expect(result.eligible.map(x => x.id).sort()).toEqual(['rec1', 'rec2']);
+  });
+
+  it('matches on edition ID even when the name array is empty', () => {
+    // Regression guard for the bug that made the picker show zero students.
+    // The Airtable adapter maps `edicionNombres` from "Nombre Edicion", a field
+    // that does not exist on the table — the API rejects it — so it is ALWAYS
+    // empty. Filtering by name therefore matched nobody, and the modal opened
+    // with an empty cohort. Alumnos.tsx:150 had it right all along: filter by id.
+    const a = makeAlumno({ id: 'rec1', edicionIds: ['recEdA'], edicionNombres: [] });
+    const result = resolveRecipients([a], { edicionId: 'recEdA' });
+    expect(result.eligible.map(x => x.id)).toEqual(['rec1']);
+  });
+
+  it('excludes a student who is not in the filtered edition', () => {
+    const a = makeAlumno({ id: 'rec1', edicionIds: ['recEdA'] });
+    const b = makeAlumno({ id: 'rec2', edicionIds: ['recEdB'] });
+    expect(resolveRecipients([a, b], { edicionId: 'recEdA' }).eligible.map(x => x.id)).toEqual(['rec1']);
   });
 });
 

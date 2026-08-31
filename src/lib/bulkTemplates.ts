@@ -21,10 +21,15 @@ import { UI_TEMPLATE_OPTIONS } from './emailTemplates';
  */
 export function resolveRecipients(
   alumnos: Alumno[],
-  filter: { edicionNombre?: string },
+  filter: { edicionId?: string },
 ): { eligible: Alumno[]; sinEmail: Alumno[] } {
-  const candidates = filter.edicionNombre
-    ? alumnos.filter((a) => (a.edicionNombres ?? []).includes(filter.edicionNombre as string))
+  // Filters by edition ID, matching Alumnos.tsx:150. NOT by name: the Airtable
+  // adapter maps `edicionNombres` from a field that does not exist on the table
+  // ("Nombre Edicion" — the API rejects it outright), so it is always empty and
+  // a name filter silently matched nobody. `edicionIds` comes from the real
+  // `Edicion` link field, and from `edicion_id` on the Supabase side.
+  const candidates = filter.edicionId
+    ? alumnos.filter((a) => (a.edicionIds ?? []).includes(filter.edicionId as string))
     : alumnos;
 
   const eligible: Alumno[] = [];
