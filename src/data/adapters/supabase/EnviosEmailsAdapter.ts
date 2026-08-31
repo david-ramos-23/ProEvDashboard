@@ -100,10 +100,16 @@ export async function actualizarEnvio(id: string, updates: {
   if (updates.descripcion !== undefined) patch.descripcion = updates.descripcion;
 
   const { data: row, error } = await withAudit(async () => {
+    // Gated in the statement itself: Postgres evaluates `estado = 'Borrador'`
+    // atomically with the write, so a campaign sent by another user between
+    // render and save matches zero rows instead of being patched mid-flight.
+    // Stronger than the Airtable twin's read-then-write, which can only narrow
+    // that window, not close it.
     const result = await supabase
       .from('envios_emails')
       .update(patch)
       .eq('id', id)
+      .eq('estado', 'Borrador')
       .select('*')
       .single();
     return result;
@@ -119,23 +125,14 @@ export async function actualizarEnvio(id: string, updates: {
  * Borrador, so two users acting on the same shared draft cannot both send it.
  */
 export async function enviarEnvio(id: string): Promise<EnvioEmail> {
-  const { data: current, error: readError } = await supabase
-    .from('envios_emails')
-    .select('estado')
-    .eq('id', id)
-    .single();
-  if (readError) throw new Error(`enviarEnvio: ${readError.message}`);
-
-  const currentEstado = (current as Record<string, unknown> | null)?.estado;
-  if (currentEstado !== 'Borrador') {
-    throw new Error(`enviarEnvio: campaign ${id} is '${currentEstado}', expected 'Borrador'`);
-  }
-
   const { data: row, error } = await withAudit(async () => {
+    // The `Borrador` precondition rides on the UPDATE itself, so two users
+    // sending the same shared draft cannot both succeed.
     const result = await supabase
       .from('envios_emails')
       .update({ estado: 'Pendiente' })
       .eq('id', id)
+      .eq('estado', 'Borrador')
       .select('*')
       .single();
     return result;
@@ -147,9 +144,16 @@ export async function enviarEnvio(id: string): Promise<EnvioEmail> {
 
 /** Deletes a draft campaign. */
 export async function eliminarEnvio(id: string): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('envios_emails')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('estado', 'Borrador')
+    .select('id');
   if (error) throw new Error(`eliminarEnvio: ${error.message}`);
+  if (!data || data.length === 0) {
+    throw new Error(
+      `eliminarEnvio: campaign ${id} is not 'Borrador' (already sent, or gone) — not deleted`
+    );
+  }
 }

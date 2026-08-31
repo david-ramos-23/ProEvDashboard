@@ -93,6 +93,27 @@ export async function crearEnvio(data: {
  * Updates campaign composition fields. `Estado` is deliberately absent from this
  * input type — no edit can promote a draft to a sendable state through this function.
  */
+/**
+ * Rejects unless the campaign is still `Borrador`, re-reading it rather than
+ * trusting whatever the caller last rendered.
+ *
+ * The point-of-no-return rule cannot live in the UI alone: drafts are shared, so
+ * one user can send a campaign while another has it open. Without this, their
+ * edit would patch a campaign already in `Pendiente` — mutating it while the n8n
+ * fan-out reads it — or their discard would delete it mid-flight. The window is
+ * small and entirely real.
+ *
+ * Not a lock. Two callers can still pass this check concurrently; it closes the
+ * stale-UI race, which is the one that actually happens.
+ */
+async function assertBorrador(id: string, op: string): Promise<void> {
+  const current = await getRecord<AirtableEnvioEmailFields>(AIRTABLE_TABLES.ENVIOS_EMAILS, id);
+  const estado = current.fields['Estado'];
+  if (estado !== 'Borrador') {
+    throw new Error(`${op}: campaign ${id} is '${estado}', expected 'Borrador'`);
+  }
+}
+
 export async function actualizarEnvio(id: string, updates: {
   nombre?: string;
   alumnosIds?: string[];
@@ -100,6 +121,7 @@ export async function actualizarEnvio(id: string, updates: {
   mensaje?: string;
   descripcion?: string;
 }): Promise<EnvioEmail> {
+  await assertBorrador(id, 'actualizarEnvio');
   const record = await updateRecord<AirtableEnvioEmailFields>(AIRTABLE_TABLES.ENVIOS_EMAILS, id, {
     ...(updates.nombre !== undefined ? { 'Nombre': updates.nombre } : {}),
     ...(updates.alumnosIds !== undefined ? { 'Alumnos': updates.alumnosIds } : {}),
@@ -119,19 +141,15 @@ export async function actualizarEnvio(id: string, updates: {
  * shared draft, not a lock.
  */
 export async function enviarEnvio(id: string): Promise<EnvioEmail> {
-  const current = await getRecord<AirtableEnvioEmailFields>(AIRTABLE_TABLES.ENVIOS_EMAILS, id);
-  if (current.fields['Estado'] !== 'Borrador') {
-    throw new Error(
-      `enviarEnvio: campaign ${id} is '${current.fields['Estado']}', expected 'Borrador'`
-    );
-  }
+  await assertBorrador(id, 'enviarEnvio');
   const record = await updateRecord<AirtableEnvioEmailFields>(AIRTABLE_TABLES.ENVIOS_EMAILS, id, {
     'Estado': 'Pendiente',
   });
   return mapToEnvioEmail(record);
 }
 
-/** Deletes a draft campaign (hard delete en Airtable). */
+/** Deletes a draft campaign (hard delete in Airtable). Drafts only — see assertBorrador. */
 export async function eliminarEnvio(id: string): Promise<void> {
+  await assertBorrador(id, 'eliminarEnvio');
   await deleteRecord(AIRTABLE_TABLES.ENVIOS_EMAILS, id);
 }

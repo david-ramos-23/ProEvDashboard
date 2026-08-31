@@ -646,14 +646,19 @@ export default function InboxPage() {
   const isMobile = useIsMobile();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const [section, setSectionState] = useState<SectionType>(() => {
-    const s = searchParams.get('section');
-    return isSectionType(s) ? s : 'bandeja';
-  });
+  /**
+   * DERIVED from the URL, never mirrored into local state. A `useState` seeded
+   * once from the params would go stale the moment the URL changed without a
+   * click — browser Back/Forward, or a link into the already-mounted route —
+   * leaving the address bar and the rendered section disagreeing. Reading the
+   * params every render keeps the URL the single store, as designed, and an
+   * unknown or hand-typed value falls back to 'bandeja' via the type guard.
+   */
+  const rawSection = searchParams.get('section');
+  const section: SectionType = isSectionType(rawSection) ? rawSection : 'bandeja';
 
-  /** Sets the section and writes it back to the URL, making it refresh-stable and shareable. */
+  /** Writes the section to the URL, making it refresh-stable, shareable and back-navigable. */
   function setSection(next: SectionType) {
-    setSectionState(next);
     setSearchParams(prev => {
       const params = new URLSearchParams(prev);
       params.set('section', next);
