@@ -108,7 +108,21 @@
     "errores": "Errors",
     "tipo": "Type",
     "asunto": "Subject",
-    "sinEmails": "No emails"
+    "sinEmails": "No emails",
+    "nombre": "Campaign",
+    "estado": "State",
+    "destinatarios": "Recipients",
+    "creada": "Created",
+    "empty": "No campaigns yet",
+    "sendButton": "Send",
+    "editButton": "Edit",
+    "discardButton": "Discard",
+    "viewOnly": "View only — not editable or cancelable",
+    "sendConfirmTitle": "Send campaign",
+    "sendConfirmMessage": "This will send to this campaign's recipients and cannot be undone.",
+    "discardConfirmTitle": "Discard draft",
+    "discardConfirmMessage": "This action cannot be undone.",
+    "actionError": "This campaign no longer exists or changed state. Refresh the list."
   },
   "ediciones": {
     "title": "Edition Management",
@@ -259,6 +273,9 @@
       "recordatorio_pago": "Payment reminder",
       "recordatorio_preinscripcion": "Pre-registration reminder",
       "recuperacion_pago": "Payment recovery"
-    }
+    },
+    "editTitle": "Edit draft",
+    "editSuccessTitle": "Draft updated",
+    "editSuccessDescription": "Your changes were saved. The campaign is still a draft."
   }
 }
