@@ -32,6 +32,12 @@ interface DataTableProps<T> {
   onSelectionChange?: (ids: Set<string>) => void;
   /** When provided, renders a record count on the left of the table header */
   countLabel?: (n: number) => string;
+  /**
+   * Bulk actions for the current selection, rendered in the header's count slot.
+   * Keeping them in the existing header — rather than in a bar the page shows
+   * and hides around the table — means a selection never shifts the layout.
+   */
+  selectionActions?: (selectedIds: Set<string>) => ReactNode;
   /** When true, the wrapper stretches to fill its flex parent (use inside contentContained pages) */
   fill?: boolean;
 }
@@ -87,6 +93,7 @@ export function DataTable<T extends { id: string }>({
   selectedIds,
   onSelectionChange,
   countLabel,
+  selectionActions,
   fill,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -253,8 +260,31 @@ export function DataTable<T extends { id: string }>({
   return (
     <div ref={tableWrapperRef} className={`${styles.tableWrapper} ${fill ? styles.tableWrapperFill : ''}`}>
       <div className={styles.tableHeader}>
-        {countLabel && (
-          <span className={styles.tableCount}>{countLabel(sortedData.length)}</span>
+        {/* With a selection active, the count slot becomes the selection slot.
+            Rendering the bulk actions INSIDE the existing header means nothing
+            is inserted into the page flow, so selecting a row no longer shoves
+            the whole table down. */}
+        {selectionActions && selectedIds && selectedIds.size > 0 ? (
+          <div className={styles.tableSelection}>
+            <span className={styles.tableSelectionCount}>
+              {selectedIds.size} {selectedIds.size === 1 ? 'seleccionado' : 'seleccionados'}
+            </span>
+            {selectionActions(selectedIds)}
+            {onSelectionChange && (
+              <button
+                type="button"
+                className={styles.tableSelectionClear}
+                aria-label="Limpiar selección"
+                onClick={() => onSelectionChange(new Set())}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        ) : (
+          countLabel && (
+            <span className={styles.tableCount}>{countLabel(sortedData.length)}</span>
+          )
         )}
         {title && <h3 className={styles.tableTitle}>{title}</h3>}
         <div className={styles.tableActions}>
