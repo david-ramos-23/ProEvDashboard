@@ -149,6 +149,15 @@ export const ORIGEN_COLORS: Record<string, string> = {
   bulk: 'var(--color-accent-info)',
 };
 
+/** Colores de estado de campaña de envío masivo (Envios de Emails) */
+export const ENVIO_ESTADO_COLORS: Record<string, string> = {
+  'Borrador': 'var(--color-text-muted)',
+  'Pendiente': 'var(--color-accent-info)',
+  'Procesando': 'var(--color-accent-primary)',
+  'Completado': 'var(--color-accent-success)',
+  'Error': 'var(--color-accent-danger)',
+};
+
 /** Colores de estado de email */
 export const EMAIL_COLORS: Record<EstadoEmail, string> = {
   'Pendiente Aprobacion': 'var(--color-accent-warning)',

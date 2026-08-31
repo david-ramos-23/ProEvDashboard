@@ -12,7 +12,8 @@ import DOMPurify from 'dompurify';
 import { StatusBadge, SkeletonBlock, DataTable, Column, ConfirmDialog } from '@/components/shared';
 import { fetchInbox, updateInboxEmail } from '@/data/adapters';
 import { fetchColaEmails, aprobarEmail, eliminarEmail } from '@/data/adapters';
-import { InboxEmail, ColaEmail, EstadoEmail } from '@/types';
+import { fetchEnviosEmails, enviarEnvio, eliminarEnvio } from '@/data/adapters';
+import { InboxEmail, ColaEmail, EstadoEmail, EnvioEmail } from '@/types';
 import { timeAgo } from '@/utils/formatters';
 import { useTranslation } from '@/i18n';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -20,9 +21,9 @@ import { ESTADO_EMAIL } from '@/utils/constants';
 import { EmailComposeModal } from '@/components/EmailComposeModal';
 import { BulkComposeModal } from '@/components/BulkComposeModal';
 import { getSession } from '@/auth/AuthService';
+import { SectionType, isSectionType } from '@/lib/inboxSections';
 import styles from './Inbox.module.css';
 
-type SectionType = 'bandeja' | 'cola';
 type DirectionTab = 'Recibido' | 'Enviado';
 
 function buildQueryFilters(tab: DirectionTab, atencionOnly: boolean) {
@@ -477,6 +478,166 @@ function ColaSection() {
   );
 }
 
+// ── Comunicaciones section (bulk campaigns: send / edit / discard) ──────────
+
+/**
+ * `Pendiente` is the point of no return (spec requirement): edit and discard
+ * are rendered ONLY for `Borrador`. No cancel/stop/revert affordance exists for
+ * any later state — not disabled, not hidden behind a confirm, absent. Non-
+ * `Borrador` campaigns are view-only.
+ */
+function ComunicacionesSection() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+  const [sendConfirmId, setSendConfirmId] = useState<string | null>(null);
+  const [discardConfirmId, setDiscardConfirmId] = useState<string | null>(null);
+  const [editEnvio, setEditEnvio] = useState<EnvioEmail | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [discardingId, setDiscardingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const { data: envios = [], isLoading } = useQuery({
+    queryKey: ['envios-emails', {}],
+    queryFn: () => fetchEnviosEmails(),
+  });
+
+  async function handleSend(id: string) {
+    setSendingId(id);
+    setActionError(null);
+    try {
+      await enviarEnvio(id);
+      await queryClient.invalidateQueries({ queryKey: ['envios-emails'] });
+      await queryClient.invalidateQueries({ queryKey: ['cola-emails'] });
+    } catch (err) {
+      console.error('Failed to send bulk campaign:', err);
+      setActionError(t('comunicaciones.actionError'));
+      await queryClient.invalidateQueries({ queryKey: ['envios-emails'] });
+    } finally {
+      setSendingId(null);
+    }
+  }
+
+  async function handleDiscard(id: string) {
+    setDiscardingId(id);
+    setActionError(null);
+    try {
+      await eliminarEnvio(id);
+      await queryClient.invalidateQueries({ queryKey: ['envios-emails'] });
+    } catch (err) {
+      console.error('Failed to discard bulk campaign:', err);
+      setActionError(t('comunicaciones.actionError'));
+      await queryClient.invalidateQueries({ queryKey: ['envios-emails'] });
+    } finally {
+      setDiscardingId(null);
+    }
+  }
+
+  const columns = useMemo<Column<EnvioEmail>[]>(() => [
+    {
+      key: 'nombre', header: t('comunicaciones.nombre'), sortable: true, minWidth: 160,
+      render: (e) => <span style={{ fontWeight: 500 }}>{e.nombre || '—'}</span>,
+    },
+    {
+      key: 'tipo', header: t('comunicaciones.tipo'), width: '140px', sortable: true, minWidth: 90,
+      render: (e) => <span style={{ fontSize: '0.75rem', textTransform: 'capitalize', color: 'var(--color-accent-info)' }}>{e.tipo}</span>,
+    },
+    {
+      key: 'estado', header: t('comunicaciones.estado'), width: '130px', sortable: true, minWidth: 100,
+      render: (e) => <StatusBadge status={e.estado} type="envio" />,
+    },
+    {
+      key: 'totalEmails', header: t('comunicaciones.destinatarios'), width: '110px', minWidth: 90,
+      render: (e) => <span>{e.emailsCreados ?? 0}/{e.totalEmails ?? e.alumnosIds.length}</span>,
+    },
+    {
+      key: 'createdTime', header: t('comunicaciones.creada'), width: '90px', sortable: true, minWidth: 60,
+      render: (e) => <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{timeAgo(e.createdTime)}</span>,
+    },
+    {
+      key: 'actions' as keyof EnvioEmail, header: '', width: '220px', hideable: false,
+      render: (e) => e.estado === 'Borrador' ? (
+        <div style={{ display: 'flex', gap: 'var(--space-xs)' }}>
+          <button
+            className="btn-success btn-sm"
+            onClick={(ev) => { ev.stopPropagation(); setSendConfirmId(e.id); }}
+            disabled={sendingId === e.id}
+          >
+            {sendingId === e.id ? '⏳' : '📤'} {t('comunicaciones.sendButton')}
+          </button>
+          <button
+            className="btn-ghost btn-sm"
+            onClick={(ev) => { ev.stopPropagation(); setEditEnvio(e); }}
+          >
+            ✏️ {t('comunicaciones.editButton')}
+          </button>
+          <button
+            className="btn-ghost btn-sm"
+            style={{ color: 'var(--color-accent-danger)' }}
+            onClick={(ev) => { ev.stopPropagation(); setDiscardConfirmId(e.id); }}
+            disabled={discardingId === e.id}
+          >
+            {discardingId === e.id ? '⏳' : '🗑'} {t('comunicaciones.discardButton')}
+          </button>
+        </div>
+      ) : (
+        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>{t('comunicaciones.viewOnly')}</span>
+      ),
+    },
+  ], [sendingId, discardingId, t]);
+
+  const sendTarget = envios.find(e => e.id === sendConfirmId);
+  const discardTarget = envios.find(e => e.id === discardConfirmId);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)', flex: 1, minHeight: 0 }}>
+      {actionError && (
+        <div className={styles.alertBanner}>
+          <span>⚠️</span> {actionError}
+        </div>
+      )}
+
+      <DataTable
+        tableId="inbox-comunicaciones"
+        columns={columns}
+        data={envios}
+        countLabel={(n) => `${n} ${n === 1 ? 'campaña' : 'campañas'}`}
+        isLoading={isLoading}
+        emptyMessage={t('comunicaciones.empty')}
+        emptyIcon="📢"
+        fill
+      />
+
+      <ConfirmDialog
+        open={!!sendConfirmId}
+        title={t('comunicaciones.sendConfirmTitle')}
+        message={sendTarget ? `${sendTarget.nombre} — ${t('comunicaciones.sendConfirmMessage')}` : t('comunicaciones.sendConfirmMessage')}
+        icon="📤"
+        confirmLabel={t('comunicaciones.sendButton')}
+        variant="success"
+        onConfirm={() => { if (sendConfirmId) handleSend(sendConfirmId); setSendConfirmId(null); }}
+        onCancel={() => setSendConfirmId(null)}
+      />
+      <ConfirmDialog
+        open={!!discardConfirmId}
+        title={t('comunicaciones.discardConfirmTitle')}
+        message={discardTarget ? `${discardTarget.nombre} — ${t('comunicaciones.discardConfirmMessage')}` : t('comunicaciones.discardConfirmMessage')}
+        icon="🗑"
+        confirmLabel={t('comunicaciones.discardButton')}
+        variant="danger"
+        onConfirm={() => { if (discardConfirmId) handleDiscard(discardConfirmId); setDiscardConfirmId(null); }}
+        onCancel={() => setDiscardConfirmId(null)}
+      />
+
+      <BulkComposeModal
+        open={!!editEnvio}
+        editEnvio={editEnvio}
+        onClose={() => setEditEnvio(null)}
+        onCreated={() => queryClient.invalidateQueries({ queryKey: ['envios-emails'] })}
+      />
+    </div>
+  );
+}
+
 // ── Main page ───────────────────────────────────────────────────────────────
 
 export default function InboxPage() {
@@ -484,11 +645,21 @@ export default function InboxPage() {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
 
-  const [searchParams] = useSearchParams();
-  const [section, setSection] = useState<SectionType>(() => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [section, setSectionState] = useState<SectionType>(() => {
     const s = searchParams.get('section');
-    return s === 'cola' ? 'cola' : 'bandeja';
+    return isSectionType(s) ? s : 'bandeja';
   });
+
+  /** Sets the section and writes it back to the URL, making it refresh-stable and shareable. */
+  function setSection(next: SectionType) {
+    setSectionState(next);
+    setSearchParams(prev => {
+      const params = new URLSearchParams(prev);
+      params.set('section', next);
+      return params;
+    });
+  }
   const [dirTab, setDirTab] = useState<DirectionTab>('Recibido');
   const [showArchived, setShowArchived] = useState(false);
   const [listWidth, setListWidth] = useState(380);
@@ -587,6 +758,12 @@ export default function InboxPage() {
         >
           <span>📧</span> Cola de emails
         </button>
+        <button
+          className={`${styles.sectionBtn} ${section === 'comunicaciones' ? styles.sectionBtnActive : ''}`}
+          onClick={() => setSection('comunicaciones')}
+        >
+          <span>📢</span> {t('nav.comunicaciones')}
+        </button>
         {isAdmin && (
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-xs)' }}>
             <button
@@ -611,6 +788,9 @@ export default function InboxPage() {
 
       {/* Cola section */}
       {section === 'cola' && <ColaSection />}
+
+      {/* Comunicaciones section */}
+      {section === 'comunicaciones' && <ComunicacionesSection />}
 
       {/* Bandeja section — split panel */}
       {section === 'bandeja' && (
@@ -784,6 +964,7 @@ export default function InboxPage() {
       <BulkComposeModal
         open={isBulkComposeOpen}
         onClose={() => setIsBulkComposeOpen(false)}
+        onCreated={() => queryClient.invalidateQueries({ queryKey: ['envios-emails'] })}
       />
     </div>
   );

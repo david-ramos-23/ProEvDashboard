@@ -108,7 +108,21 @@
     "errores": "Errores",
     "tipo": "Tipo",
     "asunto": "Asunto",
-    "sinEmails": "Sin emails"
+    "sinEmails": "Sin emails",
+    "nombre": "Campaña",
+    "estado": "Estado",
+    "destinatarios": "Destinatarios",
+    "creada": "Creada",
+    "empty": "No hay campañas todavía",
+    "sendButton": "Enviar",
+    "editButton": "Editar",
+    "discardButton": "Descartar",
+    "viewOnly": "Solo lectura — no editable ni cancelable",
+    "sendConfirmTitle": "Enviar campaña",
+    "sendConfirmMessage": "Se enviará a los destinatarios de esta campaña y no se puede deshacer.",
+    "discardConfirmTitle": "Descartar borrador",
+    "discardConfirmMessage": "Esta acción no se puede deshacer.",
+    "actionError": "La campaña ya no existe o cambió de estado. Actualiza la lista."
   },
   "ediciones": {
     "title": "Gestion de Ediciones",
@@ -259,6 +273,9 @@
       "recordatorio_pago": "Recordatorio de pago",
       "recordatorio_preinscripcion": "Recordatorio de preinscripción",
       "recuperacion_pago": "Recuperación de pago"
-    }
+    },
+    "editTitle": "Editar borrador",
+    "editSuccessTitle": "Borrador actualizado",
+    "editSuccessDescription": "Los cambios se guardaron. La campaña sigue como borrador."
   }
 }
