@@ -5,10 +5,10 @@ import { useSchema } from '@/hooks/useSchema';
 import { useEdicion } from '@/context/EdicionContext';
 import { useTranslation } from '@/i18n';
 import { ComposeModalShell } from '@/components/ComposeModalShell';
-import { bulkTemplateOptions, resolveRecipients } from '@/lib/bulkTemplates';
+import { bulkTipoOptions, resolveRecipients } from '@/lib/bulkTemplates';
 import { formatDateTime } from '@/utils/formatters';
 import { StatusBadge } from '@/components/shared';
-import type { EstadoGeneral } from '@/types';
+import type { Alumno, EstadoGeneral } from '@/types';
 import styles from './BulkComposeModal.module.css';
 
 type ModalState = 'idle' | 'creating' | 'success' | 'error';
@@ -32,7 +32,11 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
 
   const [search, setSearch] = useState('');
   const [estadoFilter, setEstadoFilter] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // The selection holds the RECORDS, not just ids. Rebuilding recipients from
+  // the currently visible `eligible` list would silently drop everyone selected
+  // under a previous search or state filter: the campaign would go out to the
+  // last filter's cohort only, and nothing would say so.
+  const [selected, setSelected] = useState<Map<string, Alumno>>(new Map());
   const [tipo, setTipo] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [nombre, setNombre] = useState('');
@@ -40,7 +44,7 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
 
   const estadoOptions = getOptions('Alumnos', 'Estado General');
   const tipoOptions = useMemo(
-    () => bulkTemplateOptions(getOptions('Envios de Emails', 'Tipo')),
+    () => bulkTipoOptions(getOptions('Envios de Emails', 'Tipo')),
     [getOptions],
   );
 
@@ -63,7 +67,7 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
     if (open) {
       setSearch('');
       setEstadoFilter('');
-      setSelectedIds(new Set());
+      setSelected(new Map());
       setTipo('');
       setMensaje('');
       setNombre(`${t('bulkCompose.defaultNamePrefix')} ${selectedNombre || t('bulkCompose.defaultNameFallback')} — ${formatDateTime(new Date().toISOString())}`);
@@ -72,15 +76,22 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  function toggleId(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+  function toggleId(alumno: Alumno) {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (next.has(alumno.id)) next.delete(alumno.id);
+      else next.set(alumno.id, alumno);
       return next;
     });
   }
 
-  const selectedRecipients = eligible.filter((a) => selectedIds.has(a.id));
+  const selectedRecipients = useMemo(() => [...selected.values()], [selected]);
+  // Selected under an earlier filter and no longer on screen. Surfaced so the
+  // count in the footer never disagrees with what the list shows.
+  const offscreenCount = useMemo(() => {
+    const visible = new Set(eligible.map((a) => a.id));
+    return selectedRecipients.filter((a) => !visible.has(a.id)).length;
+  }, [eligible, selectedRecipients]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -164,7 +175,14 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
               <button
                 type="button"
                 className={styles.linkBtn}
-                onClick={() => setSelectedIds(new Set(eligible.map((a) => a.id)))}
+                onClick={() => setSelected((prev) => {
+                  // Adds the visible cohort to the selection instead of replacing
+                  // it — "select all" under a second filter must not discard what
+                  // was picked under the first.
+                  const next = new Map(prev);
+                  for (const a of eligible) next.set(a.id, a);
+                  return next;
+                })}
                 disabled={eligible.length === 0 || modalState === 'creating'}
               >
                 {t('bulkCompose.selectAll')}
@@ -172,8 +190,8 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
               <button
                 type="button"
                 className={styles.linkBtn}
-                onClick={() => setSelectedIds(new Set())}
-                disabled={selectedIds.size === 0 || modalState === 'creating'}
+                onClick={() => setSelected(new Map())}
+                disabled={selectedRecipients.length === 0 || modalState === 'creating'}
               >
                 {t('bulkCompose.clearSelection')}
               </button>
@@ -190,8 +208,8 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
                   <label key={a.id} className={styles.recipientRow}>
                     <input
                       type="checkbox"
-                      checked={selectedIds.has(a.id)}
-                      onChange={() => toggleId(a.id)}
+                      checked={selected.has(a.id)}
+                      onChange={() => toggleId(a)}
                       disabled={modalState === 'creating'}
                     />
                     <span className={styles.recipientName}>{a.nombre || a.email}</span>
@@ -209,6 +227,11 @@ export function BulkComposeModal({ open, onClose, onCreated }: BulkComposeModalP
                     <span className={styles.noEmailBadge}>{t('bulkCompose.noEmailBadge')}</span>
                   </div>
                 ))}
+          {offscreenCount > 0 && (
+            <span className={styles.offscreenNote}>
+              {' · '}{offscreenCount} {t('bulkCompose.offscreenNote')}
+            </span>
+          )}
               </>
             )}
           </div>

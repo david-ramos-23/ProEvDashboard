@@ -228,3 +228,11 @@
     min-height: 44px;
   }
 }
+
+/* Recipients selected under an earlier filter and no longer listed on screen.
+   Warning-toned on purpose: the footer count would otherwise be larger than the
+   visible list with nothing explaining the gap. */
+.offscreenNote {
+  color: var(--color-warning, #B45309);
+  font-weight: 500;
+}
