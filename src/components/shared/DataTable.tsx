@@ -259,7 +259,7 @@ export function DataTable<T extends { id: string }>({
 
   return (
     <div ref={tableWrapperRef} className={`${styles.tableWrapper} ${fill ? styles.tableWrapperFill : ''}`}>
-      <div className={styles.tableHeader}>
+      <div className={`${styles.tableHeader} ${selectable ? styles.tableHeaderSelectable : ''}`}>
         {/* With a selection active, the count slot becomes the selection slot.
             Rendering the bulk actions INSIDE the existing header means nothing
             is inserted into the page flow, so selecting a row no longer shoves
