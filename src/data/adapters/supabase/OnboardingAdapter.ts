@@ -17,7 +17,13 @@ function mapToOnboarding(row: Record<string, unknown>): Onboarding {
     welcomeBookLanguage: row.welcome_book_language as string | undefined,
     instagramConsent: row.instagram_consent as string | undefined,
     instagramUsername: row.instagram_username as string | undefined,
-    submittedAt: (row.timestamp_form as string | undefined) ?? (row.created_at as string | undefined),
+    // NO fallback to created_at. The Airtable adapter falls back to
+    // record.createdTime because that IS when the submission was created; the
+    // Postgres created_at is `DEFAULT now()`, i.e. when the migration ran, so
+    // the same fallback here would present the migration date as the date the
+    // student filled the form. An unknown date renders as nothing (the card
+    // guards on this field) — better a gap than a wrong date.
+    submittedAt: row.timestamp_form as string | undefined,
   };
 }
 
@@ -30,6 +36,9 @@ export async function fetchOnboarding(options?: {
       *,
       alumnos ( nombre )
     `)
+    // Rows with no timestamp_form sort last and therefore never win the
+    // latest-submission tie-break. That is deliberate: a submission with no
+    // known date cannot claim to be the most recent one.
     .order('timestamp_form', { ascending: false, nullsFirst: false });
 
   // Supabase CAN filter server-side (alumno_id is a real UUID FK, unlike the
