@@ -86,7 +86,7 @@ export default function AlumnoDetailPage() {
     return () => document.removeEventListener('mousedown', handleOutside);
   }, [parejaOpen]);
 
-  const { alumno, isLoading, revisiones, revisionesLoading, pagos, pagosLoading, historial, historialLoading, activeTab, goToTab, saveAlumno, updateVideoUrl } = useAlumnoDetail(id);
+  const { alumno, isLoading, revisiones, revisionesLoading, pagos, pagosLoading, historial, historialLoading, onboarding, onboardingLoading, activeTab, goToTab, saveAlumno, updateVideoUrl } = useAlumnoDetail(id);
 
   // Sync edit fields when alumno data loads
   useEffect(() => {
@@ -386,6 +386,55 @@ export default function AlumnoDetailPage() {
                 placeholder={t('alumnos.notasPlaceholder')}
                 rows={6}
               />
+            </div>
+
+            {/* Onboarding (form) — full-width third card. .infoGrid is a fixed
+                1fr 1fr, so it must span both columns; same trick as .saveBar. */}
+            <div className="card" style={{ padding: 'var(--space-lg)', gridColumn: '1 / -1' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
+                <h3>{t('alumnos.onboarding')}</h3>
+                {onboarding?.submittedAt && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                    {t('alumnos.onboardingEnviado')}: {formatDate(onboarding.submittedAt)}
+                  </span>
+                )}
+              </div>
+              {onboardingLoading ? (
+                <SkeletonBlock width="100%" height="72px" />
+              ) : !onboarding ? (
+                <p style={{ color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
+                  {t('alumnos.sinOnboarding')}
+                </p>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-md)' }}>
+                  <div className={styles.field}>
+                    <label>{t('alumnos.tallaCamiseta')}</label>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>{onboarding.tshirtSize || '—'}</span>
+                  </div>
+                  <div className={styles.field}>
+                    <label>{t('alumnos.tipoCamiseta')}</label>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>{onboarding.tshirtKind || '—'}</span>
+                  </div>
+                  <div className={styles.field}>
+                    <label>{t('alumnos.nombreCamiseta')}</label>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>{onboarding.tshirtName || '—'}</span>
+                  </div>
+                  <div className={styles.field}>
+                    <label>{t('alumnos.idiomaLibro')}</label>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>{onboarding.welcomeBookLanguage || '—'}</span>
+                  </div>
+                  <div className={styles.field}>
+                    <label>{t('alumnos.consentimientoInstagram')}</label>
+                    {onboarding.instagramConsent
+                      ? <StatusBadge status={onboarding.instagramConsent} type="consent" />
+                      : <span style={{ color: 'var(--color-text-muted)' }}>—</span>}
+                  </div>
+                  <div className={styles.field}>
+                    <label>{t('alumnos.usuarioInstagram')}</label>
+                    <span style={{ color: 'var(--color-text-secondary)' }}>{onboarding.instagramUsername || '—'}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

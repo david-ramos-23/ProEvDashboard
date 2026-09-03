@@ -3,6 +3,7 @@
  */
 
 import { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, Column } from '@/components/shared';
 import { fetchPagos } from '@/data/adapters';
@@ -57,7 +58,16 @@ export default function PagosPage() {
   const columns = useMemo<Column<Pago>[]>(() => [
     {
       key: 'alumnoNombre', header: t('alumnos.alumno'), width: '180px', sortable: true, minWidth: 120,
-      render: (p) => <span style={{ fontWeight: 500 }}>{p.alumnoNombre || '—'}</span>,
+      render: (p) => p.alumnoId
+        ? (
+          <Link
+            to={`/admin/alumnos/${p.alumnoId}`}
+            style={{ fontWeight: 500, color: 'var(--color-accent-primary)', textDecoration: 'none' }}
+          >
+            {p.alumnoNombre || '—'}
+          </Link>
+        )
+        : <span style={{ fontWeight: 500 }}>{p.alumnoNombre || '—'}</span>,
     },
     {
       key: 'id', header: 'Edición', width: '140px', minWidth: 100,

@@ -6,12 +6,13 @@
  * on initial page load.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchAlumnoById, updateAlumno, updateRevision } from '@/data/adapters';
 import { fetchRevisiones } from '@/data/adapters';
 import { fetchPagos } from '@/data/adapters';
 import { fetchHistorial } from '@/data/adapters';
+import { fetchOnboarding } from '@/data/adapters';
 
 export type AlumnoDetailTab = 'info' | 'revisiones' | 'pagos' | 'historial' | 'ia';
 
@@ -55,6 +56,26 @@ export function useAlumnoDetail(id: string | undefined) {
   const historial = historialQuery.data ?? [];
   const historialLoading = historialQuery.isLoading;
 
+  // Onboarding (form) answers. GLOBAL query key on purpose: the Airtable adapter
+  // can only filter by alumno CLIENT-SIDE, so every fetch is full-table. A
+  // per-student key would refetch the whole table for each alumno opened. Same
+  // pattern as fetchAlumnos() at AlumnoDetail.tsx:54.
+  // No visitedTabs gate: the card lives on the Info tab, which is seeded as
+  // visited at line 21, so a gate on 'info' would be inert.
+  const onboardingQuery = useQuery({
+    queryKey: ['onboarding'],
+    queryFn: () => fetchOnboarding(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Latest submission for this alumno. The adapter already returns rows sorted
+  // newest-first, so the first match is the operative answer (proposal D6).
+  const onboarding = useMemo(
+    () => (id ? onboardingQuery.data?.find(o => o.alumnoId === id) : undefined),
+    [onboardingQuery.data, id],
+  );
+  const onboardingLoading = onboardingQuery.isLoading;
+
   async function saveAlumno(updates: Parameters<typeof updateAlumno>[1]): Promise<void> {
     if (!id) return;
     await updateAlumno(id, updates);
@@ -76,6 +97,8 @@ export function useAlumnoDetail(id: string | undefined) {
     pagosLoading,
     historial,
     historialLoading,
+    onboarding,
+    onboardingLoading,
     activeTab,
     goToTab,
     saveAlumno,
