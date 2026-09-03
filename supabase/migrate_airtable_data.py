@@ -199,6 +199,31 @@ FIELD_MAP: dict[str, str] = {
     "Emails Creados": "emails_creados",
     "Fecha Completado": "fecha_completado",
     "Alumnos": "alumnos_ids",
+    # Onboarding (form) — upstream names are misspelled ("Kind os T-Shirt?",
+    # "Languaje on the Welcome book?") and must stay verbatim: the PAT has no
+    # schema:write. NOTE "Alumnos" is deliberately absent here — it is already
+    # bound to envios_emails.alumnos_ids above and is resolved for this table
+    # via TABLE_FIELD_OVERRIDES (see below).
+    "T-Shirt Size?": "tshirt_size",
+    "Kind os T-Shirt?": "tshirt_kind",
+    "Name on the T-Shirt": "tshirt_name",
+    "Languaje on the Welcome book?": "welcome_book_language",
+    "Do you give us permission to use your Instagram account in future posts related to the course content?\n*This includes the possibility of tagging you in photos, videos, or collaborations created during the event.": "instagram_consent",
+    'Instagram username: (only if you selected "Yes")': "instagram_username",
+    "Timestamp": "timestamp_form",
+}
+
+
+# ------------------------------------------------------------------
+# TABLE_FIELD_OVERRIDES — per-table overrides for Airtable field names whose
+# global FIELD_MAP binding belongs to a DIFFERENT table. "Alumnos" is a
+# UUID[] recipient list on envios_emails but a single-row FK on onboarding;
+# a global dict cannot hold both. Consulted BEFORE FIELD_MAP in map_record.
+# Every table not listed here has an empty override dict, so its mapping
+# behaviour is byte-identical to before this dict existed.
+# ------------------------------------------------------------------
+TABLE_FIELD_OVERRIDES: dict[str, dict[str, str]] = {
+    "onboarding": {"Alumnos": "alumno_id"},
 }
 
 
@@ -217,6 +242,7 @@ AIRTABLE_TABLES: dict[str, str] = {
     "cola_emails": "tblVqFfucbW5POC5u",
     "envios_emails": "tblsh8KaCMQ8KoKeU",
     "inbox": "tblyp8NSzdpnTqkPD",
+    "onboarding": "tblyBkdLq0Ja06CH6",
 }
 
 
@@ -455,6 +481,16 @@ TABLE_COLUMNS: dict[str, dict[str, ColSpec]] = {
         "resumen_automatico": ColSpec(kind="text"),
         "clasificacion_importancia": ColSpec(kind="text", enum="clasificacion_importancia"),
     },
+    "onboarding": {
+        "alumno_id": ColSpec(kind="uuid", fk="alumnos"),
+        "tshirt_size": ColSpec(kind="text"),
+        "tshirt_kind": ColSpec(kind="text"),
+        "tshirt_name": ColSpec(kind="text"),
+        "welcome_book_language": ColSpec(kind="text"),
+        "instagram_consent": ColSpec(kind="text"),
+        "instagram_username": ColSpec(kind="text"),
+        "timestamp_form": ColSpec(kind="timestamptz"),
+    },
 }
 
 
@@ -470,6 +506,7 @@ LOAD_ORDER: list[str] = [
     "cola_emails",
     "inbox",
     "historial",
+    "onboarding",
 ]
 
 
@@ -754,8 +791,9 @@ def map_record(table: str, raw_fields: dict[str, Any]) -> dict[str, Any]:
     """
     columns = TABLE_COLUMNS[table]
     mapped: dict[str, Any] = {}
+    overrides = TABLE_FIELD_OVERRIDES.get(table, {})
     for at_field, value in raw_fields.items():
-        col = FIELD_MAP.get(at_field)
+        col = overrides.get(at_field) or FIELD_MAP.get(at_field)
         if col is None or col not in columns:
             continue
         normalized = normalize_value(table, col, value)

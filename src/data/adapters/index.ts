@@ -18,7 +18,7 @@ const useSupabase = import.meta.env.VITE_DATA_SOURCE === 'supabase';
 
 async function loadAdapters() {
   if (useSupabase) {
-    const [alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox] = await Promise.all([
+    const [alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox, onboarding] = await Promise.all([
       import('./supabase/AlumnosAdapter'),
       import('./supabase/RevisionesAdapter'),
       import('./supabase/PagosAdapter'),
@@ -28,10 +28,11 @@ async function loadAdapters() {
       import('./supabase/ColaEmailsAdapter'),
       import('./supabase/EnviosEmailsAdapter'),
       import('./supabase/InboxAdapter'),
+      import('./supabase/OnboardingAdapter'),
     ]);
-    return { alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox };
+    return { alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox, onboarding };
   }
-  const [alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox] = await Promise.all([
+  const [alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox, onboarding] = await Promise.all([
     import('./airtable/AlumnosAdapter'),
     import('./airtable/RevisionesAdapter'),
     import('./airtable/PagosAdapter'),
@@ -41,8 +42,9 @@ async function loadAdapters() {
     import('./airtable/ColaEmailsAdapter'),
     import('./airtable/EnviosEmailsAdapter'),
     import('./airtable/InboxAdapter'),
+    import('./airtable/OnboardingAdapter'),
   ]);
-  return { alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox };
+  return { alumnos, revisiones, pagos, historial, ediciones, modulos, colaEmails, enviosEmails, inbox, onboarding };
 }
 
 // Singleton promise — adapters load once on first access
@@ -100,6 +102,11 @@ export async function fetchPagosPorMes(...args: Parameters<typeof import('./airt
 // --- Historial ---
 export async function fetchHistorial(...args: Parameters<typeof import('./airtable/HistorialAdapter').fetchHistorial>) {
   return (await getAdapters()).historial.fetchHistorial(...args);
+}
+
+// --- Onboarding (form) ---
+export async function fetchOnboarding(...args: Parameters<typeof import('./airtable/OnboardingAdapter').fetchOnboarding>) {
+  return (await getAdapters()).onboarding.fetchOnboarding(...args);
 }
 
 // --- Ediciones ---

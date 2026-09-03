@@ -87,6 +87,27 @@ export const AIRTABLE_TABLES = {
   COLA_EMAILS: 'tblVqFfucbW5POC5u',
   ENVIOS_EMAILS: 'tblsh8KaCMQ8KoKeU',
   INBOX: 'tblyp8NSzdpnTqkPD',
+  ONBOARDING: 'tblyBkdLq0Ja06CH6',
+} as const;
+
+/**
+ * Airtable field names for the Onboarding (form) table, VERBATIM.
+ *
+ * `KIND` and `WELCOME_BOOK_LANGUAGE` are misspelled upstream ("Kind os T-Shirt?",
+ * "Languaje on the Welcome book?"). The production PAT has no `schema:write`, so
+ * these names cannot be corrected — do NOT "fix" the typos, the API matches on the
+ * literal string and a correction silently returns undefined for that field.
+ */
+export const ONBOARDING_FIELDS = {
+  TSHIRT_SIZE: 'T-Shirt Size?',
+  TSHIRT_KIND: 'Kind os T-Shirt?',
+  TSHIRT_NAME: 'Name on the T-Shirt',
+  WELCOME_BOOK_LANGUAGE: 'Languaje on the Welcome book?',
+  INSTAGRAM_CONSENT:
+    'Do you give us permission to use your Instagram account in future posts related to the course content?\n*This includes the possibility of tagging you in photos, videos, or collaborations created during the event.',
+  INSTAGRAM_USERNAME: 'Instagram username: (only if you selected "Yes")',
+  TIMESTAMP: 'Timestamp',
+  ALUMNOS: 'Alumnos',
 } as const;
 
 // ============================================================
@@ -176,6 +197,22 @@ export const EMAIL_COLORS: Record<EstadoEmail, string> = {
   'Enviando': 'var(--color-accent-primary)',
   'Enviado': 'var(--color-accent-success)',
   'Error': 'var(--color-accent-danger)',
+};
+
+/**
+ * Colores de consentimiento (Onboarding — permiso Instagram).
+ *
+ * Only one real choice exists on this field (fieldId `fldSJA4YmlT7FlTYW`, choiceId
+ * `selQhGFRjgLwuIwKN`): `✅ Yes, I give my consent`. It is a checkbox in
+ * single-select clothing — there is no "No" option. An ABSENT value therefore
+ * means "did not answer", NOT "declined"; `AlumnoDetail.tsx` renders the neutral
+ * `—` for that case without ever reaching this map (see StatusBadge, T19).
+ * The key is NORMALISED (trimmed + lowercased) so `StatusBadge` can look up
+ * `status.trim().toLowerCase()`. A future choice an admin adds from the Airtable
+ * UI falls back to `var(--color-text-muted)` — legible text, never blank.
+ */
+export const CONSENT_COLORS: Record<string, string> = {
+  '✅ yes, i give my consent': 'var(--color-accent-success)',
 };
 
 // ============================================================

@@ -1,9 +1,9 @@
 import { memo } from 'react';
-import { ESTADO_COLORS, ESTADO_ICONS, REVISION_COLORS, PAGO_COLORS, EMAIL_COLORS, ORIGEN_COLORS, EDITION_ESTADO_COLORS, ENVIO_ESTADO_COLORS } from '@/utils/constants';
+import { ESTADO_COLORS, ESTADO_ICONS, REVISION_COLORS, PAGO_COLORS, EMAIL_COLORS, ORIGEN_COLORS, EDITION_ESTADO_COLORS, ENVIO_ESTADO_COLORS, CONSENT_COLORS } from '@/utils/constants';
 import { EstadoGeneral, EstadoRevision, EstadoPago, EstadoEmail } from '@/types';
 import styles from './Shared.module.css';
 
-type StatusType = 'estado' | 'revision' | 'pago' | 'email' | 'origin' | 'edicion' | 'envio';
+type StatusType = 'estado' | 'revision' | 'pago' | 'email' | 'origin' | 'edicion' | 'envio' | 'consent';
 
 interface StatusBadgeProps {
   status: string;
@@ -27,6 +27,7 @@ function getStatusColor(status: string, type: StatusType): string {
     case 'origin': return ORIGEN_COLORS[status] || 'var(--color-text-muted)';
     case 'edicion': return EDITION_ESTADO_COLORS[status] || 'var(--color-text-muted)';
     case 'envio': return ENVIO_ESTADO_COLORS[status] || 'var(--color-text-muted)';
+    case 'consent': return CONSENT_COLORS[status.trim().toLowerCase()] || 'var(--color-text-muted)';
     default: return 'var(--color-text-muted)';
   }
 }

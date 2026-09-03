@@ -173,6 +173,20 @@ export interface Historial extends BaseRecord {
   clasificacionImportancia?: 'Alta' | 'Media' | 'Baja';
 }
 
+/** Onboarding (form) — event-logistics answers submitted by the alumno. Read-only. */
+export interface Onboarding extends BaseRecord {
+  alumnoId: string;
+  alumnoNombre?: string;
+  tshirtSize?: string;
+  tshirtKind?: string;
+  tshirtName?: string;
+  welcomeBookLanguage?: string;
+  instagramConsent?: string;
+  instagramUsername?: string;
+  /** Airtable `Timestamp` (createdTime) / Supabase `timestamp_form`. */
+  submittedAt?: string;
+}
+
 export interface Edicion extends BaseRecord {
   nombre: string;
   estado: EstadoEdicion;

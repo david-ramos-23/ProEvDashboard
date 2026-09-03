@@ -486,6 +486,35 @@ CREATE INDEX IF NOT EXISTS idx_inscripciones_email ON inscripciones(email);
 CREATE INDEX IF NOT EXISTS idx_inscripciones_alumno ON inscripciones(alumno_id);
 
 -- ============================================================
+-- 4c. ONBOARDING (form-intake; Onboarding form tblyBkdLq0Ja06CH6)
+-- ============================================================
+-- Source: Airtable onboarding form. Structured columns are the six answers the
+-- dashboard renders on the alumno detail page; anything else the form carries
+-- now or grows later belongs in respuestas_formulario JSONB (key = the upstream
+-- label). Airtable field names are misspelled at the source ("Kind os T-Shirt?",
+-- "Languaje on the Welcome book?") and are consumed verbatim; the column names
+-- here are the corrected snake_case forms.
+-- Read-only from the dashboard: no audit trigger (mirrors inscripciones).
+CREATE TABLE IF NOT EXISTS onboarding (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  airtable_id TEXT UNIQUE,
+  alumno_id UUID REFERENCES alumnos(id) ON DELETE SET NULL,   -- Airtable "Alumnos" link
+  tshirt_size TEXT,                                           -- "T-Shirt Size?"
+  tshirt_kind TEXT,                                           -- "Kind os T-Shirt?" [sic]
+  tshirt_name TEXT,                                           -- "Name on the T-Shirt"
+  welcome_book_language TEXT,                                 -- "Languaje on the Welcome book?" [sic]
+  instagram_consent TEXT,                                     -- "Do you give us permission to use your Instagram account...?"
+  instagram_username TEXT,                                    -- "Instagram username: (only if you selected "Yes")"
+  timestamp_form TIMESTAMPTZ,                                 -- Airtable "Timestamp"
+  respuestas_formulario JSONB,                                -- all remaining form fields (key=label)
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_onboarding_timestamp ON onboarding(timestamp_form DESC);
+CREATE INDEX IF NOT EXISTS idx_onboarding_alumno ON onboarding(alumno_id);
+CREATE INDEX IF NOT EXISTS idx_onboarding_airtable ON onboarding(airtable_id);
+
+-- ============================================================
 -- 5. VIEWS (replace Airtable rollups/lookups)
 -- ============================================================
 
@@ -601,6 +630,7 @@ ALTER TABLE inbox ENABLE ROW LEVEL SECURITY;
 ALTER TABLE configuracion ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inscripciones ENABLE ROW LEVEL SECURITY;
+ALTER TABLE onboarding ENABLE ROW LEVEL SECURITY;
 
 -- Allow full access for authenticated users (anon key with service role bypasses RLS)
 -- For now, allow all operations for anon (dashboard uses anon key but all users are authenticated via our auth)
@@ -617,6 +647,8 @@ CREATE POLICY "Allow all for anon" ON inbox FOR ALL TO anon USING (true) WITH CH
 CREATE POLICY "Allow all for anon" ON configuracion FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Allow read for anon" ON audit_log FOR SELECT TO anon USING (true);
 CREATE POLICY "Allow all for anon" ON inscripciones FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for anon" ON onboarding FOR ALL TO anon USING (true) WITH CHECK (true);
 
 -- Match read access of other tables for the standard Supabase roles.
 GRANT SELECT ON inscripciones TO anon, authenticated, service_role;
+GRANT SELECT ON onboarding TO anon, authenticated, service_role;
