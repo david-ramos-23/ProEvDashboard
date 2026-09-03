@@ -39,7 +39,13 @@ export async function fetchOnboarding(options?: {
     // Rows with no timestamp_form sort last and therefore never win the
     // latest-submission tie-break. That is deliberate: a submission with no
     // known date cannot claim to be the most recent one.
-    .order('timestamp_form', { ascending: false, nullsFirst: false });
+    //
+    // created_at breaks ties so several undated rows for one alumno resolve
+    // deterministically instead of by arrival order. It orders only — it is
+    // never surfaced as the submission date, because it is the row's insert
+    // time (the migration run), not when the student filled the form.
+    .order('timestamp_form', { ascending: false, nullsFirst: false })
+    .order('created_at', { ascending: false });
 
   // Supabase CAN filter server-side (alumno_id is a real UUID FK, unlike the
   // Airtable link). Kept behind the same option so both adapters are drop-in
