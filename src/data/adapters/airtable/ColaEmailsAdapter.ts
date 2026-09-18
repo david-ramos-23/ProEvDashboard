@@ -10,6 +10,7 @@ import { fetchAlumnoNombresByIds } from './AlumnosAdapter';
 interface AirtableColaEmailFields {
   'Alumno'?: string[];
   'Nombre del Alumno'?: string[];
+  'Estado Alumno'?: string[];
   'Tipo'?: string;
   'Asunto Generado'?: string;
   'Mensaje'?: string;
@@ -36,6 +37,7 @@ function mapToColaEmail(record: AirtableRecord<AirtableColaEmailFields>): ColaEm
     createdTime: record.createdTime,
     alumnoId: f['Alumno']?.[0] || '',
     alumnoNombre: f['Nombre del Alumno']?.[0],
+    estadoAlumno: f['Estado Alumno']?.[0],
     tipo: ((rawTipo || 'informacion') as ColaEmail['tipo']),
     asunto: coerceToString(f['Asunto Generado'] as unknown),
     mensaje: coerceToString(f['Mensaje'] as unknown) || '',
@@ -54,8 +56,9 @@ export async function fetchColaEmails(filters?: { estado?: EstadoEmail; estados?
     formulas.push(`{Estado} = '${sanitizeForFormula(filters.estado)}'`);
   }
   if (filters?.tipo) formulas.push(`LOWER({Tipo}) = '${sanitizeForFormula(filters.tipo.toLowerCase())}'`);
-  // Always exclude soft-deleted emails
-  formulas.push(`{Estado} != 'Eliminado'`);
+  // Always exclude discarded emails. (Antes decia 'Eliminado', un estado que esta
+  // tabla nunca ha tenido — el filtro no hacia nada.)
+  formulas.push(`{Estado} != 'Descartado'`);
 
   const filterByFormula = formulas.length > 1
     ? `AND(${formulas.join(', ')})`

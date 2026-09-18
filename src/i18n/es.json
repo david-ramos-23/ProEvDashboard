@@ -200,12 +200,15 @@
     "resumenIA": "Resumen IA",
     "respuestaSugerida": "Respuesta Sugerida",
     "respuestaFinal": "Respuesta / Notas",
-    "guardarRespuesta": "Guardar Respuesta",
     "marcarLeido": "Marcar Leído",
     "marcarRespondido": "Marcar Respondido",
     "seleccionaEmail": "Selecciona un email para ver el detalle",
     "alumno": "Alumno",
-    "sinSeleccion": "Selecciona un email de la lista"
+    "sinSeleccion": "Selecciona un email de la lista",
+    "enviarRespuesta": "Enviar Respuesta",
+    "enviandoEn": "Enviando en",
+    "cancelarEnvio": "Cancelar envio",
+    "respuestaYaEnviada": "Esta respuesta ya se envio al alumno"
   },
   "audit": {
     "title": "Audit Trail",

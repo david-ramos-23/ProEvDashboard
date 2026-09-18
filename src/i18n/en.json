@@ -200,12 +200,15 @@
     "resumenIA": "AI Summary",
     "respuestaSugerida": "AI Suggested Reply",
     "respuestaFinal": "Reply / Notes",
-    "guardarRespuesta": "Save Reply",
     "marcarLeido": "Mark as Read",
     "marcarRespondido": "Mark as Replied",
     "seleccionaEmail": "Select an email to view details",
     "alumno": "Student",
-    "sinSeleccion": "Select an email from the list"
+    "sinSeleccion": "Select an email from the list",
+    "enviarRespuesta": "Send Reply",
+    "enviandoEn": "Sending in",
+    "cancelarEnvio": "Cancel send",
+    "respuestaYaEnviada": "This reply was already sent to the student"
   },
   "audit": {
     "title": "Audit Trail",
