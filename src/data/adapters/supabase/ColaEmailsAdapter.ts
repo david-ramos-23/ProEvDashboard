@@ -11,6 +11,7 @@ function mapToColaEmail(row: Record<string, unknown>): ColaEmail {
     createdTime: row.created_at as string | undefined,
     alumnoId: (row.alumno_id as string) || '',
     alumnoNombre: (row.alumno_nombre as string) || (row.alumno_nombre_join as string) || undefined,
+    estadoAlumno: (row.estado_general_alumno as string) || undefined,
     tipo: (row.tipo as ColaEmail['tipo']) || 'informacion',
     asunto: row.asunto as string | undefined,
     mensaje: (row.mensaje as string) || '',
@@ -25,11 +26,11 @@ export async function fetchColaEmails(filters?: { estado?: EstadoEmail; estados?
     .from('cola_emails')
     .select(`
       *,
-      alumnos ( nombre )
+      alumnos ( nombre, estado_general )
     `)
     .order('updated_at', { ascending: false })
     .limit(100)
-    .neq('estado', 'Eliminado');
+    .neq('estado', 'Descartado');
 
   if (filters?.estados?.length) {
     query = query.in('estado', filters.estados);
@@ -48,6 +49,7 @@ export async function fetchColaEmails(filters?: { estado?: EstadoEmail; estados?
     return mapToColaEmail({
       ...row,
       alumno_nombre_join: alumno?.nombre,
+      estado_general_alumno: alumno?.estado_general,
     });
   });
 }

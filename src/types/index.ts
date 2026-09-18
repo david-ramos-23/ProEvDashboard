@@ -213,6 +213,8 @@ export interface Modulo extends BaseRecord {
 export interface ColaEmail extends BaseRecord {
   alumnoId: string;
   alumnoNombre?: string;
+  /** Estado General actual del alumno (lookup). Decide si el email sigue siendo válido. */
+  estadoAlumno?: string;
   tipo: TipoEmail;
   asunto?: string;
   mensaje: string;

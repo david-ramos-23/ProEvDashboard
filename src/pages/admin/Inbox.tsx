@@ -50,6 +50,15 @@ function sortEmails(emails: InboxEmail[]): InboxEmail[] {
 
 // ── Email Detail Panel ───────────────────────────────────────────────────────
 
+/**
+ * Escribir `respuestaFinal` no guarda un borrador: dispara el workflow de n8n
+ * que envia el email real al alumno (medido en produccion: 20-60s despues).
+ * Por eso el write se retrasa y se ofrece cancelar. Si se cancela, Airtable no
+ * llega a tocarse y el envio nunca ocurre — borrar el campo despues del write
+ * seria una carrera contra n8n que se pierde a veces.
+ */
+const SEND_DELAY_SECONDS = 15;
+
 interface DetailPanelProps {
   email: InboxEmail | null;
   onUpdate: (id: string, updates: { estado?: string; respuestaFinal?: string }) => void;
@@ -61,11 +70,44 @@ function DetailPanel({ email, onUpdate, isPending, onBack }: DetailPanelProps) {
   const { t } = useTranslation();
   const [respuesta, setRespuesta] = useState('');
   const [copied, setCopied] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const sendRef = useRef<{
+    timeout: ReturnType<typeof setTimeout>;
+    tick: ReturnType<typeof setInterval>;
+    fire: () => void;
+  } | null>(null);
 
-  // Sync respuesta when email changes
+  function clearSend() {
+    if (!sendRef.current) return;
+    clearTimeout(sendRef.current.timeout);
+    clearInterval(sendRef.current.tick);
+    sendRef.current = null;
+    setCountdown(null);
+  }
+
+  function scheduleSend() {
+    if (!email || !respuesta.trim() || sendRef.current) return;
+    const id = email.id;
+    const body = respuesta;
+    const fire = () => {
+      clearSend();
+      onUpdate(id, { respuestaFinal: body });
+    };
+    setCountdown(SEND_DELAY_SECONDS);
+    sendRef.current = {
+      timeout: setTimeout(fire, SEND_DELAY_SECONDS * 1000),
+      tick: setInterval(() => setCountdown(c => (c === null ? null : c - 1)), 1000),
+      fire,
+    };
+  }
+
+  // Sync respuesta when email changes. Si hay un envio en vuelo al cambiar de
+  // email, se manda ya: la ventana de cancelacion solo aplica mientras el
+  // revisor tiene ese email delante, no debe perderse en silencio.
   const emailId = email?.id;
   useEffect(() => {
     setRespuesta(email?.respuestaFinal || '');
+    return () => { sendRef.current?.fire(); };
   }, [emailId]);
 
   async function handleCopy() {
@@ -165,24 +207,39 @@ function DetailPanel({ email, onUpdate, isPending, onBack }: DetailPanelProps) {
       {/* Response area */}
       <div className={styles.responseSection}>
         <label className={styles.responseLabel}>{t('inbox.respuestaFinal')}</label>
+        {email.respuestaEnviada && (
+          <div className={styles.sentBanner}>
+            <span>✅</span> {t('inbox.respuestaYaEnviada')}
+          </div>
+        )}
         <textarea
           className={styles.responseTextarea}
           value={respuesta}
           onChange={(e) => setRespuesta(e.target.value)}
           placeholder={t('inbox.respuestaFinal')}
           rows={4}
+          disabled={email.respuestaEnviada || countdown !== null}
         />
       </div>
 
       {/* Actions */}
       <div className={styles.detailActions}>
-        <button
-          className="btn-primary btn-sm"
-          onClick={() => onUpdate(email.id, { respuestaFinal: respuesta })}
-          disabled={isPending}
-        >
-          {isPending ? t('common.saving') : t('inbox.guardarRespuesta')}
-        </button>
+        {countdown !== null ? (
+          <div className={styles.sendingBanner}>
+            <span>📤 {t('inbox.enviandoEn')} {countdown}s</span>
+            <button className="btn-ghost btn-sm" onClick={clearSend}>
+              ↩ {t('inbox.cancelarEnvio')}
+            </button>
+          </div>
+        ) : (
+          <button
+            className="btn-primary btn-sm"
+            onClick={scheduleSend}
+            disabled={isPending || email.respuestaEnviada || !respuesta.trim()}
+          >
+            {isPending ? t('common.saving') : t('inbox.enviarRespuesta')}
+          </button>
+        )}
         <div className={styles.quickActions}>
           <button
             className="btn-ghost btn-sm"
@@ -228,6 +285,16 @@ const COLA_TABS: { key: ColaTab; label: string; icon: string; estado: EstadoEmai
 ];
 const TIPOS_EMAIL = ['disculpa', 'informacion', 'recordatorio', 'seguimiento', 'seguimiento_frio', 'bienvenida', 'felicitacion', 'urgente'];
 
+/**
+ * Estados del alumno que invalidan cualquier email que siguiera encolado: el
+ * alumno ya nos dijo que no, o le dijimos que no. Un email pendiente de aprobar
+ * desaparece de la cola en cuanto su alumno entra aqui, sin trigger ni limpieza
+ * — la cola es una intencion del pasado, el estado del alumno es la verdad de
+ * ahora. Lista deliberadamente corta: "Finalizado" NO entra, a un alumno que
+ * acabo el curso si puede interesarte escribirle.
+ */
+const ESTADOS_ALUMNO_SIN_EMAILS = ['Baja voluntaria', 'Rechazado'];
+
 function ColaSection() {
   const queryClient = useQueryClient();
   const { t } = useTranslation();
@@ -248,7 +315,9 @@ function ColaSection() {
   });
 
   const filteredCola = useMemo(() => {
-    let result = colaEmails;
+    let result = colaEmails.filter(
+      e => !e.estadoAlumno || !ESTADOS_ALUMNO_SIN_EMAILS.includes(e.estadoAlumno),
+    );
     if (filtrosTipo.size > 0) result = result.filter(e => filtrosTipo.has(e.tipo));
     if (!colaSearch.trim()) return result;
     const q = colaSearch.toLowerCase();
