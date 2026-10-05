@@ -14,9 +14,9 @@ import { useTranslation } from '@/i18n';
 import { useEdicion } from '@/context/EdicionContext';
 import { useSchema } from '@/hooks/useSchema';
 import { BulkComposeModal } from '@/components/BulkComposeModal';
-import { useOnboardingByAlumno } from '@/hooks/useOnboardingByAlumno';
+import { useOnboardingByAlumno, tshirtSizeRank } from '@/hooks/useOnboardingByAlumno';
 
-type AlumnoRow = Alumno & { tshirtSize?: string; tshirtName?: string };
+type AlumnoRow = Alumno & { tshirtSize?: string; tshirtSizeRank?: number; tshirtName?: string };
 
 const FILTER_STORAGE_KEY = 'proev_alumnos_filters';
 
@@ -115,7 +115,7 @@ export default function AlumnosPage() {
     queryFn: () => fetchAlumnos({}),
   });
 
-  const onboardingByAlumno = useOnboardingByAlumno();
+  const { byAlumno: onboardingByAlumno, isLoading: onboardingLoading, isError: onboardingError } = useOnboardingByAlumno();
 
   const { data: revisiones = [], isLoading: revisionesLoading } = useQuery({
     queryKey: ['revisiones', { edicionNombre: selectedNombre || undefined }],
@@ -177,9 +177,17 @@ export default function AlumnosPage() {
       ...a,
       estadoRevisionReciente: live ?? a.estadoRevisionReciente,
       tshirtSize: ob?.tshirtSize,
+      tshirtSizeRank: tshirtSizeRank(ob?.tshirtSize),
       tshirtName: ob?.tshirtName,
     };
   }), [filtered, latestRevisionByAlumno, onboardingByAlumno]);
+
+  // '—' must mean "no onboarding submitted", so never show it while loading or after a failed fetch.
+  const tshirtCell = useCallback((value?: string) => {
+    if (onboardingLoading) return <SkeletonBlock width="48px" height="16px" />;
+    if (onboardingError) return <span style={{ color: 'var(--color-text-muted)' }} title={t('alumnos.errorOnboarding')}>?</span>;
+    return <span style={{ color: value ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' }}>{value || '—'}</span>;
+  }, [onboardingLoading, onboardingError, t]);
 
   const columns = useMemo<Column<AlumnoRow>[]>(() => [
     {
@@ -216,12 +224,13 @@ export default function AlumnosPage() {
       render: (a) => <span style={{ color: 'var(--color-text-secondary)' }}>{a.moduloSolicitado || '—'}</span>,
     },
     {
-      key: 'tshirtSize', header: t('alumnos.tallaCamiseta'), width: '110px', sortable: true, minWidth: 80,
-      render: (a) => <span style={{ color: a.tshirtSize ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' }}>{a.tshirtSize || '—'}</span>,
+      // Keyed on the rank so sorting follows size order; the cell shows the size itself.
+      key: 'tshirtSizeRank', header: t('alumnos.tallaCamiseta'), width: '110px', sortable: true, minWidth: 80,
+      render: (a) => tshirtCell(a.tshirtSize),
     },
     {
       key: 'tshirtName', header: t('alumnos.nombreCamiseta'), width: '150px', sortable: true, minWidth: 100,
-      render: (a) => <span style={{ color: a.tshirtName ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' }}>{a.tshirtName || '—'}</span>,
+      render: (a) => tshirtCell(a.tshirtName),
     },
     {
       key: 'idioma', header: t('alumnos.idioma'), width: '80px', minWidth: 60, defaultHidden: true,
@@ -267,10 +276,15 @@ export default function AlumnosPage() {
       key: 'fechaPreinscripcion', header: t('alumnos.preinscripcion'), width: '130px', sortable: true, minWidth: 90, defaultHidden: true,
       render: (a) => <span style={{ fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>{a.fechaPreinscripcion || '—'}</span>,
     },
-  ], [t, revisionesLoading]);
+  ], [t, revisionesLoading, tshirtCell]);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)', flex: 1, minHeight: 0 }}>
+      {onboardingError && (
+        <div role="alert" style={{ padding: 'var(--space-md)', background: 'color-mix(in srgb, var(--color-accent-warning) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-accent-warning) 30%, transparent)', borderRadius: 'var(--radius-md)', color: 'var(--color-accent-warning)', fontSize: 'var(--font-size-sm)' }}>
+          {t('alumnos.errorOnboarding')}
+        </div>
+      )}
 
       {/* Filtro por estado (configurable chips with drag & drop) */}
       <div style={{ display: 'flex', gap: 'var(--space-sm)', flexWrap: 'wrap', alignItems: 'center' }}>

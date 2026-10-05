@@ -2,10 +2,10 @@
  * Portal de Pagos — KPIs financieros + tabla de pagos filtrable.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, Column } from '@/components/shared';
+import { KPICard, KPIGrid, KPICardSkeleton, DataTable, StatusBadge, SkeletonBlock, Column } from '@/components/shared';
 import { fetchPagos } from '@/data/adapters';
 import { Pago, EstadoPago } from '@/types';
 import { formatCurrency, formatDate, formatNumber } from '@/utils/formatters';
@@ -13,9 +13,9 @@ import { useTranslation } from '@/i18n';
 import { ESTADO_PAGO } from '@/utils/constants';
 import { useEdicion } from '@/context/EdicionContext';
 import { resolveEdicionByDate, pagosDeEdicion } from '@/lib/resolveEdicion';
-import { useOnboardingByAlumno } from '@/hooks/useOnboardingByAlumno';
+import { useOnboardingByAlumno, tshirtSizeRank } from '@/hooks/useOnboardingByAlumno';
 
-type PagoRow = Pago & { tshirtSize?: string; tshirtName?: string };
+type PagoRow = Pago & { tshirtSize?: string; tshirtSizeRank?: number; tshirtName?: string };
 
 const ESTADOS_PAGO: EstadoPago[] = [
   ESTADO_PAGO.PENDIENTE, ESTADO_PAGO.PAGADO, ESTADO_PAGO.FALLIDO, ESTADO_PAGO.REEMBOLSADO,
@@ -31,7 +31,7 @@ export default function PagosPage() {
     queryKey: ['pagos'],
     queryFn: () => fetchPagos({}),
   });
-  const onboardingByAlumno = useOnboardingByAlumno();
+  const { byAlumno: onboardingByAlumno, isLoading: onboardingLoading, isError: onboardingError } = useOnboardingByAlumno();
 
   // Filter payments to the selected edition using date-window inference.
   // Payments without a date are excluded from specific editions (shown only in all-editions view).
@@ -62,8 +62,15 @@ export default function PagosPage() {
   // Overlay onboarding t-shirt answers by alumno so the columns sort like any other field.
   const tableData = useMemo<PagoRow[]>(() => pagosFiltrados.map(p => {
     const ob = p.alumnoId ? onboardingByAlumno.get(p.alumnoId) : undefined;
-    return { ...p, tshirtSize: ob?.tshirtSize, tshirtName: ob?.tshirtName };
+    return { ...p, tshirtSize: ob?.tshirtSize, tshirtSizeRank: tshirtSizeRank(ob?.tshirtSize), tshirtName: ob?.tshirtName };
   }), [pagosFiltrados, onboardingByAlumno]);
+
+  // '—' must mean "no onboarding submitted", so never show it while loading or after a failed fetch.
+  const tshirtCell = useCallback((value?: string) => {
+    if (onboardingLoading) return <SkeletonBlock width="48px" height="16px" />;
+    if (onboardingError) return <span style={{ color: 'var(--color-text-muted)' }} title={t('alumnos.errorOnboarding')}>?</span>;
+    return <span style={{ color: value ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' }}>{value || '—'}</span>;
+  }, [onboardingLoading, onboardingError, t]);
 
   const columns = useMemo<Column<PagoRow>[]>(() => [
     {
@@ -99,12 +106,13 @@ export default function PagosPage() {
       render: (p) => <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{formatDate(p.fechaPago)}</span>,
     },
     {
-      key: 'tshirtSize', header: t('alumnos.tallaCamiseta'), width: '110px', sortable: true, minWidth: 80,
-      render: (p) => <span style={{ color: p.tshirtSize ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' }}>{p.tshirtSize || '—'}</span>,
+      // Keyed on the rank so sorting follows size order; the cell shows the size itself.
+      key: 'tshirtSizeRank', header: t('alumnos.tallaCamiseta'), width: '110px', sortable: true, minWidth: 80,
+      render: (p) => tshirtCell(p.tshirtSize),
     },
     {
       key: 'tshirtName', header: t('alumnos.nombreCamiseta'), width: '150px', sortable: true, minWidth: 100,
-      render: (p) => <span style={{ color: p.tshirtName ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' }}>{p.tshirtName || '—'}</span>,
+      render: (p) => tshirtCell(p.tshirtName),
     },
     {
       key: 'linkRecibo', header: 'Recibo', width: '80px',
@@ -112,13 +120,18 @@ export default function PagosPage() {
         <a href={p.linkRecibo} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem' }}>Ver →</a>
       ) : <span style={{ color: 'var(--color-text-muted)' }}>—</span>,
     },
-  ], [t, ediciones]);
+  ], [t, ediciones, tshirtCell]);
 
   return (
     <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-lg)', flex: 1, minHeight: 0 }}>
       {isError && (
         <div role="alert" style={{ padding: "var(--space-md)", background: "color-mix(in srgb, var(--color-accent-danger) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-accent-danger) 30%, transparent)", borderRadius: "var(--radius-md)", color: "var(--color-accent-danger)", fontSize: "var(--font-size-sm)", marginBottom: "var(--space-md)" }}>
           Error al cargar los pagos. Comprueba tu conexion e intentalo de nuevo.
+        </div>
+      )}
+      {onboardingError && (
+        <div role="alert" style={{ padding: 'var(--space-md)', background: 'color-mix(in srgb, var(--color-accent-warning) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-accent-warning) 30%, transparent)', borderRadius: 'var(--radius-md)', color: 'var(--color-accent-warning)', fontSize: 'var(--font-size-sm)' }}>
+          {t('alumnos.errorOnboarding')}
         </div>
       )}
       <KPIGrid columns={4}>
