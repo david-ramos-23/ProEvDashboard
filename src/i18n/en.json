@@ -88,6 +88,7 @@
     "tallaCamiseta": "T-shirt size",
     "tipoCamiseta": "T-shirt kind",
     "nombreCamiseta": "Name on the t-shirt",
+    "errorOnboarding": "Could not load onboarding data: t-shirt size and name are unavailable.",
     "idiomaLibro": "Welcome book language",
     "consentimientoInstagram": "Instagram permission",
     "usuarioInstagram": "Instagram username",

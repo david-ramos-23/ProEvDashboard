@@ -88,6 +88,7 @@
     "tallaCamiseta": "Talla de camiseta",
     "tipoCamiseta": "Tipo de camiseta",
     "nombreCamiseta": "Nombre en la camiseta",
+    "errorOnboarding": "No se pudieron cargar los datos de onboarding: la talla y el nombre de camiseta no están disponibles.",
     "idiomaLibro": "Idioma del libro de bienvenida",
     "consentimientoInstagram": "Permiso Instagram",
     "usuarioInstagram": "Usuario de Instagram",
