@@ -13,6 +13,9 @@ import { useTranslation } from '@/i18n';
 import { ESTADO_PAGO } from '@/utils/constants';
 import { useEdicion } from '@/context/EdicionContext';
 import { resolveEdicionByDate, pagosDeEdicion } from '@/lib/resolveEdicion';
+import { useOnboardingByAlumno } from '@/hooks/useOnboardingByAlumno';
+
+type PagoRow = Pago & { tshirtSize?: string; tshirtName?: string };
 
 const ESTADOS_PAGO: EstadoPago[] = [
   ESTADO_PAGO.PENDIENTE, ESTADO_PAGO.PAGADO, ESTADO_PAGO.FALLIDO, ESTADO_PAGO.REEMBOLSADO,
@@ -28,6 +31,7 @@ export default function PagosPage() {
     queryKey: ['pagos'],
     queryFn: () => fetchPagos({}),
   });
+  const onboardingByAlumno = useOnboardingByAlumno();
 
   // Filter payments to the selected edition using date-window inference.
   // Payments without a date are excluded from specific editions (shown only in all-editions view).
@@ -55,7 +59,13 @@ export default function PagosPage() {
     return result;
   }, [pagosEdicion, filtrosEstado, busqueda]);
 
-  const columns = useMemo<Column<Pago>[]>(() => [
+  // Overlay onboarding t-shirt answers by alumno so the columns sort like any other field.
+  const tableData = useMemo<PagoRow[]>(() => pagosFiltrados.map(p => {
+    const ob = p.alumnoId ? onboardingByAlumno.get(p.alumnoId) : undefined;
+    return { ...p, tshirtSize: ob?.tshirtSize, tshirtName: ob?.tshirtName };
+  }), [pagosFiltrados, onboardingByAlumno]);
+
+  const columns = useMemo<Column<PagoRow>[]>(() => [
     {
       key: 'alumnoNombre', header: t('alumnos.alumno'), width: '180px', sortable: true, minWidth: 120,
       render: (p) => p.alumnoId
@@ -87,6 +97,14 @@ export default function PagosPage() {
     {
       key: 'fechaPago', header: t('pagos.fecha'), width: '120px', sortable: true, minWidth: 90,
       render: (p) => <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>{formatDate(p.fechaPago)}</span>,
+    },
+    {
+      key: 'tshirtSize', header: t('alumnos.tallaCamiseta'), width: '110px', sortable: true, minWidth: 80,
+      render: (p) => <span style={{ color: p.tshirtSize ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' }}>{p.tshirtSize || '—'}</span>,
+    },
+    {
+      key: 'tshirtName', header: t('alumnos.nombreCamiseta'), width: '150px', sortable: true, minWidth: 100,
+      render: (p) => <span style={{ color: p.tshirtName ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' }}>{p.tshirtName || '—'}</span>,
     },
     {
       key: 'linkRecibo', header: 'Recibo', width: '80px',
@@ -146,7 +164,7 @@ export default function PagosPage() {
       <DataTable
         tableId="pagos"
         columns={columns}
-        data={pagosFiltrados}
+        data={tableData}
         isLoading={isLoading}
         emptyMessage={t('pagos.sinPagos')}
         emptyIcon="💳"

@@ -14,6 +14,9 @@ import { useTranslation } from '@/i18n';
 import { useEdicion } from '@/context/EdicionContext';
 import { useSchema } from '@/hooks/useSchema';
 import { BulkComposeModal } from '@/components/BulkComposeModal';
+import { useOnboardingByAlumno } from '@/hooks/useOnboardingByAlumno';
+
+type AlumnoRow = Alumno & { tshirtSize?: string; tshirtName?: string };
 
 const FILTER_STORAGE_KEY = 'proev_alumnos_filters';
 
@@ -112,6 +115,8 @@ export default function AlumnosPage() {
     queryFn: () => fetchAlumnos({}),
   });
 
+  const onboardingByAlumno = useOnboardingByAlumno();
+
   const { data: revisiones = [], isLoading: revisionesLoading } = useQuery({
     queryKey: ['revisiones', { edicionNombre: selectedNombre || undefined }],
     queryFn: () => fetchRevisiones({ edicionNombre: selectedNombre || undefined }),
@@ -163,13 +168,20 @@ export default function AlumnosPage() {
     return result;
   }, [alumnos, selectedNombre, filtrosEstado, search]);
 
-  // Overlay live revision estado onto each alumno for the Estado Vídeo column
-  const tableData = useMemo(() => filtered.map(a => {
+  // Overlay live revision estado (Estado Vídeo) and onboarding t-shirt answers.
+  // Only alumnos who submitted the onboarding form have t-shirt data; the rest render '—'.
+  const tableData = useMemo<AlumnoRow[]>(() => filtered.map(a => {
     const live = latestRevisionByAlumno.get(a.id);
-    return live ? { ...a, estadoRevisionReciente: live } : a;
-  }), [filtered, latestRevisionByAlumno]);
+    const ob = onboardingByAlumno.get(a.id);
+    return {
+      ...a,
+      estadoRevisionReciente: live ?? a.estadoRevisionReciente,
+      tshirtSize: ob?.tshirtSize,
+      tshirtName: ob?.tshirtName,
+    };
+  }), [filtered, latestRevisionByAlumno, onboardingByAlumno]);
 
-  const columns = useMemo<Column<Alumno>[]>(() => [
+  const columns = useMemo<Column<AlumnoRow>[]>(() => [
     {
       key: 'nombre', header: t('alumnos.alumno'), width: '200px', sortable: true, minWidth: 140,
       render: (a) => (
@@ -202,6 +214,14 @@ export default function AlumnosPage() {
     {
       key: 'moduloSolicitado', header: t('alumnos.modulo'), width: '120px', sortable: true, minWidth: 100,
       render: (a) => <span style={{ color: 'var(--color-text-secondary)' }}>{a.moduloSolicitado || '—'}</span>,
+    },
+    {
+      key: 'tshirtSize', header: t('alumnos.tallaCamiseta'), width: '110px', sortable: true, minWidth: 80,
+      render: (a) => <span style={{ color: a.tshirtSize ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' }}>{a.tshirtSize || '—'}</span>,
+    },
+    {
+      key: 'tshirtName', header: t('alumnos.nombreCamiseta'), width: '150px', sortable: true, minWidth: 100,
+      render: (a) => <span style={{ color: a.tshirtName ? 'var(--color-text-secondary)' : 'var(--color-text-muted)' }}>{a.tshirtName || '—'}</span>,
     },
     {
       key: 'idioma', header: t('alumnos.idioma'), width: '80px', minWidth: 60, defaultHidden: true,
