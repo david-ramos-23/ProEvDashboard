@@ -406,7 +406,7 @@ export function DataTable<T extends { id: string }>({
                 {visibleColumns.map((col) => (
                   <th
                     key={col.key}
-                    style={{ width: colWidths[col.key] ? `${colWidths[col.key]}px` : col.width, position: 'relative', minWidth: col.minWidth ?? 60 }}
+                    style={{ width: colWidths[col.key] ? `${colWidths[col.key]}px` : col.width, minWidth: col.minWidth ?? 60 }}
                     className={col.sortable ? styles.sortableHeader : undefined}
                     onClick={col.sortable ? () => handleSort(col.key) : undefined}
                   >
